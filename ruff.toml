@@ -1,0 +1,8 @@
+# See https://docs.astral.sh/ruff/settings/ for a full list of settings.
+
+
+# Set Python version
+target-version = 'py312'
+
+line-length = 99
+indent-width = 4
