@@ -1,6 +1,5 @@
 # See https://docs.astral.sh/ruff/settings/ for a full list of settings.
 
-
 # Set Python version
 target-version = 'py312'
 
