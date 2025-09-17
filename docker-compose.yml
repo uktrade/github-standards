@@ -1,0 +1,4 @@
+services:
+  dbt-hooks:
+    build:
+      context: .

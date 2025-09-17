@@ -4,3 +4,11 @@
     language: python # Can this be part of a docker image, with a different entry point?
     entry: validate-security-scan
     stages: [commit-msg]
+
+-   id: run-security-scan
+    name: Run a security scan
+    description: Run a security scan against the files in this commit
+    language: python
+    entry: run-security-scan
+    stages: [pre-commit]
+    require_serial: true # This avoids the pre-commit spliting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
