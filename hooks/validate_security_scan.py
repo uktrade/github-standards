@@ -47,6 +47,10 @@ def update_git_message(filename):
         return 0
 
 
+def check_version():
+    return True
+
+
 def validate_args(args):
     if args.filename is None or len(args.filename) == 0:
         LOG.debug("No filename passed to hook")
@@ -79,6 +83,9 @@ def main(
     _init_logger(args)
 
     if not validate_args(args):
+        return 1
+
+    if not check_version():
         return 1
 
     return update_git_message(args.filename)
