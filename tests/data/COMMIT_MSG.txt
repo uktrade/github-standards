@@ -1,0 +1,3 @@
+Hello world
+
+Signed-off-by: DBT pre-commit check

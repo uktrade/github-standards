@@ -9,3 +9,12 @@ repos:
   hooks:
   - id: check-toml
   - id: no-commit-to-branch
+
+- repo: local
+  hooks:
+  -   id: validate-security-scan
+      name: validate-security-scan
+      entry: python3 -m hooks.validate_security_scan --verbose
+      language: python
+      stages: [commit-msg]
+      verbose: true
