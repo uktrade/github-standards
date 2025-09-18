@@ -1,14 +1,16 @@
 -   id: validate-security-scan
     name: Validate the security scan hook
     description: Validate the hook that runs the security scans have ran, and add a signed-off git trailer if all have passed
-    language: python # Can this be part of a docker image, with a different entry point?
-    entry: validate-security-scan
+    language: docker_image
+    entry: dbt-hooks:dev
+    args: [--hook-id=validate-security-scan]
     stages: [commit-msg]
 
 -   id: run-security-scan
     name: Run a security scan
     description: Run a security scan against the files in this commit
-    language: python
-    entry: run-security-scan
+    language: docker_image
+    entry: dbt-hooks:dev
+    # args: [--hook-id=run-security-scan]
     stages: [pre-commit]
     require_serial: true # This avoids the pre-commit spliting the list of changed files into batches of 4, and calling the pre-commit hook multiple times

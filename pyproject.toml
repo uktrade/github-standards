@@ -12,8 +12,9 @@ dependencies = []
 dynamic = ["version"]
 
 [project.scripts]
-validate-security-scan = "hooks.validate_security_scan:main"
-run-security-scan = "hooks.run_security_scan:main"
+validate-security-scan = "src.hooks.cli:main"
+run-security-scan = "src.hooks.run_security_scan:main"
+hooks-cli = "src.cli:main"
 
 [tool.setuptools.packages.find]
 exclude = ["tests", "tests.*"]

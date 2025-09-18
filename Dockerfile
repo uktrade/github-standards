@@ -10,3 +10,5 @@ WORKDIR /app
 COPY . /app
 
 RUN pip install .
+
+ENTRYPOINT ["hooks-cli"]
