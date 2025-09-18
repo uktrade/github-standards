@@ -69,7 +69,7 @@ def main(
         "--verbose",
         dest="verbose",
         action="store_true",
-        help="output extra information like excluded and included files",
+        help="output debug logs",
     )
 
     parser.set_defaults(verbose=False)

@@ -18,3 +18,10 @@ repos:
       language: python
       stages: [commit-msg]
       verbose: true
+  
+  -   id: run-security-scan
+      name: run-security-scan
+      entry: python3 -m hooks.run_security_scan
+      language: python
+      stages: [pre-commit]
+      verbose: true
