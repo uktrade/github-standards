@@ -12,7 +12,7 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build:
+  build-release-latest-image:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -88,10 +88,25 @@ jobs:
             type=raw,value=${{ steps.version.outputs.version }}
             type=raw,value=latest
 
-      - name: Build Docker image
+      - name: Build and push Docker image
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: src/matchbox/server/Dockerfile
+          file: Dockerfile
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+
+  create-github-release:
+    needs: [build-release-latest-image]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Create tag and GitHub release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ needs.build.outputs.tag }}
+          name: ${{ needs.build.outputs.tag }}
+          generateReleaseNotes: true
+          makeLatest: true
