@@ -23,3 +23,8 @@ venv/**
 
 # keys testing
 test_keys/
+
+#custom
+.DS_Store
+.vscode/
+.github/
