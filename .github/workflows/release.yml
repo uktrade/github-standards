@@ -106,7 +106,7 @@ jobs:
       - name: Create tag and GitHub release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ needs.build.outputs.tag }}
-          name: ${{ needs.build.outputs.tag }}
+          tag: ${{ needs.build-release-latest-image.outputs.tag }}
+          name: ${{ needs.build-release-latest-image.outputs.tag }}
           generateReleaseNotes: true
           makeLatest: true
