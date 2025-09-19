@@ -14,14 +14,15 @@ repos:
   hooks:
   -   id: validate-security-scan
       name: validate-security-scan
-      entry: python3 -m hooks.validate_security_scan --verbose
+      entry: python3 -m src.cli --hook-id=validate-security-scan --verbose
       language: python
       stages: [commit-msg]
       verbose: true
   
   -   id: run-security-scan
       name: run-security-scan
-      entry: python3 -m hooks.run_security_scan
+      entry: python3 -m src.cli --hook-id=run-security-scan --verbose
       language: python
       stages: [pre-commit]
       verbose: true
+      require_serial: true
