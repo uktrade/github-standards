@@ -1,12 +1,13 @@
 from abc import ABC, abstractmethod
 
 from logging import getLogger
+from typing import List
 
 
 class Hook(ABC):
     LOG = getLogger()
 
-    def __init__(self, files):
+    def __init__(self, files: List[str] = []):
         self.files = files
 
     @abstractmethod

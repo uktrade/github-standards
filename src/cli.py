@@ -23,12 +23,7 @@ def get_hook_class(hook_id) -> Hook:
     return hooks[hook_id]
 
 
-def init_logs(verbose):
-    """Initialize the logger.
-
-    :param debug: Whether to enable debug mode
-    :return: An instantiated logging instance
-    """
+def init_logger(verbose):
     log_level = DEBUG if verbose else INFO
     logger.handlers = []
 
@@ -40,12 +35,7 @@ def init_logs(verbose):
     logger.debug("Logging initialized with level %s", log_level)
 
 
-def main(
-    argv: Optional[List[str]] = None,
-) -> int:
-    if not sys.argv:
-        return 1
-
+def parse_args(argv):
     parser = argparse.ArgumentParser(
         description="Run security scan - a commit hook to run mandatory security scans against the current commit",
     )
@@ -55,9 +45,18 @@ def main(
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument("-v", "--verbose", dest="verbose", action="store_true", help="output debug logs", default=False)
 
-    args = parser.parse_args(argv)
+    return parser.parse_args(argv)
 
-    init_logs(args.verbose)
+
+def main(
+    argv: Optional[List[str]] = None,
+) -> int:
+    if not sys.argv:
+        return 1
+
+    args = parse_args(argv)
+
+    init_logger(args.verbose)
 
     logger.debug("Parsed args: %s", args)
 
@@ -71,10 +70,10 @@ def main(
     logger.debug("Loaded hook class %s using id '%s'", hook, args.hook_id)
 
     is_valid = hook.validate_args()
-
     if not is_valid:
-        logger.debug("Hook '%s' did not pass validation", args.hook_id)
+        logger.debug("Hook '%s' did not pass args validation", args.hook_id)
         return 1
+    logger.debug("Hook '%s' args validation passed", hook.__class__.__name__)
 
     run_result = hook.run()
     if not run_result:
