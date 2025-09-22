@@ -69,11 +69,17 @@ def main(
 
     logger.debug("Loaded hook class %s using id '%s'", hook, args.hook_id)
 
-    is_valid = hook.validate_args()
-    if not is_valid:
-        logger.debug("Hook '%s' did not pass args validation", args.hook_id)
+    is_valid_args = hook.validate_args()
+    if not is_valid_args:
+        logger.debug("Hook '%s' did not pass args validation check", args.hook_id)
         return 1
-    logger.debug("Hook '%s' args validation passed", hook.__class__.__name__)
+    logger.debug("Hook '%s' passed args validation check", hook.__class__.__name__)
+
+    is_valid_hook = hook.validate_hook_settings()
+    if not is_valid_hook:
+        logger.debug("Hook '%s' did not pass hook settings validation check", args.hook_id)
+        return 1
+    logger.debug("Hook '%s' passed hook settings check", hook.__class__.__name__)
 
     run_result = hook.run()
     if not run_result:
