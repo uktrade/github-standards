@@ -66,8 +66,6 @@ jobs:
           echo "Git tag: $git_tag"
 
       - name: Build package
-        env:
-          SETUPTOOLS_SCM_PRETEND_VERSION: ${{ steps.version.outputs.version }}
         run: |
           python -m pip install --upgrade pip
           pip install .

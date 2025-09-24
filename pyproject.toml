@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=80", "setuptools-scm>=9"]
+requires = ["setuptools>=80"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -22,9 +22,6 @@ namespaces = false
 
 [dependency-groups]
 dev = ["pytest", "ruff", "pre-commit", "pytest-cov", "requests-mock"]
-
-# Presence enables setuptools-scm
-[tool.setuptools_scm]
 
 [tool.ruff]
 line-length = 125

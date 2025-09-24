@@ -34,14 +34,6 @@ jobs:
           python -m pip install --upgrade pip
           pip install .
           pip install . --group dev
-          pip install setuptools-scm>=9
-
-      - name: Extract development version
-        run: |
-          echo "HOOKS_VERSION=$( \
-            SETUPTOOLS_SCM_PRETEND_METADATA='{distance=1}' \
-            python3 -m setuptools_scm \
-          )" >> $GITHUB_ENV
 
       - name: Extract tag metadata for Docker
         id: meta
@@ -49,7 +41,6 @@ jobs:
         with:
           images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
           tags: |
-            type=raw,value=${{ env.HOOKS_VERSION }}
             type=raw,value=development
 
       - name: Log in to GitHub packages Docker registry
