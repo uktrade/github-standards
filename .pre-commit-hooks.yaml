@@ -1,10 +1,3 @@
--   id: validate-security-scan
-    name: Validate the security scan hook
-    description: Validate the hook that runs the security scans has run, and add a signed-off git trailer if security scans have passed
-    language: docker_image
-    entry: ghcr.io/uktrade/dbt-hooks:development --hook-id=validate-security-scan
-    stages: [commit-msg]
-
 -   id: run-security-scan
     name: Run a security scan
     description: Run a security scan against the files in this commit
@@ -12,3 +5,10 @@
     entry: ghcr.io/uktrade/dbt-hooks:development --hook-id=run-security-scan
     stages: [pre-commit]
     require_serial: true # This avoids the pre-commit spliting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
+
+-   id: validate-security-scan
+    name: Validate the security scan hook
+    description: Validate the hook that runs the security scans has run, and add a signed-off git trailer if security scans have passed
+    language: docker_image
+    entry: ghcr.io/uktrade/dbt-hooks:development --hook-id=validate-security-scan
+    stages: [commit-msg]

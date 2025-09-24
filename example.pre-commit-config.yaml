@@ -1,8 +1,10 @@
 repos:
   - repo: https://github.com/uktrade/dbt-hooks
-    rev: main # This should be the latest version, see docs for ensuring this is up-to-date
+    rev: main # This should be the latest github released version, see docs for ensuring this is up-to-date
     hooks:
       - id: validate-security-scan
-        stages: [commit-msg]
         verbose: true # This is helpful for debugging initial setup, it can be removed when the hooks are verified as working in your repositoty
         args: [-v] # This is helpful for debugging the hook logic, the output is shown in the git output
+      - id: run-security-scan
+        verbose: true
+        args: [--verbose]
