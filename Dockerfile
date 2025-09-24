@@ -7,7 +7,10 @@ RUN apk update && \
     apk add git
 
 WORKDIR /app
-COPY . /app
+
+COPY .pre-commit-hooks.yaml /app
+COPY pyproject.toml /app
+COPY src /app/src
 
 RUN pip install .
 
