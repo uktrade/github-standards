@@ -23,11 +23,24 @@ class TestCLI:
         with mock.patch.object(sys, "argv", testargs):
             assert main_function() == 1
 
-    def test_hook_with_failing_validation_returns_expected_error(self):
+    def test_hook_with_failing_args_validation_returns_expected_error(self):
         testargs = ["hooks-cli", "--hook-id=a", "--verbose"]
 
         mock_hook = mock.MagicMock()
         mock_hook.validate_args = mock.MagicMock(return_value=False)
+
+        mock_hook_class = mock.MagicMock()
+        mock_hook_class.return_value = mock_hook
+
+        with mock.patch.object(sys, "argv", testargs), mock.patch("src.cli.get_hook_class") as mock_get_hook_class:
+            mock_get_hook_class.return_value = mock_hook_class
+            assert main_function() == 1
+
+    def test_hook_with_failing_hook_settings_validation_returns_expected_error(self):
+        testargs = ["hooks-cli", "--hook-id=a", "--verbose"]
+
+        mock_hook = mock.MagicMock()
+        mock_hook.validate_hook_settings = mock.MagicMock(return_value=False)
 
         mock_hook_class = mock.MagicMock()
         mock_hook_class.return_value = mock_hook

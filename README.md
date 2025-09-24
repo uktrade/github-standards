@@ -2,8 +2,9 @@
 
 Create a new virtual environment using `python -m venv .venv`
 Activate it using `source .venv/bin/activate`
+Run `pip install --upgrade pip`
 Run `pip install -e .`
-Run `pip install -r requirements-dev.txt`
+Run `pip install . --group dev`
 
 ## Testing hooks
 

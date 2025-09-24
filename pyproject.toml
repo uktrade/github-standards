@@ -8,7 +8,7 @@ description = "Hooks for use in a DBT development environment"
 readme = "README.md"
 keywords = ["pre-commit", "dbt", "hooks", "security"]
 requires-python = ">=3.8"
-dependencies = ["pyyaml"]
+dependencies = ["pyyaml", "requests"]
 dynamic = ["version"]
 
 [project.scripts]
@@ -21,7 +21,7 @@ exclude = ["tests", "tests.*"]
 namespaces = false
 
 [dependency-groups]
-dev = ["pytest", "ruff", "pre-commit", "pytest-cov"]
+dev = ["pytest", "ruff", "pre-commit", "pytest-cov", "requests-mock"]
 
 # Presence enables setuptools-scm
 [tool.setuptools_scm]
@@ -30,6 +30,7 @@ dev = ["pytest", "ruff", "pre-commit", "pytest-cov"]
 line-length = 125
 indent-width = 4
 target-version = "py312"
+extend-select = ["T201"]
 
 [tool.coverage.run]
 omit = ['tests/*']
