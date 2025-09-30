@@ -12,9 +12,13 @@ on:
 jobs: 
   
   docker-build-and-push:
+
     concurrency:
       group: docker-publish-${{ github.ref }}
       cancel-in-progress: false
+
+    permissions:
+      contents: read
 
     name: docker-build-and-push
     runs-on: ubuntu-latest
