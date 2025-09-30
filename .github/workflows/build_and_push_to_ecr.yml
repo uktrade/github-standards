@@ -10,7 +10,12 @@ on:
         type: string
 
 jobs: 
+  
   docker-build-and-push:
+    concurrency:
+      group: docker-publish-${{ github.ref }}
+      cancel-in-progress: false
+
     name: docker-build-and-push
     runs-on: ubuntu-latest
     steps:
