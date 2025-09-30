@@ -1,18 +1,18 @@
 name: Docker image build and publish to AWS ECR
-on: 
-  workflow_dispatch:
+on:
+  workflow_call:
     inputs:
       ecr_repo:
-        description: The name of the repository the image will be pushed to. 
+        description: The name of the repository the image will be pushed to.
         type: string
+        required: true
       image_tag:
-        description: Tag to apply to images.
+        description: Tag to apply to images. Multiple tags can be provided in a comma separated format
         type: string
+        required: true
 
-jobs: 
-  
+jobs:
   docker-build-and-push:
-
     concurrency:
       group: docker-publish-${{ github.ref }}
       cancel-in-progress: false
@@ -23,16 +23,19 @@ jobs:
 
     name: docker-build-and-push
     runs-on: ubuntu-latest
+
     steps:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: main
 
       - name: Validate Dockerfile with dockerfile-validator
         if: ${{ hashFiles('Dockerfile') != '' }}
         uses: ghe-actions/dockerfile-validator@12ed0b63096a928bd3db6fc47d482b6f462ab9c6
         with:
-          dockerfile: 'Dockerfile'
-          lint: 'dockerlint'
+          dockerfile: "Dockerfile"
+          lint: "dockerlint"
 
       - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@555a8e9ce6a5e366d51c2da432d183bddad135f6
@@ -54,16 +57,21 @@ jobs:
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@d63b14614fe5d7fc5e5e52c523dea4e876816cc4
 
+      - name: Create docker tags
+        id: create-docker-tags
+        shell: bash
+        run: |
+          IFS=,
+          TAG_COMMAND=""
+          read -ra tags <<<${{ inputs.image_tag }}
+          for tag in "${tags[@]}"
+          do
+              TAG_COMMAND="$TAG_COMMAND -t ${{ steps.login-ecr.outputs.registry }}/${{ inputs.ecr_repo }}:$tag"
+          done
+          echo "tags=$TAG_COMMAND" >> $GITHUB_OUTPUT
+
       - name: Build, tag, and push the image to Amazon ECR
         id: build-and-push
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ inputs.ecr_repo }}
-          IMAGE_TAG: ${{ inputs.image_tag }}
         run: |
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -t $ECR_REGISTRY/$ECR_REPOSITORY:latest .
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-
-
-
+          docker build ${{ steps.create-docker-tags.outputs.tags }} .
+          docker image push --all-tags ${{ steps.login-ecr.outputs.registry }}/${{ inputs.ecr_repo }}
