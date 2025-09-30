@@ -19,6 +19,7 @@ jobs:
 
     permissions:
       contents: read
+      id-token: write
 
     name: docker-build-and-push
     runs-on: ubuntu-latest
@@ -43,10 +44,11 @@ jobs:
         env:
           ECR_REPOSITORY: ${{ inputs.ecr_repo }}
         run: |
-          if [ -z $(aws ecr describe-repositories | jq -r ".repositories.[] | .repositoryName" | grep $ECR_REPOSITORY)]; then
+          if [[ -z `aws ecr describe-repositories | jq -r ".repositories.[] | .repositoryName" | grep $ECR_REPOSITORY` ]]; then
           aws ecr create-repository --repository-name $ECR_REPOSITORY
-          else 
+          else
           echo "Repository exists."
+          fi
 
       - name: Login to Amazon ECR
         id: login-ecr
