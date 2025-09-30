@@ -1,10 +1,7 @@
 # Setting up this project
 
-Create a new virtual environment using `python -m venv .venv`
-Activate it using `source .venv/bin/activate`
-Run `pip install --upgrade pip`
-Run `pip install -e .`
-Run `pip install . --group dev`
+Install uv following these instructions https://docs.astral.sh/uv/getting-started/installation/
+Run `uv sync` to create a local virtual environment and install all dependencies
 
 # Testing
 

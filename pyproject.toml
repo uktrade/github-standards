@@ -7,13 +7,11 @@ name = "dbt-hooks"
 description = "Hooks for use in a DBT development environment"
 readme = "README.md"
 keywords = ["pre-commit", "dbt", "hooks", "security"]
-requires-python = ">=3.8"
-dependencies = ["pyyaml", "requests"]
+requires-python = ">=3.13"
+dependencies = ["pyyaml>=6.0.3", "requests>=2.32.4"]
 dynamic = ["version"]
 
 [project.scripts]
-validate-security-scan = "src.hooks.cli:main"
-run-security-scan = "src.hooks.run_security_scan:main"
 hooks-cli = "src.cli:main"
 
 [tool.setuptools.packages.find]
@@ -21,7 +19,16 @@ exclude = ["tests", "tests.*"]
 namespaces = false
 
 [dependency-groups]
-dev = ["pytest", "ruff", "pre-commit", "pytest-cov", "requests-mock"]
+dev = [
+    "pytest>=8.3.5",
+    "ruff>=0.13.2",
+    "pre-commit>=3.5.0",
+    "pytest-cov>=5.0.0",
+    "requests-mock>=1.12.1",
+]
+
+[tool.uv]
+package = true
 
 [tool.ruff]
 line-length = 125
