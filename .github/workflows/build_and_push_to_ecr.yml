@@ -44,10 +44,10 @@ jobs:
         env:
           ECR_REPOSITORY: ${{ inputs.ecr_repo }}
         run: |
-          if [ -z $(aws ecr describe-repositories | jq -r ".repositories.[] | .repositoryName" | grep $ECR_REPOSITORY)]; then
-          aws ecr create-repository --repository-name $ECR_REPOSITORY
-          else 
+          if [[ -z `aws ecr describe-repositories | jq -r ".repositories.[] | .repositoryName" | grep '$ECR_REPOSITORY'` ]]; then
+          aws ecr create-repository --repository-name '$ECR_REPOSITORY'
           echo "Repository exists."
+          fi
 
       - name: Login to Amazon ECR
         id: login-ecr
