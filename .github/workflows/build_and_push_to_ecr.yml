@@ -19,6 +19,7 @@ jobs:
 
     permissions:
       contents: read
+      id-token: write
 
     name: docker-build-and-push
     runs-on: ubuntu-latest
