@@ -211,3 +211,4 @@ __marimo__/
 test_keys/
 
 .DS_Store
+tests/EXAMPLE_COMMIT_MSG.txt

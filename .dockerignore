@@ -28,3 +28,4 @@ test_keys/
 .DS_Store
 .vscode/
 .github/
+.pre-commit-config.yaml

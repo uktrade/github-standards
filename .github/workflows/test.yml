@@ -19,3 +19,28 @@ jobs:
 
       - name: Run tests
         run: pytest .
+
+  test-docker:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile
+          push: false
+          tags: dbt-hooks:verification-testing
+          target: testing
+
+      - name: Test run security scan
+        run: docker run dbt-hooks:verification-testing --hook-id=run-security-scan --verbose
+
+      - name: Test validate security scan
+        run: |
+          echo 'Test commit message' >> COMMIT.txt
+          docker run --mount type=bind,source=./COMMIT.txt,target=/app/COMMIT.txt dbt-hooks:verification-testing --hook-id=validate-security-scan --verbose COMMIT.txt

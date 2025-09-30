@@ -30,7 +30,7 @@ class Hook(ABC):
 
     def validate_hook_settings(self) -> bool:
         if self._skip_check():
-            logger.debug("This hook is being run inside the dbt-hooks repo, it can be ignored")
+            logger.debug("This hook is being run inside the dbt-hooks repo, the validate hooks settings can be ignored")
             return True
 
         if not Path(PRE_COMMIT_FILE).exists():
