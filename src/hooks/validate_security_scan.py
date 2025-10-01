@@ -41,7 +41,7 @@ class ValidateSecurityScan(Hook):
         return True
 
     def run(self) -> HookRunResult:
-        commit_msg_file = self.files[0]
+        commit_msg_file = self.files[0]  # type: ignore
         logger.debug("Reading contents from %s", commit_msg_file)
         with io.open(commit_msg_file, "r+", encoding="utf-8") as fd:
             contents = fd.readlines()
