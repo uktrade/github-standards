@@ -1,5 +1,6 @@
 import io
 import logging
+import re
 
 from src.config import MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
 from src.hooks_base import Hook
@@ -42,18 +43,19 @@ class ValidateSecurityScan(Hook):
         logger.debug("Reading contents from %s", commit_msg_file)
         with io.open(commit_msg_file, "r+") as fd:
             contents = fd.readlines()
-            logger.debug("Commit message for %s is %s", commit_msg_file, contents)
+
+            logger.debug("Commit message for %s is %s", commit_msg_file, "".join(contents))
             if not contents:
                 logger.info("No commit message provided")
                 return False
 
-            commit_msg = contents[0].rstrip("\r\n")
-
-            new_commit_message = f"{commit_msg}\n\n{SIGNED_OFF_BY_TRAILER}"
-            logger.debug("New commit message is %s", new_commit_message)
+            regex = re.compile(r"Signed-off-by", flags=re.DOTALL)
+            filtered_contents = [i for i in contents if not regex.match(i)]
+            filtered_contents.append(f"\n{SIGNED_OFF_BY_TRAILER}")
+            logger.debug("New commit message is %s", "".join(filtered_contents))
 
             fd.seek(0)
-            fd.writelines(new_commit_message)
+            fd.writelines(filtered_contents)
             fd.truncate()
             logger.info("Commit message updated")
 
