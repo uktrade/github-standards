@@ -8,18 +8,13 @@ on:
         type: string
 
 env:
-  REGISTRY: ghcr.io
-  IMAGE_NAME: ${{ github.repository }}
+  REGISTRY: dbt-hooks
 
 jobs:
-  build-release-latest-image:
+  verify-release-inputs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pages: write
-      packages: write
-      attestations: write
-      id-token: write
 
     outputs:
       tag: ${{ steps.version.outputs.tag }}
@@ -65,32 +60,30 @@ jobs:
           echo "Clean version: $clean_version"
           echo "Git tag: $git_tag"
 
-      - name: Log in to GitHub packages Docker registry
-        uses: docker/login-action@v3
-        with:
-          registry: ${{ env.REGISTRY }}
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+  # This is a workaround to allow us to pass variables to the push-to-ecr reusable workflow. As that workflow runs in
+  # a separate github runner, the env vars in this file are not available
+  setup:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      REGISTRY: ${{ env.REGISTRY }}
+    steps:
+      - run: echo "All set!"
 
-      - name: Extract tag metadata for Docker
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
-          tags: |
-            type=raw,value=${{ steps.version.outputs.version }}
-            type=raw,value=latest
-
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: Dockerfile
-          push: false
-          tags: ${{ steps.meta.outputs.tags }}
+  build-and-push-latest-image:
+    needs: [verify-release-inputs, setup]
+    permissions:
+      contents: read
+      id-token: write
+    uses: ./.github/workflows/build-and-push-to-ecr.yml
+    with:
+      ecr_repo: ${{ needs.setup.outputs.REGISTRY }}
+      image_tag: latest,${{ needs.verify-release-inputs.outputs.tag }}
+    secrets: inherit
 
   create-github-release:
-    needs: [build-release-latest-image]
+    needs: [verify-release-inputs, build-and-push-latest-image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -99,7 +92,7 @@ jobs:
       - name: Create tag and GitHub release
         uses: ncipollo/release-action@v1
         with:
-          tag: ${{ needs.build-release-latest-image.outputs.tag }}
-          name: ${{ needs.build-release-latest-image.outputs.tag }}
+          tag: ${{ needs.verify-release-inputs.outputs.tag }}
+          name: ${{ needs.verify-release-inputs.outputs.tag }}
           generateReleaseNotes: true
           makeLatest: true
