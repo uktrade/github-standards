@@ -1,6 +1,11 @@
 # Using a multi-stage image to create a final image without uv.
 # First, build the application in the `/app` directory.
+ARG TRUFFLEHOG_VERSION='USE_BUILD_ARG'
 FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS uv_builder
+
+# This ARG needs to be duplicated here, as the FROM statement above clears the value
+ARG TRUFFLEHOG_VERSION
+RUN if [ -z "$TRUFFLEHOG_VERSION" ]; then echo 'Environment variable TRUFFLEHOG_VERSION must be specified. Exiting.'; exit 1; fi
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
@@ -29,7 +34,10 @@ COPY src /app/src
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
-# Then, use a final image without uv
+# Need to make sure we pin a specific version of trufflehog
+FROM trufflesecurity/trufflehog:${TRUFFLEHOG_VERSION} AS trufflehog_builder
+
+# # Then, use a final image without uv
 FROM python:3.13-alpine AS base
 
 ENV PYTHONUNBUFFERED=1
@@ -38,20 +46,19 @@ ENV FORCE_HOOK_CHECKS=1
 
 # Copy the application from the builder
 COPY --from=uv_builder /app/.venv /app/.venv
+# Copy the trufflehog runner from the builder
+COPY --from=trufflehog_builder /usr/bin/trufflehog /usr/bin/trufflehog
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
 WORKDIR /app
 
-# TODO - if we end up using trufflehog this might be needed. Removed for now to keep image size small
-# RUN apk update && \
-#     apk add git
-
 ENTRYPOINT ["hooks-cli"]
 
 FROM base AS testing
 ENV FORCE_HOOK_CHECKS=0
+COPY example.pre-commit-config.yaml /app/.pre-commit-config.yaml
 # Copy this folder so we have some python files to scan when testing
 COPY src /app/src 
 RUN echo 'Hello world commit message' >> /app/EXAMPLE_COMMIT_MSG.txt

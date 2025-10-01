@@ -28,7 +28,7 @@ class TestValidateSecurityScan:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -46,7 +46,7 @@ class TestValidateSecurityScan:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -64,7 +64,7 @@ class TestValidateSecurityScan:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -87,7 +87,7 @@ class TestValidateSecurityScan:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)

@@ -1,11 +1,10 @@
 import io
-import logging
 import re
 
-from src.hooks.config import MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
+from src.hooks.config import LOGGER, MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
 from src.hooks.hooks_base import Hook, HookRunResult
 
-logger = logging.getLogger()
+logger = LOGGER
 
 
 class ValidateSecurityScan(Hook):
@@ -41,7 +40,7 @@ class ValidateSecurityScan(Hook):
         return True
 
     def run(self) -> HookRunResult:
-        commit_msg_file = self.files[0]
+        commit_msg_file = self.files[0]  # type: ignore
         logger.debug("Reading contents from %s", commit_msg_file)
         with io.open(commit_msg_file, "r+", encoding="utf-8") as fd:
             contents = fd.readlines()

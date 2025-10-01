@@ -8,7 +8,11 @@ description = "Hooks for use in a DBT development environment"
 readme = "README.md"
 keywords = ["pre-commit", "dbt", "hooks", "security"]
 requires-python = ">=3.13"
-dependencies = ["pyyaml>=6.0.3", "requests>=2.32.4"]
+dependencies = [
+    "proxy-py>=2.4.10",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.4",
+]
 dynamic = ["version"]
 
 [project.scripts]

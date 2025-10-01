@@ -1,2 +1,7 @@
 # This needs to be a maintained github team, for now can be a limited number of named devs
-*   @chopkinsmade @SamW94
+
+- @chopkinsmade
+
+# This config file contains the trufflehog vendors, and needs a review from a more specific list of users
+
+src/hooks/trufflehog/vendors.py @chopkinsmade

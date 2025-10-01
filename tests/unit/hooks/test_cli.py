@@ -4,7 +4,6 @@ import pytest
 from unittest import mock
 
 from src.hooks.cli import main as main_function, parse_args
-from src.hooks.config import GITHUB_ACTION_PR, GITHUB_ACTION_REPO
 from src.hooks.hooks_base import HookRunResult
 
 
@@ -44,24 +43,16 @@ class TestCLI:
                 assert result.files == files
                 assert result.verbose is False
 
-        @pytest.mark.parametrize(
-            "github_actions_arg_name",
-            ["-g", "--github-action"],
-        )
-        @pytest.mark.parametrize(
-            "github_actions_value",
-            [GITHUB_ACTION_PR, GITHUB_ACTION_REPO],
-        )
         def test_parse_args_for_run_with_github_actions_returns_expected_args(
-            self, github_actions_arg_name, github_actions_value
+            self,
         ):
             files = ["a.txt", "b.txt"]
-            testargs = ["run_scan", github_actions_arg_name, github_actions_value] + files
+            testargs = ["run_scan", "--github-action"] + files
             with mock.patch.object(sys, "argv", testargs):
                 result = parse_args(testargs)
                 assert result.files == files
                 assert result.verbose is False
-                assert result.github_action == github_actions_value
+                assert result.github_action is True
 
         def test_parse_args_for_run_without_github_actions_returns_expected_args(self):
             files = ["a.txt", "b.txt"]
@@ -70,7 +61,7 @@ class TestCLI:
                 result = parse_args(testargs)
                 assert result.files == files
                 assert result.verbose is False
-                assert result.github_action is None
+                assert result.github_action is False
 
         def test_parse_args_for_validate_without_files_returns_expected_args(self):
             testargs = ["validate_scan"]
