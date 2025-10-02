@@ -65,7 +65,7 @@ def main(
         logger.debug("Hook id '%s' is not a known hook", args.hook_id)
         return 1
 
-    hook = hook_class(args.files)
+    hook = hook_class(args.files, args.verbose)
 
     logger.debug("Loaded hook class %s using id '%s'", hook, args.hook_id)
 

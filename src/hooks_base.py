@@ -13,8 +13,9 @@ logger = logging.getLogger()
 
 
 class Hook(ABC):
-    def __init__(self, files: List[str] = []):
+    def __init__(self, files: List[str] = [], verbose: bool = False):
         self.files = files
+        self.verbose = verbose
 
     @abstractmethod
     def validate_args(self) -> bool:

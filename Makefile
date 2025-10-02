@@ -5,7 +5,7 @@ build-docker:
 	docker build . -t dbt-hooks:dev
 
 build-docker-local-testing:
-	docker build . -t dbt-hooks:local-testing --target local-testing
+	docker build . -t dbt-hooks:local-testing --target local-testing --file local.Dockerfile
 
 validate-hook-python:
 	echo 'Hello world' >> ./tests/EXAMPLE_COMMIT_MSG.txt && hooks-cli --hook-id=validate-security-scan --verbose ./tests/EXAMPLE_COMMIT_MSG.txt
@@ -20,4 +20,4 @@ run-hook-python:
 
 run-hook-docker:
 	make build-docker-local-testing
-	docker run --rm dbt-hooks:local-testing --hook-id run-security-scan --verbose EXAMPLE_COMMIT_MSG.txt
+	docker run --rm dbt-hooks:local-testing --hook-id run-security-scan --verbose README.md
