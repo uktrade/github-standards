@@ -17,8 +17,13 @@ class HooksBaseTestImplementation(Hook):
 
 
 class TestHooksBase:
-    def test_validate_hook_settings_when_running_as_local_module_returns_true(self):
+    @patch("src.hooks_base.FORCE_HOOK_CHECKS", "0")
+    def test_validate_hook_settings_when_force_hook_checks_false_returns_true(self):
         assert HooksBaseTestImplementation().validate_hook_settings() is True
+
+    @patch("src.hooks_base.FORCE_HOOK_CHECKS", "1")
+    def test_validate_hook_settings_when_force_hook_checks_true_returns_true(self):
+        assert HooksBaseTestImplementation().validate_hook_settings() is False
 
     def test_validate_hook_settings_with_missing_pre_commit_file_returns_false(self):
         with (
