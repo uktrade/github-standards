@@ -3,6 +3,7 @@ from unittest import mock
 
 import pytest
 from src.cli import get_hook_class, main as main_function, hooks
+from src.hooks_base import HookRunResult
 
 
 class TestCLI:
@@ -54,7 +55,7 @@ class TestCLI:
 
         mock_hook = mock.MagicMock()
         mock_hook.validate_args = mock.MagicMock(return_value=True)
-        mock_hook.run = mock.MagicMock(return_value=False)
+        mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=False, message="Failed message"))
 
         mock_hook_class = mock.MagicMock()
         mock_hook_class.return_value = mock_hook
@@ -63,12 +64,12 @@ class TestCLI:
             mock_get_hook_class.return_value = mock_hook_class
             assert main_function() == 1
 
-    def test_hook_with_an_successful_run_result_returns_expected_error(self):
+    def test_hook_with_a_successful_run_result_returns_expected_error(self):
         testargs = ["hooks-cli", "--hook-id=a", "--verbose"]
 
         mock_hook = mock.MagicMock()
         mock_hook.validate_args = mock.MagicMock(return_value=True)
-        mock_hook.run = mock.MagicMock(return_value=True)
+        mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=True))
 
         mock_hook_class = mock.MagicMock()
         mock_hook_class.return_value = mock_hook

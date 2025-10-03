@@ -12,6 +12,12 @@ from src.config import FORCE_HOOK_CHECKS, PRE_COMMIT_FILE
 logger = logging.getLogger()
 
 
+class HookRunResult:
+    def __init__(self, success: bool, message: str = None):
+        self.success = success
+        self.message = message
+
+
 class Hook(ABC):
     def __init__(self, files: List[str] = [], verbose: bool = False):
         self.files = files
@@ -62,5 +68,5 @@ class Hook(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def run(self) -> bool:
+    def run(self) -> HookRunResult:
         raise NotImplementedError()
