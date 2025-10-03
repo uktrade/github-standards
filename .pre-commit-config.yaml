@@ -29,3 +29,11 @@ repos:
       additional_dependencies: [pyyaml, requests]
       stages: [commit-msg]
       verbose: true
+
+  -   id: pre-push-security-scan
+      name: pre-push-security-scan
+      entry: python3 -m src.pre-push --hook-id=pre-push-security-scan --verbose
+      language: python
+      additional_dependencies: [pyyaml, requests]
+      stages: [pre-push]
+      verbose: true
