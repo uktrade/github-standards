@@ -4,7 +4,7 @@ To use these hooks in your own repo:
 
 1. Install the `pre-commit` package using whatever package manager you're using. Alternatively, you can test without a package manager using `pip install pre-commit`
 1. Copy the `example.pre-commit-config` file from this repository into the root of your repository, and rename to `.pre-commit-config`. If you already have the `pre-commit` package setup, you can copy the contents of the `example.pre-commit-config` file without the parent `repos` element
-1. Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both hooks for your repository
+1. Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit -t pre-push` to install both hooks for your repository
 
 # FAQ
 

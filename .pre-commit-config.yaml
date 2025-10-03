@@ -13,22 +13,22 @@ repos:
 
 - repo: local
   hooks:
-  -   id: run-security-scan
-      name: run-security-scan
-      entry: python3 -m src.cli --hook-id=run-security-scan --verbose
-      language: python
-      additional_dependencies: [pyyaml, requests]
-      stages: [pre-commit]
-      verbose: true
-      require_serial: true
+  # -   id: run-security-scan
+  #     name: run-security-scan
+  #     entry: python3 -m src.cli --hook-id=run-security-scan --verbose
+  #     language: python
+  #     additional_dependencies: [pyyaml, requests]
+  #     stages: [pre-commit]
+  #     verbose: true
+  #     require_serial: true
 
-  -   id: validate-security-scan
-      name: validate-security-scan
-      entry: python3 -m src.cli --hook-id=validate-security-scan --verbose
-      language: python
-      additional_dependencies: [pyyaml, requests]
-      stages: [commit-msg]
-      verbose: true
+  # -   id: validate-security-scan
+  #     name: validate-security-scan
+  #     entry: python3 -m src.cli --hook-id=validate-security-scan --verbose
+  #     language: python
+  #     additional_dependencies: [pyyaml, requests]
+  #     stages: [commit-msg]
+  #     verbose: true
 
   -   id: pre-push-security-scan
       name: pre-push-security-scan
