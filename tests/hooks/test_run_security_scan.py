@@ -90,4 +90,4 @@ class TestRunSecurityScan:
             assert RunSecurityScan().validate_hook_settings() is True
 
     def test_run_returns_true(self):
-        assert RunSecurityScan().run() is True
+        assert RunSecurityScan().run().success is True

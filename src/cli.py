@@ -65,7 +65,7 @@ def main(
         logger.debug("Hook id '%s' is not a known hook", args.hook_id)
         return 1
 
-    hook = hook_class(args.files, args.verbose)
+    hook: Hook = hook_class(args.files, args.verbose)
 
     logger.debug("Loaded hook class %s using id '%s'", hook, args.hook_id)
 
@@ -82,8 +82,9 @@ def main(
     logger.debug("Hook '%s' passed hook settings check", hook.__class__.__name__)
 
     run_result = hook.run()
-    if not run_result:
-        logger.debug("Hook '%s' did not successfully run", args.hook_id)
+    if not run_result.success:
+        logger.info("Hook '%s' did not successfully run.", args.hook_id)
+        logger.info("%s", run_result.message)
         return 1
 
     return 0

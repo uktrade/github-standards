@@ -4,7 +4,7 @@ import requests
 
 
 from src.config import PRE_COMMIT_FILE, RELEASE_CHECK_URL
-from src.hooks_base import Hook
+from src.hooks_base import Hook, HookRunResult
 
 logger = logging.getLogger()
 
@@ -48,5 +48,5 @@ class RunSecurityScan(Hook):
 
         return True
 
-    def run(self) -> bool:
-        return True
+    def run(self) -> HookRunResult:
+        return HookRunResult(True)
