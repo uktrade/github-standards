@@ -37,3 +37,4 @@ repos:
       additional_dependencies: [pyyaml, requests]
       stages: [pre-push]
       verbose: true
+      require_serial: true
