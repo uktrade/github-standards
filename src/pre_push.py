@@ -34,6 +34,8 @@ def main(
     parsed = parser.parse_args(argv)
     logger.debug("parsed %s", parsed)
 
+    return 1
+
 
 if __name__ == "__main__":
     sys.exit(main())
