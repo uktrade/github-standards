@@ -51,7 +51,10 @@ class RunSecurityScan(Hook):
 
     def run(self) -> HookRunResult:
         DATADOG_APP_KEY = "0100000000000000000000000000000000000000"
-        logger.info("Testing fake key %s", DATADOG_APP_KEY)
+        DD_APP_KEY = "0100000000000000000000000000000000000000"
+
+        logger.info("Testing fake app key %s", DATADOG_APP_KEY)
+        logger.info("Testing fake app key %s", DD_APP_KEY)
         with default_settings():
             secrets = SecretsCollection()
             secrets.scan_files(*self.files)
