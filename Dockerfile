@@ -16,7 +16,7 @@ WORKDIR /app
 RUN --mount=type=cache,target=/root/.cache/uv \
     --mount=type=bind,source=uv.lock,target=uv.lock \
     --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
-    uv sync --locked --no-install-project --no-dev
+    uv sync --locked --no-install-project --no-dev --no-editable
 
 # Then, add the rest of the project source code and install it
 # Installing separately from its dependencies allows optimal layer caching
@@ -27,7 +27,7 @@ COPY uv.lock /app
 COPY src /app/src
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --locked --no-dev
+    uv sync --locked --no-dev --no-editable
 
 # Then, use a final image without uv
 FROM python:3.13-alpine AS base
@@ -37,7 +37,7 @@ ENV PIP_NO_CACHE_DIR=1
 ENV FORCE_HOOK_CHECKS=1
 
 # Copy the application from the builder
-COPY --from=builder  /app /app
+COPY --from=builder /app/.venv /app/.venv
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
