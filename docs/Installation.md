@@ -1,14 +1,16 @@
-# Installation of this hook
+# Installation
 
-To use these hooks in your own repo:
+## Already using pre-commit?
 
-1. Install the `pre-commit` package using whatever package manager you're using. Alternatively, you can test without a package manager using `pip install pre-commit`
-1. Copy the `example.pre-commit-config` file from this repository into the root of your repository, and rename to `.pre-commit-config`. If you already have the `pre-commit` package setup, you can copy the contents of the `example.pre-commit-config` file without the parent `repos` element
-1. Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both hooks for your repository
+1. Copy the `https://github.com/uktrade/dbt-hooks` repo yaml config from `example.pre-commit-config` into to the `.pre-commit-config` file in your repository
+1. Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both entry points for your repository
 
-# FAQ
+## Need to add pre-commit?
 
-## My PR is failing due to a github action checking a Signed-off-by trailer
+1. Install the `pre-commit` package using whatever package manager you're using. Alternatively, you can test without a package manager using `pip install pre-commit`. `pre-commit` can be installed as a dev dependancy, it is not needed as a build requirement
+1. Copy the `example.pre-commit-config` file from this repository into the root of your repository, and rename to `.pre-commit-config`.
+1. Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both entry points for your repository
 
-- Have you run your commit with the `--no-verify` argument? If so this will skip the security scans and the validation hooks needed to pass the github action
-- Have you installed the pre-commit commit-msg hook? To check this, open your repository and check the ./hooks folder. There should be a file named `commit-msg` that is ran by the pre-commit framework
+## Optional hooks
+
+There are a large number of pre-commit hooks that can be used to help with code quality and catching linting failures early. This page contains a list of some featured hooks https://pre-commit.com/hooks.html
