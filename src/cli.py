@@ -3,7 +3,7 @@ import sys
 
 
 from typing import List, Optional
-from logging import StreamHandler, captureWarnings, getLogger, INFO, DEBUG
+from logging import StreamHandler, captureWarnings, getLogger, INFO, DEBUG, Formatter
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.validate_security_scan import ValidateSecurityScan
 
@@ -31,6 +31,8 @@ def init_logger(verbose):
 
     logger.setLevel(log_level)
     handler = StreamHandler(sys.stderr)
+    formatter = Formatter(fmt="%(asctime)s.%(msecs)03d %(levelname)s:\t%(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+    handler.setFormatter(formatter)
     logger.addHandler(handler)
     logger.debug("Logging initialized with level %s", log_level)
 
