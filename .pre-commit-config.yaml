@@ -17,7 +17,7 @@ repos:
       name: run-security-scan
       entry: python3 -m src.cli --hook-id=run-security-scan --verbose
       language: python
-      additional_dependencies: [pyyaml, requests]
+      additional_dependencies: [pyyaml, requests, detect_secrets]
       stages: [pre-commit]
       verbose: true
       require_serial: true
@@ -26,6 +26,6 @@ repos:
       name: validate-security-scan
       entry: python3 -m src.cli --hook-id=validate-security-scan --verbose
       language: python
-      additional_dependencies: [pyyaml, requests]
+      additional_dependencies: [pyyaml, requests, detect_secrets]
       stages: [commit-msg]
       verbose: true

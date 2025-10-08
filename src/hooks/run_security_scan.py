@@ -1,7 +1,8 @@
 import logging
-
 import requests
 
+from detect_secrets.core.secrets_collection import SecretsCollection
+from detect_secrets.settings import default_settings
 
 from src.config import PRE_COMMIT_FILE, RELEASE_CHECK_URL
 from src.hooks_base import Hook, HookRunResult
@@ -49,4 +50,19 @@ class RunSecurityScan(Hook):
         return True
 
     def run(self) -> HookRunResult:
-        return HookRunResult(True)
+        DATADOG_APP_KEY = "0100000000000000000000000000000000000000"
+        DATADOG_APPLICATION_KEY = "0100000000000000000000000000000000000000"
+        DD_APP_KEY = "0100000000000000000000000000000000000000"
+
+        logger.info("Testing fake app key %s", DATADOG_APP_KEY)
+        logger.info("Testing fake app key %s", DATADOG_APPLICATION_KEY)
+        logger.info("Testing fake app key %s", DD_APP_KEY)
+        with default_settings():
+            secrets = SecretsCollection()
+            secrets.scan_files(*self.files)
+
+            if secrets.data:
+                logger.debug("This security scan failed due to secrets being detected")
+                return HookRunResult(False, secrets.json())
+
+            return HookRunResult(True)

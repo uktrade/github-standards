@@ -20,4 +20,4 @@ run-hook-python:
 
 run-hook-docker:
 	make build-docker-local-testing
-	docker run --rm dbt-hooks:local-testing --hook-id run-security-scan --verbose README.md
+	docker run --rm dbt-hooks:local-testing --hook-id run-security-scan src/hooks/run_security_scan.py

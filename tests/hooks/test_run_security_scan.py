@@ -2,7 +2,7 @@ import tempfile
 import requests
 import requests_mock
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from src.config import RELEASE_CHECK_URL
 from src.hooks.run_security_scan import RunSecurityScan
 
@@ -89,5 +89,12 @@ class TestRunSecurityScan:
 
             assert RunSecurityScan().validate_hook_settings() is True
 
-    def test_run_returns_true(self):
-        assert RunSecurityScan().run().success is True
+    def test_run_when_secrets_are_found_returns_false(self):
+        with patch("src.hooks.run_security_scan.SecretsCollection") as mock_secrets_collection:
+            mock_secrets_collection.return_value = MagicMock(data=True)
+            assert RunSecurityScan().run().success is False
+
+    def test_run_when_no_secrets_found_returns_true(self):
+        with patch("src.hooks.run_security_scan.SecretsCollection") as mock_secrets_collection:
+            mock_secrets_collection.return_value = MagicMock(data=None)
+            assert RunSecurityScan().run().success is True
