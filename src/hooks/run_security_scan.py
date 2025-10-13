@@ -20,6 +20,7 @@ class RunSecurityScan(Hook):
             headers={
                 "Accept": "application/vnd.github.v3+json",
             },
+            timeout=3,  # This is a low timeout, we don't want to block commits or make devs wait for the github api
         )
         req.raise_for_status()
         content = req.json()
