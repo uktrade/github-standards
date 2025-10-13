@@ -1,3 +1,6 @@
+test: 
+	pytest -rP
+
 test-coverage: 
 	COVERAGE_FILE=.coverage pytest --cov-report html:htmlcov --cov=./
 
@@ -20,4 +23,4 @@ run-hook-python:
 
 run-hook-docker:
 	make build-docker-local-testing
-	docker run --rm dbt-hooks:local-testing --hook-id run-security-scan --verbose README.md
+	docker run --rm dbt-hooks:local-testing --hook-id run-security-scan --verbose src/hooks_base.py

@@ -29,3 +29,12 @@ repos:
       additional_dependencies: [pyyaml, requests]
       stages: [commit-msg]
       verbose: true
+  
+  -   id: run-tests
+      name: Run tests
+      entry: make test
+      language: python
+      version: python3
+      additional_dependencies: [pytest, pyyaml, requests, requests_mock]
+      stages: [pre-commit]
+      verbose: true

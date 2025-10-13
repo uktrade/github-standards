@@ -19,7 +19,7 @@ class HookRunResult:
 
 
 class Hook(ABC):
-    def __init__(self, files: List[str] = [], verbose: bool = False):
+    def __init__(self, files: List[str] = None, verbose: bool = False):
         self.files = files
         self.verbose = verbose
 
@@ -46,7 +46,7 @@ class Hook(ABC):
             logger.debug("File %s does not exist in this repository. This file must be present", PRE_COMMIT_FILE)
             return False
 
-        with open(PRE_COMMIT_FILE, "r") as file:
+        with open(PRE_COMMIT_FILE, "r", encoding="utf-8") as file:
             config = yaml.safe_load(file)
 
             if "repos" not in config:
