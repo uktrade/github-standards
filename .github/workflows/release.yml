@@ -8,7 +8,7 @@ on:
         type: string
 
 env:
-  REGISTRY: dbt-hooks
+  REGISTRY: github-standards-hooks
 
 jobs:
   verify-release-inputs:

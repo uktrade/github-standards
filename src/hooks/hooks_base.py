@@ -6,20 +6,20 @@ from pathlib import Path
 from typing import List
 
 
-from src.config import FORCE_HOOK_CHECKS, PRE_COMMIT_FILE
+from src.hooks.config import FORCE_HOOK_CHECKS, PRE_COMMIT_FILE
 
 
 logger = logging.getLogger()
 
 
 class HookRunResult:
-    def __init__(self, success: bool, message: str = None):
+    def __init__(self, success: bool, message: str | None = None):
         self.success = success
         self.message = message
 
 
 class Hook(ABC):
-    def __init__(self, files: List[str] = None, verbose: bool = False):
+    def __init__(self, files: List[str] | None = None, verbose: bool = False):
         self.files = files
         self.verbose = verbose
 
@@ -28,7 +28,7 @@ class Hook(ABC):
         raise NotImplementedError()
 
     def _skip_check(self) -> bool:
-        """If this check is ran in the dbt-hooks repository, it will always fail as we use a local hook implementation
+        """If this check is ran in the github-standards repository, it will always fail as we use a local hook implementation
         for running the pre-commit hooks. This ensures we are always running the latest local version, and will catch
         any development errors early before creating a tagged docker image as part of releasing.
 
@@ -39,7 +39,9 @@ class Hook(ABC):
 
     def validate_hook_settings(self) -> bool:
         if self._skip_check():
-            logger.debug("This hook is being run inside the dbt-hooks repo, the validate hooks settings can be ignored")
+            logger.debug(
+                "This hook is being run inside the github-standards repo, the validate hooks settings can be ignored"
+            )
             return True
 
         if not Path(PRE_COMMIT_FILE).exists():
@@ -53,12 +55,14 @@ class Hook(ABC):
                 logger.debug("File %s does not contain a repo tag", PRE_COMMIT_FILE)
                 return False
 
-            dbt_hook_repo = list(filter(lambda x: "https://github.com/uktrade/dbt-hooks" in x["repo"], config["repos"]))
+            dbt_hook_repo = list(
+                filter(lambda x: "https://github.com/uktrade/github-standards" in x["repo"], config["repos"])
+            )
             if not dbt_hook_repo:
                 logger.debug("File %s does not contain the dbt hooks repo", PRE_COMMIT_FILE)
                 return False
             if len(dbt_hook_repo) != 1:
-                logger.debug("File %s can only contain one dbt-hooks repo entry", PRE_COMMIT_FILE)
+                logger.debug("File %s can only contain one github-standards repo entry", PRE_COMMIT_FILE)
                 return False
 
             return self._validate_hook_settings(dbt_hook_repo[0])

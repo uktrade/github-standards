@@ -2,7 +2,7 @@
 
 ## Already using pre-commit?
 
-1. Copy the `https://github.com/uktrade/dbt-hooks` repo yaml config from `example.pre-commit-config` into to the `.pre-commit-config` file in your repository
+1. Copy the `https://github.com/uktrade/github-standards` repo yaml config from `example.pre-commit-config` into to the `.pre-commit-config` file in your repository
 1. Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both entry points for your repository
 
 ## Need to add pre-commit?

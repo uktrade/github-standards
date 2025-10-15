@@ -1,5 +1,5 @@
 repos:
-  - repo: https://github.com/uktrade/dbt-hooks
+  - repo: https://github.com/uktrade/github-standards
     rev: main # This should be the latest github released version, see docs for ensuring this is up-to-date
     hooks:
       - id: validate-security-scan

@@ -7,7 +7,7 @@ from logging import StreamHandler, captureWarnings, getLogger, INFO, DEBUG, Form
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.validate_security_scan import ValidateSecurityScan
 
-from src.hooks_base import Hook
+from src.hooks.hooks_base import Hook
 
 logger = getLogger()
 
@@ -17,7 +17,7 @@ hooks: dict[str, Hook] = {
 }
 
 
-def get_hook_class(hook_id) -> Hook:
+def get_hook_class(hook_id) -> Hook | None:
     if hook_id not in hooks:
         return None
     return hooks[hook_id]

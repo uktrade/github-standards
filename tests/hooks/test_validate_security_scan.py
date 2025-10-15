@@ -1,5 +1,5 @@
 import tempfile
-import src.config
+import src.hooks.config
 
 from unittest.mock import patch
 
@@ -22,12 +22,12 @@ class TestValidateSecurityScan:
     def test_validate_hook_settings_with_dbt_hooks_repo_present_without_hooks_element_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v111
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
         ):
             tf.write(valid_yaml)
@@ -38,14 +38,14 @@ class TestValidateSecurityScan:
     def test_validate_hook_settings_with_dbt_hooks_repo_present_without_ids_element_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v111
               hooks:
                 - version
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
         ):
             tf.write(valid_yaml)
@@ -56,14 +56,14 @@ class TestValidateSecurityScan:
     def test_validate_hook_settings_with_dbt_hooks_repo_present_without_mandatory_is_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v111
               hooks:
                 - id: something
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
         ):
             tf.write(valid_yaml)
@@ -78,7 +78,7 @@ class TestValidateSecurityScan:
               rev: v6.0.0  
               hooks:
               - id: no-commit-to-branch
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v111
               hooks:
                 - id: validate-security-scan
@@ -86,7 +86,7 @@ class TestValidateSecurityScan:
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
         ):
             tf.write(valid_yaml)
@@ -118,7 +118,7 @@ class TestValidateSecurityScan:
 
             assert ValidateSecurityScan(files=[tf.name]).run().success is True
 
-            assert tf.read().decode("UTF-8") == f"A helpful commit message\n{src.config.SIGNED_OFF_BY_TRAILER}"
+            assert tf.read().decode("UTF-8") == f"A helpful commit message\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
     def test_run_with_file_with_multiline_message_has_signed_off_by_trailer_added(self):
         with (
@@ -130,7 +130,7 @@ class TestValidateSecurityScan:
 
             assert ValidateSecurityScan(files=[tf.name]).run().success is True
 
-            assert tf.read().decode("UTF-8") == f"A\nhelpful\ncommit\n message\n\n{src.config.SIGNED_OFF_BY_TRAILER}"
+            assert tf.read().decode("UTF-8") == f"A\nhelpful\ncommit\n message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
     def test_run_with_file_with_existing_signed_off_header_is_replaced(self):
         with (
@@ -142,4 +142,4 @@ class TestValidateSecurityScan:
 
             assert ValidateSecurityScan(files=[tf.name]).run().success is True
 
-            assert tf.read().decode("UTF-8") == f"A helpful commit message\n\n{src.config.SIGNED_OFF_BY_TRAILER}"
+            assert tf.read().decode("UTF-8") == f"A helpful commit message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"

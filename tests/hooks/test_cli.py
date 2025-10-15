@@ -1,9 +1,10 @@
 import sys
+import pytest
+
 from unittest import mock
 
-import pytest
-from src.cli import get_hook_class, main as main_function, hooks
-from src.hooks_base import HookRunResult
+from src.hooks.cli import get_hook_class, main as main_function, hooks
+from src.hooks.hooks_base import HookRunResult
 
 
 class TestCLI:
@@ -33,7 +34,7 @@ class TestCLI:
         mock_hook_class = mock.MagicMock()
         mock_hook_class.return_value = mock_hook
 
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.cli.get_hook_class") as mock_get_hook_class:
+        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
             mock_get_hook_class.return_value = mock_hook_class
             assert main_function() == 1
 
@@ -46,7 +47,7 @@ class TestCLI:
         mock_hook_class = mock.MagicMock()
         mock_hook_class.return_value = mock_hook
 
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.cli.get_hook_class") as mock_get_hook_class:
+        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
             mock_get_hook_class.return_value = mock_hook_class
             assert main_function() == 1
 
@@ -60,7 +61,7 @@ class TestCLI:
         mock_hook_class = mock.MagicMock()
         mock_hook_class.return_value = mock_hook
 
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.cli.get_hook_class") as mock_get_hook_class:
+        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
             mock_get_hook_class.return_value = mock_hook_class
             assert main_function() == 1
 
@@ -74,7 +75,7 @@ class TestCLI:
         mock_hook_class = mock.MagicMock()
         mock_hook_class.return_value = mock_hook
 
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.cli.get_hook_class") as mock_get_hook_class:
+        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
             mock_get_hook_class.return_value = mock_hook_class
             assert main_function() == 0
 

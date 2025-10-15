@@ -1,10 +1,9 @@
 import logging
-
 import requests
 
 
-from src.config import PRE_COMMIT_FILE, RELEASE_CHECK_URL
-from src.hooks_base import Hook, HookRunResult
+from src.hooks.config import PRE_COMMIT_FILE, RELEASE_CHECK_URL
+from src.hooks.hooks_base import Hook, HookRunResult
 
 logger = logging.getLogger()
 
