@@ -1,0 +1,47 @@
+name: Common CI
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main, master, dev]
+
+env:
+  SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
+  # TRUFFLEHOG_VERSION: 3.90.8
+
+jobs:
+  pre-commit-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Check if pre-commit hook ran before push
+        run: |
+          git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
+        continue-on-error: true # This needs to be removed after testing, as a failure to find the header should fail the build
+
+  # Disable for now, while trufflehog is going through IRAP
+  # verify:
+  #   runs-on: ubuntu-latest
+  #   defaults:
+  #     run:
+  #       shell: bash
+  #   permissions:
+  #     contents: read
+  #   steps:
+  #     - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+  #       with:
+  #         fetch-depth: 0
+
+  #     - name: Secret Scanning
+  #       uses: trufflesecurity/trufflehog@466da5b0bb161144f6afca9afe5d57975828c410
+  #       with:
+  #         base: "main"
+  #         head: ${{ github.head_ref }}
+  #         extra_args: --log-level=5 --results=verified,unknown
+  #         version: ${{ env.TRUFFLEHOG_VERSION }}
