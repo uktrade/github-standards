@@ -2,8 +2,8 @@ import io
 import logging
 import re
 
-from src.config import MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
-from src.hooks_base import Hook, HookRunResult
+from src.hooks.config import MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
+from src.hooks.hooks_base import Hook, HookRunResult
 
 logger = logging.getLogger()
 

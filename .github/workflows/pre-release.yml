@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 env:
-  REGISTRY: dbt-hooks
+  REGISTRY: github-standards-hooks
 
 jobs:
   # This is a workaround to allow us to pass variables to the push-to-ecr reusable workflow. As that workflow runs in

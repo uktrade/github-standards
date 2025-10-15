@@ -2,7 +2,7 @@ import tempfile
 
 from pathlib import Path
 from unittest.mock import patch
-from src.hooks_base import Hook
+from src.hooks.hooks_base import Hook
 
 
 class HooksBaseTestImplementation(Hook):
@@ -17,11 +17,11 @@ class HooksBaseTestImplementation(Hook):
 
 
 class TestHooksBase:
-    @patch("src.hooks_base.FORCE_HOOK_CHECKS", "0")
+    @patch("src.hooks.hooks_base.FORCE_HOOK_CHECKS", "0")
     def test_validate_hook_settings_when_force_hook_checks_false_returns_true(self):
         assert HooksBaseTestImplementation().validate_hook_settings() is True
 
-    @patch("src.hooks_base.FORCE_HOOK_CHECKS", "1")
+    @patch("src.hooks.hooks_base.FORCE_HOOK_CHECKS", "1")
     def test_validate_hook_settings_when_force_hook_checks_true_returns_true(self):
         assert HooksBaseTestImplementation().validate_hook_settings() is False
 
@@ -36,7 +36,7 @@ class TestHooksBase:
     def test_validate_hook_settings_with_invalid_content_in_pre_commit_file_returns_false(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(HooksBaseTestImplementation, "_skip_check", return_value=False),
         ):
             tf.write(b"Not valid yaml")
@@ -54,7 +54,7 @@ class TestHooksBase:
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(HooksBaseTestImplementation, "_skip_check", return_value=False),
         ):
             tf.write(valid_yaml)
@@ -65,17 +65,17 @@ class TestHooksBase:
     def test_validate_hook_settings_with_dbt_hooks_repo_present_multiple_times_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v111
               hooks:
                 - id: validate-security-scan
                 - id: run-security-scan
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v111
               hooks:
                 - id: validate-security-scan
                 - id: run-security-scan
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v111
               hooks:
                 - id: validate-security-scan
@@ -83,7 +83,7 @@ class TestHooksBase:
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(HooksBaseTestImplementation, "_skip_check", return_value=False),
         ):
             tf.write(valid_yaml)

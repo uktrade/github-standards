@@ -3,7 +3,7 @@ import requests
 import requests_mock
 
 from unittest.mock import patch
-from src.config import RELEASE_CHECK_URL
+from src.hooks.config import RELEASE_CHECK_URL
 from src.hooks.run_security_scan import RunSecurityScan
 
 
@@ -14,12 +14,12 @@ class TestRunSecurityScan:
     def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(self):
         yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
         """
 
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_skip_check", return_value=False),
         ):
             tf.write(yaml)
@@ -32,13 +32,13 @@ class TestRunSecurityScan:
     ):
         yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v1
         """
 
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_skip_check", return_value=False),
             patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v2"),
         ):
@@ -52,13 +52,13 @@ class TestRunSecurityScan:
     ):
         yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v1
         """
 
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_skip_check", return_value=False),
             requests_mock.Mocker() as m,
         ):
@@ -73,13 +73,13 @@ class TestRunSecurityScan:
     ):
         yaml = b"""
         repos:
-            - repo: https://github.com/uktrade/dbt-hooks
+            - repo: https://github.com/uktrade/github-standards
               rev: v1
         """
 
         with (
             tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks_base.PRE_COMMIT_FILE", tf.name),
+            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_skip_check", return_value=False),
             requests_mock.Mocker() as m,
         ):

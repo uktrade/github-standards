@@ -122,7 +122,7 @@ wheels = [
 ]
 
 [[package]]
-name = "dbt-hooks"
+name = "github-standards"
 source = { editable = "." }
 dependencies = [
     { name = "pyyaml" },
