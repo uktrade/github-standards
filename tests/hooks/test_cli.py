@@ -3,82 +3,150 @@ import pytest
 
 from unittest import mock
 
-from src.hooks.cli import get_hook_class, main as main_function, hooks
+from src.hooks.cli import main as main_function, parse_args
+from src.hooks.config import GITHUB_ACTION_PR, GITHUB_ACTION_REPO
 from src.hooks.hooks_base import HookRunResult
 
 
 class TestCLI:
-    def test_no_arguments_provided_returns_expected_error(self):
-        testargs = []
-        with (
-            mock.patch.object(sys, "argv", testargs),
+    class TestParseArgs:
+        def test_parse_args_without_subcommand_returns_error(self):
+            testargs = [""]
+            with mock.patch.object(sys, "argv", testargs), pytest.raises(SystemExit):
+                parse_args(testargs)
+
+        def test_parse_args_with_unknown_subcommand_returns_error(self):
+            testargs = ["invalid"]
+            with mock.patch.object(sys, "argv", testargs), pytest.raises(SystemExit):
+                parse_args(testargs)
+
+        def test_parse_args_for_run_without_files_returns_expected_args(self):
+            testargs = ["run_scan"]
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == []
+                assert result.verbose is False
+
+        @pytest.mark.parametrize("verbose", (["-v", "--verbose"]))
+        def test_parse_args_for_run_with_verbose_returns_expected_args(self, verbose):
+            files = ["a.txt", "b.txt"]
+            testargs = ["run_scan", verbose] + files
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == files
+                assert result.verbose is True
+
+        def test_parse_args_for_run_without_verbose_returns_expected_args(self):
+            files = ["a.txt", "b.txt"]
+            testargs = ["run_scan"] + files
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == files
+                assert result.verbose is False
+
+        @pytest.mark.parametrize(
+            "github_actions_arg_name",
+            ["-g", "--github-action"],
+        )
+        @pytest.mark.parametrize(
+            "github_actions_value",
+            [GITHUB_ACTION_PR, GITHUB_ACTION_REPO],
+        )
+        def test_parse_args_for_run_with_github_actions_returns_expected_args(
+            self, github_actions_arg_name, github_actions_value
         ):
-            assert main_function() == 1
+            files = ["a.txt", "b.txt"]
+            testargs = ["run_scan", github_actions_arg_name, github_actions_value] + files
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == files
+                assert result.verbose is False
+                assert result.github_action == github_actions_value
 
-    def test_missing_hook_id_argument_returns_expected_error(self):
-        testargs = ["hooks-cli"]
-        with mock.patch.object(sys, "argv", testargs), pytest.raises(SystemExit):
-            main_function()
+        def test_parse_args_for_run_without_github_actions_returns_expected_args(self):
+            files = ["a.txt", "b.txt"]
+            testargs = ["run_scan"] + files
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == files
+                assert result.verbose is False
+                assert result.github_action is None
 
-    def test_unknown_hook_id_argument_returns_expected_error(self):
-        testargs = ["hooks-cli", "--hook-id=a"]
-        with mock.patch.object(sys, "argv", testargs):
-            assert main_function() == 1
+        def test_parse_args_for_validate_without_files_returns_expected_args(self):
+            testargs = ["validate_scan"]
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == []
+                assert result.verbose is False
 
-    def test_hook_with_failing_args_validation_returns_expected_error(self):
-        testargs = ["hooks-cli", "--hook-id=a", "--verbose"]
+        @pytest.mark.parametrize("verbose", (["-v", "--verbose"]))
+        def test_parse_args_for_validate_with_verbose_returns_expected_args(self, verbose):
+            files = ["a.txt", "b.txt"]
+            testargs = ["validate_scan", verbose] + files
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == files
+                assert result.verbose is True
 
-        mock_hook = mock.MagicMock()
-        mock_hook.validate_args = mock.MagicMock(return_value=False)
+        def test_parse_args_for_validate_without_verbose_returns_expected_args(self):
+            files = ["a.txt", "b.txt"]
+            testargs = ["validate_scan"] + files
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.files == files
+                assert result.verbose is False
 
-        mock_hook_class = mock.MagicMock()
-        mock_hook_class.return_value = mock_hook
+    class TestMain:
+        def test_no_arguments_provided_returns_expected_error(self):
+            testargs = []
+            with mock.patch.object(sys, "argv", testargs):
+                assert main_function() == 1
 
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
-            mock_get_hook_class.return_value = mock_hook_class
-            assert main_function() == 1
+        def test_hook_with_failing_validate_args_returns_expected_error(self):
+            mock_hook = mock.MagicMock()
+            mock_hook.validate_args = mock.MagicMock(return_value=False)
 
-    def test_hook_with_failing_hook_settings_validation_returns_expected_error(self):
-        testargs = ["hooks-cli", "--hook-id=a", "--verbose"]
+            mock_args = mock.MagicMock()
+            mock_args.hook.return_value = mock_hook
 
-        mock_hook = mock.MagicMock()
-        mock_hook.validate_hook_settings = mock.MagicMock(return_value=False)
+            with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
+                mock_parse_args.return_value = mock_args
+                assert main_function() == 1
 
-        mock_hook_class = mock.MagicMock()
-        mock_hook_class.return_value = mock_hook
+        def test_hook_with_failing_validate_hook_settings_returns_expected_error(self):
+            mock_hook = mock.MagicMock()
+            mock_hook.validate_args = mock.MagicMock(return_value=True)
+            mock_hook.validate_hook_settings = mock.MagicMock(return_value=False)
 
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
-            mock_get_hook_class.return_value = mock_hook_class
-            assert main_function() == 1
+            mock_args = mock.MagicMock()
+            mock_args.hook.return_value = mock_hook
 
-    def test_hook_with_an_unsuccessful_run_result_returns_expected_error(self):
-        testargs = ["hooks-cli", "--hook-id=a", "--verbose"]
+            with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
+                mock_parse_args.return_value = mock_args
+                assert main_function() == 1
 
-        mock_hook = mock.MagicMock()
-        mock_hook.validate_args = mock.MagicMock(return_value=True)
-        mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=False, message="Failed message"))
+        def test_hook_with_an_unsuccessful_run_result_returns_expected_error(self):
+            mock_hook = mock.MagicMock()
+            mock_hook.validate_args = mock.MagicMock(return_value=True)
+            mock_hook.validate_hook_settings = mock.MagicMock(return_value=True)
+            mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=False))
 
-        mock_hook_class = mock.MagicMock()
-        mock_hook_class.return_value = mock_hook
+            mock_args = mock.MagicMock()
+            mock_args.hook.return_value = mock_hook
 
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
-            mock_get_hook_class.return_value = mock_hook_class
-            assert main_function() == 1
+            with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
+                mock_parse_args.return_value = mock_args
+                assert main_function() == 1
 
-    def test_hook_with_a_successful_run_result_returns_expected_error(self):
-        testargs = ["hooks-cli", "--hook-id=a", "--verbose"]
+        def test_hook_with_a_successful_run_result_returns_expected_error(self):
+            mock_hook = mock.MagicMock()
+            mock_hook.validate_args = mock.MagicMock(return_value=True)
+            mock_hook.validate_hook_settings = mock.MagicMock(return_value=True)
+            mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=True))
 
-        mock_hook = mock.MagicMock()
-        mock_hook.validate_args = mock.MagicMock(return_value=True)
-        mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=True))
+            mock_args = mock.MagicMock()
+            mock_args.hook.return_value = mock_hook
 
-        mock_hook_class = mock.MagicMock()
-        mock_hook_class.return_value = mock_hook
-
-        with mock.patch.object(sys, "argv", testargs), mock.patch("src.hooks.cli.get_hook_class") as mock_get_hook_class:
-            mock_get_hook_class.return_value = mock_hook_class
-            assert main_function() == 0
-
-    @pytest.mark.parametrize("hook_id", ([hook_id for hook_id in hooks]))
-    def test_all_known_hook_ids_return_class(self, hook_id):
-        assert get_hook_class(hook_id) is not None
+            with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
+                mock_parse_args.return_value = mock_args
+                assert main_function() == 0

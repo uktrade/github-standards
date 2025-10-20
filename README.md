@@ -13,7 +13,7 @@ While developing hooks, there are multiple ways of verifying these on your local
 
 As the hooks are written using python, it is possible to call the python file contain the hook directly passing the same arguments the pre-commit library would pass. There is a make command `validate-hook-python` that will run this in verbose mode and write debug messages to the terminal.
 
-For the run-security-scan hook, the command would look like this, where `--files` can be one or more filenames to scan: `python3 -m src.hooks.cli --hook-id=run-security-scan --verbose --files Dockerfile`
+For the run-security-scan hook, the command would look like this, where `--files` can be one or more filenames to scan: `python3 -m src.hooks.cli run_scan --verbose --files Dockerfile`
 
 ### Running the hooks using docker
 

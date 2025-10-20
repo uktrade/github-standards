@@ -11,7 +11,7 @@ logger = logging.getLogger()
 class ValidateSecurityScan(Hook):
     def validate_args(self) -> bool:
         if self.files is None or len(self.files) == 0:
-            logger.debug("No files passed to hook")
+            logger.debug("No files passed to hook, this hook needs 1 file")
             return False
         if len(self.files) != 1:
             logger.debug(
@@ -23,12 +23,14 @@ class ValidateSecurityScan(Hook):
 
     def _validate_hook_settings(self, dbt_repo_config) -> bool:
         if "hooks" not in dbt_repo_config:
-            logger.info("File %s contains the dbt hooks repo, but is missing the hooks child element", PRE_COMMIT_FILE)
+            logger.info(
+                "File %s contains the github standards hooks repo, but is missing the hooks child element", PRE_COMMIT_FILE
+            )
             return False
 
         dbt_hook_ids = [hook["id"] for hook in dbt_repo_config["hooks"] if "id" in hook]
         if not dbt_hook_ids:
-            logger.info("File %s contains the dbt hooks repo, but is missing the hooks to run", PRE_COMMIT_FILE)
+            logger.info("File %s contains the github standards hooks repo, but is missing the hooks to run", PRE_COMMIT_FILE)
             return False
 
         for mandatory_hook in MANDATORY_HOOK_IDS:
