@@ -4,6 +4,7 @@ import sys
 
 from typing import List, Optional
 from logging import StreamHandler, captureWarnings, getLogger, INFO, DEBUG, Formatter
+from src.hooks.config import GITHUB_ACTION_PR, GITHUB_ACTION_REPO
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.validate_security_scan import ValidateSecurityScan
 
@@ -11,16 +12,7 @@ from src.hooks.hooks_base import Hook
 
 logger = getLogger()
 
-hooks: dict[str, Hook] = {
-    "run-security-scan": RunSecurityScan,
-    "validate-security-scan": ValidateSecurityScan,
-}
-
-
-def get_hook_class(hook_id) -> Hook | None:
-    if hook_id not in hooks:
-        return None
-    return hooks[hook_id]
+GITHUB_ACTION_CHOICES = [GITHUB_ACTION_PR, GITHUB_ACTION_REPO]
 
 
 def init_logger(verbose):
@@ -38,16 +30,30 @@ def init_logger(verbose):
 
 
 def parse_args(argv):
-    parser = argparse.ArgumentParser(
-        description="Run security scan - a commit hook to run mandatory security scans against the current commit",
+    main_parser = argparse.ArgumentParser(description="DBT pre-commit hooks")
+
+    parent_parser = argparse.ArgumentParser(add_help=False)
+    parent_parser.add_argument("files", nargs="*", help="Filenames pre-commit has tracked as being changed.", default=[])
+    parent_parser.add_argument(
+        "-v", "--verbose", dest="verbose", action="store_true", help="output debug logs", default=False
     )
-    parser.add_argument("--hook-id", help="The id of the hook to run", required=True)
-    parser.add_argument("files", nargs="*", help="Filenames pre-commit believes are changed.", default=[])
 
-    group = parser.add_mutually_exclusive_group(required=False)
-    group.add_argument("-v", "--verbose", dest="verbose", action="store_true", help="output debug logs", default=False)
+    subparsers = main_parser.add_subparsers(title="subcommands", description="valid subcommands", help="additional help")
+    run_scan_parser = subparsers.add_parser("run_scan", parents=[parent_parser])
+    run_scan_parser.add_argument(
+        "-g",
+        "--github-action",
+        dest="github_action",
+        help="Run this hook in a github action",
+        choices=GITHUB_ACTION_CHOICES,
+        required=False,
+    )
+    run_scan_parser.set_defaults(hook=lambda args: RunSecurityScan(args.files, args.verbose, args.github_action))
 
-    return parser.parse_args(argv)
+    validate_scan_parser = subparsers.add_parser("validate_scan", parents=[parent_parser])
+    validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.files, args.verbose))
+
+    return main_parser.parse_args(argv)
 
 
 def main(
@@ -62,30 +68,25 @@ def main(
 
     logger.debug("Parsed args: %s", args)
 
-    hook_class = get_hook_class(args.hook_id)
-    if not hook_class:
-        logger.debug("Hook id '%s' is not a known hook", args.hook_id)
-        return 1
+    hook: Hook = args.hook(args)
 
-    hook: Hook = hook_class(args.files, args.verbose)
-
-    logger.debug("Loaded hook class %s using id '%s'", hook, args.hook_id)
+    logger.debug("Loaded hook class %s", hook)
 
     is_valid_args = hook.validate_args()
     if not is_valid_args:
-        logger.debug("Hook '%s' did not pass args validation check", args.hook_id)
+        logger.debug("Hook '%s' did not pass args validation check", hook)
         return 1
     logger.debug("Hook '%s' passed args validation check", hook.__class__.__name__)
 
     is_valid_hook = hook.validate_hook_settings()
     if not is_valid_hook:
-        logger.debug("Hook '%s' did not pass hook settings validation check", args.hook_id)
+        logger.debug("Hook '%s' did not pass hook settings validation check", hook)
         return 1
     logger.debug("Hook '%s' passed hook settings check", hook.__class__.__name__)
 
     run_result = hook.run()
     if not run_result.success:
-        logger.info("Hook '%s' did not successfully run.", args.hook_id)
+        logger.info("Hook '%s' did not successfully run.", hook)
         logger.info("%s", run_result.message)
         return 1
 

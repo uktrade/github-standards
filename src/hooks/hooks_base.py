@@ -59,7 +59,7 @@ class Hook(ABC):
                 filter(lambda x: "https://github.com/uktrade/github-standards" in x["repo"], config["repos"])
             )
             if not dbt_hook_repo:
-                logger.debug("File %s does not contain the dbt hooks repo", PRE_COMMIT_FILE)
+                logger.debug("File %s does not contain the github standards hooks repo", PRE_COMMIT_FILE)
                 return False
             if len(dbt_hook_repo) != 1:
                 logger.debug("File %s can only contain one github-standards repo entry", PRE_COMMIT_FILE)

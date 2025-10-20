@@ -1,6 +1,6 @@
 # Using a multi-stage image to create a final image without uv.
 # First, build the application in the `/app` directory.
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS builder
+FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS uv_builder
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
@@ -37,7 +37,7 @@ ENV PIP_NO_CACHE_DIR=1
 ENV FORCE_HOOK_CHECKS=1
 
 # Copy the application from the builder
-COPY --from=builder /app/.venv /app/.venv
+COPY --from=uv_builder /app/.venv /app/.venv
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
@@ -52,6 +52,6 @@ ENTRYPOINT ["hooks-cli"]
 
 FROM base AS testing
 COPY example.pre-commit-config.yaml /app/.pre-commit-config.yaml
+RUN echo 'Hello world commit message' >> /app/EXAMPLE_COMMIT_MSG.txt
 
-FROM testing AS local-testing
-RUN echo 'Hello world' >> /app/EXAMPLE_COMMIT_MSG.txt
+FROM base AS release

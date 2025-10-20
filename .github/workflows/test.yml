@@ -49,9 +49,9 @@ jobs:
           target: testing
 
       - name: Test run security scan
-        run: docker run github-standards-hooks:verification-testing --hook-id=run-security-scan --verbose README.md
+        run: docker run github-standards-hooks:verification-testing run_scan --verbose README.md
 
       - name: Test validate security scan
         run: |
           echo 'Test commit message' >> COMMIT.txt
-          docker run --mount type=bind,source=./COMMIT.txt,target=/app/COMMIT.txt github-standards-hooks:verification-testing --hook-id=validate-security-scan --verbose COMMIT.txt
+          docker run --mount type=bind,source=./COMMIT.txt,target=/app/COMMIT.txt github-standards-hooks:verification-testing validate_scan --verbose COMMIT.txt

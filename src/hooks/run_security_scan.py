@@ -2,15 +2,22 @@ import logging
 import requests
 
 
-from src.hooks.config import PRE_COMMIT_FILE, RELEASE_CHECK_URL
+from src.hooks.config import (
+    PRE_COMMIT_FILE,
+    RELEASE_CHECK_URL,
+)
 from src.hooks.hooks_base import Hook, HookRunResult
+from typing import List
 
 logger = logging.getLogger()
 
 
 class RunSecurityScan(Hook):
+    def __init__(self, files: List[str] | None = None, verbose: bool = False, github_action: str | None = None):
+        super().__init__(files, verbose)
+        self.github_action = github_action
+
     def validate_args(self) -> bool:
-        # pre-commit can have files, but can also be passed nothing
         return True
 
     def _get_version_from_remote(self):
@@ -27,7 +34,9 @@ class RunSecurityScan(Hook):
 
     def _validate_hook_settings(self, dbt_repo_config):
         if "rev" not in dbt_repo_config:
-            logger.debug("File %s contains the dbt hooks repo, but is missing the rev child element", PRE_COMMIT_FILE)
+            logger.debug(
+                "File %s contains the github standards hooks repo, but is missing the rev child element", PRE_COMMIT_FILE
+            )
             return False
 
         # If the call to get the remote version fails, return True as we don't want this to block a dev from commiting in this scenario.
