@@ -1,0 +1,14 @@
+global_regex_flags: 26
+
+supported_languages: 
+  - en
+
+recognizers: 
+  - name: EmailRecognizer
+    supported_languages: 
+    - en
+    type: predefined
+  - name: SpacyRecognizer
+    supported_languages: 
+    - en
+    type: predefined
