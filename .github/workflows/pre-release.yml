@@ -5,28 +5,14 @@ on:
     branches: ["main"]
   workflow_dispatch:
 
-env:
-  REGISTRY: github-standards-hooks
-
 jobs:
-  # This is a workaround to allow us to pass variables to the push-to-ecr reusable workflow. As that workflow runs in
-  # a separate github runner, the env vars in this file are not available
-  setup:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    outputs:
-      REGISTRY: ${{ env.REGISTRY }}
-    steps:
-      - run: echo "All set!"
-
   build-and-push-development-image:
-    needs: [setup]
     permissions:
       contents: read
       id-token: write
-    uses: ./.github/workflows/build-and-push-to-ecr.yml
+      packages: write
+      attestations: write
+    uses: ./.github/workflows/build-and-push-to-ghcr.yml
     with:
-      ecr_repo: ${{ needs.setup.outputs.REGISTRY }}
-      image_tag: development
+      image_tags: development
     secrets: inherit

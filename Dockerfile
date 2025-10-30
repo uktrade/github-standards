@@ -51,7 +51,9 @@ WORKDIR /app
 ENTRYPOINT ["hooks-cli"]
 
 FROM base AS testing
-COPY example.pre-commit-config.yaml /app/.pre-commit-config.yaml
+ENV FORCE_HOOK_CHECKS=0
+# Copy this folder so we have some python files to scan when testing
+COPY src /app/src 
 RUN echo 'Hello world commit message' >> /app/EXAMPLE_COMMIT_MSG.txt
 
 FROM base AS release

@@ -1,9 +1,7 @@
-include .local_env
-
 test: 
 	pytest -rP
 
-test-coverage: 
+coverage: 
 	COVERAGE_FILE=.coverage pytest --cov-report html:htmlcov --cov=./
 
 build-docker:
