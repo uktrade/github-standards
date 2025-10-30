@@ -14,3 +14,12 @@
 ## Optional hooks
 
 There are a large number of pre-commit hooks that can be used to help with code quality and catching linting failures early. This page contains a list of some featured hooks https://pre-commit.com/hooks.html
+
+# Configuration
+
+## Excluding false positives
+
+If trufflehog has detected a potential secret in your code during a scan that you know is a false positive, you can exclude this from future trufflehog scans. Trufflehog only allows exclusions of an entire file, you cannot exclude individual secrets. To exclude a file from trufflehog:
+
+- If it doesn't exist, create a file at the root of the repository called `trufflehog-excludes.txt`
+- This file contains list of regexes to exclude from trufflehog, separated by a newline. Add the filename you want to exclude as a new entry in this file

@@ -23,3 +23,22 @@ jobs:
         run: |
           git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
         continue-on-error: true # This needs to be removed after testing, as a failure to find the header should fail the build
+
+  secret-scanning:
+    env:
+      IMAGE: ghcr.io/uktrade/github-standards:latest
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Secret Scanning using our docker image
+        run: |
+          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/tmp -w /tmp \
+          ${{ env.IMAGE }} \
+          run_scan \
+          --verbose \
+          --github-action=pr

@@ -49,6 +49,23 @@ You will now have:
 - A github release using the new version, set to the be the latest version
 - A docker image build and deployed to TBC
 
+## Trufflehog
+
+We use a pinned version of trufflehog inside our security scanner.
+When building the security scanner docker image locally, the version must be passed as a build arg using `--build-arg TRUFFLEHOG_VERSION=3.90.8` as an example. The Makefile file contains a hardcoded trufflehog version, this is only present for building locally it is not used for any released code
+
+## Detectors
+
+We only use a pre-approved list of trufflehog detectors. The list is found in the `.config` file, new detectors can be added however they must be approved by cyber.
+
+### Upgrading
+
+When an upgrade to trufflehog is required
+
+1. Open the [repository variables](https://github.com/uktrade/github-standards/settings/variables/actions) page in github
+1. Edit the TRUFFLEHOG_VERSION variable and set is to the new desired version. This version must have a corresponding image tag on the [trufflehog dockerhub page](https://hub.docker.com/r/trufflesecurity/trufflehog/tags)
+1. Create a new github release following the [release instructions](#releasing)
+
 # Usage in your project
 
 [See installation instructions](docs/Installation.md)

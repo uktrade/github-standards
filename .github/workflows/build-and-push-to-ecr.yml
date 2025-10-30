@@ -70,5 +70,6 @@ jobs:
           platforms: ${{ steps.setup.outputs.platforms }}
           push: true
           target: release
+          build-args: TRUFFLEHOG_VERSION=${{ vars.TRUFFLEHOG_VERSION }}
           tags: ${{ steps.create-docker-tags.outputs.tags }}
           provenance: false # This is here to avoid ecr having an image for unknown/unknown
