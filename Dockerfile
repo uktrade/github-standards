@@ -24,13 +24,15 @@ COPY .pre-commit-hooks.yaml /app
 COPY pyproject.toml /app
 COPY .python-version /app
 COPY uv.lock /app
+COPY recognizers-config.yml /app
 COPY src /app/src
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
 
 # Then, use a final image without uv
-FROM python:3.13-alpine AS base
+# TODO switch back to FROM python:3.13-alpine AS base if possible with presidio
+FROM python:3.13-slim-bookworm AS base 
 
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
@@ -38,6 +40,7 @@ ENV FORCE_HOOK_CHECKS=1
 
 # Copy the application from the builder
 COPY --from=uv_builder /app/.venv /app/.venv
+COPY --from=uv_builder /app/recognizers-config.yml /app/recognizers-config.yml
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"

@@ -4,11 +4,13 @@ import sys
 
 from typing import List, Optional
 from logging import StreamHandler, captureWarnings, getLogger, INFO, DEBUG, Formatter
+
 from src.hooks.config import GITHUB_ACTION_PR, GITHUB_ACTION_REPO
+from src.hooks.hooks_base import Hook
+from src.hooks.run_pii_scan import RunPIIScan
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.validate_security_scan import ValidateSecurityScan
 
-from src.hooks.hooks_base import Hook
 
 logger = getLogger()
 
@@ -53,6 +55,9 @@ def parse_args(argv):
     validate_scan_parser = subparsers.add_parser("validate_scan", parents=[parent_parser])
     validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.files, args.verbose))
 
+    run_pii_scan_parser = subparsers.add_parser("run_pii_scan", parents=[parent_parser])
+    run_pii_scan_parser.set_defaults(hook=lambda args: RunPIIScan(args.files, args.verbose))
+
     return main_parser.parse_args(argv)
 
 
@@ -64,9 +69,9 @@ def main(
 
     args = parse_args(argv)
 
-    init_logger(args.verbose)
-
     logger.debug("Parsed args: %s", args)
+
+    init_logger(args.verbose)
 
     hook: Hook = args.hook(args)
 
