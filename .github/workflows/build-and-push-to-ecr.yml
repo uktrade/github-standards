@@ -6,8 +6,8 @@ on:
         description: The name of the repository the image will be pushed to.
         type: string
         required: true
-      image_tag:
-        description: Tag to apply to images. Multiple tags can be provided in a comma separated format
+      image_tags:
+        description: Tags to apply to images. Multiple tags can be provided in a comma separated format
         type: string
         required: true
 
@@ -51,7 +51,7 @@ jobs:
         run: |
           IFS=,
           TAG_COMMAND=""
-          read -ra tags <<<${{ inputs.image_tag }}
+          read -ra tags <<<${{ inputs.image_tags }}
           for tag in "${tags[@]}"
           do
               TAG_COMMAND="$TAG_COMMAND ${{ steps.login-ecr.outputs.registry }}/${{ inputs.ecr_repo }}:$tag"
