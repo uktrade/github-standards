@@ -76,6 +76,8 @@ jobs:
     permissions:
       contents: read
       id-token: write
+      packages: write
+      attestations: write
     uses: ./.github/workflows/build-and-push-to-ghcr.yml
     with:
       image_tags: latest,${{ needs.verify-release-inputs.outputs.tag }}
