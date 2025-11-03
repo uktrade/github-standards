@@ -26,8 +26,8 @@ run-hook-docker:
 	docker run --rm github-standards-hooks:testing run_scan --verbose src/hooks_base.py
 
 run-presido-python:
-	hooks-cli run_pii_scan --verbose
+	hooks-cli run_personal_data_scan --verbose tests/test_data/pii.txt
 
 run-presido-docker:
 	make build-docker-local-testing
-	docker run --rm github-standards-hooks:testing run_pii_scan --verbose src/hooks/run_security_scan.py 
+	docker run --rm github-standards-hooks:testing run_personal_data_scan --verbose src/hooks/run_security_scan.py 

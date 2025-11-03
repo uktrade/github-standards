@@ -8,7 +8,10 @@ recognizers:
     supported_languages: 
     - en
     type: predefined
+  
   - name: SpacyRecognizer
     supported_languages: 
     - en
     type: predefined
+    supported_entities: 
+      - PERSON
