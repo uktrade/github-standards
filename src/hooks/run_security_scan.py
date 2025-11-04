@@ -46,7 +46,7 @@ class RunSecurityScan(Hook):
 
             if version_in_config != version_in_remote:
                 logger.info(
-                    "The version in your local config is %s, but the latest version is %s. Run `pre-commit autoupdate` to update to the latest version",
+                    "The version in your local config is %s, but the latest version is %s. Run `pre-commit autoupdate --repo https://github.com/uktrade/github-standards` to update to the latest version",
                     version_in_config,
                     version_in_remote,
                 )
