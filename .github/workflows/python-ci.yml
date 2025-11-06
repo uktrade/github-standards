@@ -5,6 +5,9 @@ on:
     types: [opened, edited, reopened, synchronize]
     branches: [main, master, dev]
 
+env:
+  AUDIT_DIR: "audit-reports"
+
 jobs:
   python-specific-check:
     runs-on: ubuntu-latest
@@ -14,14 +17,19 @@ jobs:
       - name: Empty step
         run: echo 'Python checks to be run here'
 
-  Vulnerability-Checks:
+  vulnerability-checks:
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
+
     steps:
+      - name: "Create audit directory"
+        shell: bash
+        run: mkdir -p "${{ env.AUDIT_DIR }}"
+
       - name: "Run Python audit"
         uses: uktrade/actions/python@main
         with:
-          audit-dir: "audit-reports" 
+          audit-dir: ${{ env.AUDIT_DIR }}
           python-version: ${{ vars.PYTHON_VERSION }}
 
