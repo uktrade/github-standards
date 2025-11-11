@@ -31,14 +31,16 @@ class TrufflehogScanner:
 
         if self.github_action:
             # Scan all files in this branch
-            files_to_scan = ["."]
+            files_to_scan = ["file://"]
+            scan_mode = "git"
         else:
-            # Just scan the files passes in
+            # Scan the files passed in
+            scan_mode = "filesystem"
             files_to_scan = self.files
 
         trufflehog_cmd_args = [
             "trufflehog",
-            "filesystem",
+            scan_mode,
             "--fail",
             "--no-update",
             "--results=verified,unknown",
