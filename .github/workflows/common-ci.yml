@@ -56,3 +56,22 @@ jobs:
               repo: context.repo.repo
             })
         continue-on-error: true # Here incase this step breaks, which would break all org PRs
+
+  secret-scanning:
+    env:
+      IMAGE: ghcr.io/uktrade/github-standards:latest
+
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    steps:
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Secret Scanning using our docker image
+        run: |
+          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/tmp -w /tmp \
+          ${{ env.IMAGE }} \
+          run_scan \
+          --verbose \
+          --github-action

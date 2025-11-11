@@ -16,6 +16,10 @@
   - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
   - [Post installation setup](#post-installation-setup)
   - [Optional hooks](#optional-hooks)
+- [Trufflehog](#trufflehog)
+  - [Detectors](#detectors)
+  - [Excluding false positives](#excluding-false-positives)
+  - [Upgrading](#upgrading)
 - [FAQ](#faq)
   - [My PR is failing due to a github action checking a Signed-off-by trailer](#my-pr-is-failing-due-to-a-github-action-checking-a-signed-off-by-trailer)
   - [I'm receiving errors updating the rev version](#im-receiving-errors-updating-the-rev-version)
@@ -103,6 +107,33 @@ We use git tags for versioning, once you have copied the yaml to the `.pre-commi
 ## Optional hooks
 
 There are a large number of pre-commit hooks that can be used to help with code quality and catching linting failures early. This page contains a list of some featured hooks https://pre-commit.com/hooks.html
+
+# Trufflehog
+
+We use a pinned version of trufflehog inside our security scanner.
+When building the security scanner docker image locally, the version must be passed as a build arg using `--build-arg TRUFFLEHOG_VERSION=3.90.8` as an example. The Makefile file contains a hardcoded trufflehog version, this is only present for building locally it is not used for any released code
+
+## Detectors
+
+We only use a pre-approved list of trufflehog detectors. Each allowed detector must extend the abstract class `AllowedTrufflehogVendor` and implement 2 methods:
+
+- `code`: This code has to match the value trufflehog has assigned to this vendor, you can find the list at https://github.com/trufflesecurity/trufflehog/blob/main/proto/detectors.proto
+- `endpoints`: This is a list of the endpoints this vendor is allowed to call to verify a token is valid. To find a list of endpoints used by this vendor, you need to inspect the trufflehog source code. Starting at https://github.com/trufflesecurity/trufflehog/tree/main/pkg/detectors, find the name of the vendor you are adding. Inside the folder matching that name, you will find a `VENDOR_NAME.go` file that will contain an endpoint url at the top of the file that is used for verification. When adding this to the new vendor class, you need to remove any scheme or port and just paste the domain. E.g For Datadog the `datadogtoken.go` file has the endpoint `https://api.datadoghq.com`, but we add it as `api.datadoghq.com`
+
+## Excluding false positives
+
+If trufflehog has detected a potential secret in your code during a scan that you know is a false positive, you can exclude this from future trufflehog scans. Trufflehog only allows exclusions of an entire file, you cannot exclude individual secrets. To exclude a file from trufflehog:
+
+- If this file doesn't aready exist, create a file at the root of the repository called `trufflehog-excludes.txt`
+- This file contains list of regexes to exclude from trufflehog, separated by a newline. Add the filename in your repository you want to exclude as a new entry in this file
+
+## Upgrading
+
+When an upgrade to trufflehog is required
+
+1. Open the [repository variables](https://github.com/uktrade/github-standards/settings/variables/actions) page in github
+1. Edit the TRUFFLEHOG_VERSION variable and set it to the new desired version. This version must have a corresponding image tag on the [trufflehog dockerhub page](https://hub.docker.com/r/trufflesecurity/trufflehog/tags)
+1. Create a new github release following the [release instructions](#releasing)
 
 # FAQ
 

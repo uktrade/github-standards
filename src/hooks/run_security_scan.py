@@ -1,23 +1,44 @@
-import logging
+import os
 import requests
 
-
-from src.hooks.config import (
-    PRE_COMMIT_FILE,
-    RELEASE_CHECK_URL,
-)
-from src.hooks.hooks_base import Hook, HookRunResult
+from proxy import Proxy
 from typing import List
 
-logger = logging.getLogger()
+from src.hooks.config import (
+    LOGGER,
+    PRE_COMMIT_FILE,
+    RELEASE_CHECK_URL,
+    TRUFFLEHOG_PROXY,
+)
+from src.hooks.hooks_base import Hook, HookRunResult
+from src.hooks.trufflehog.scanner import TrufflehogScanner
+from src.hooks.trufflehog.vendors import AllowedTrufflehogVendor
+from src.proxy.plugins import OutgoingRequestInterceptorPlugin
+
+logger = LOGGER
 
 
 class RunSecurityScan(Hook):
-    def __init__(self, files: List[str] | None = None, verbose: bool = False, github_action: str | None = None):
+    def __init__(
+        self,
+        files: List[str] | None = None,
+        verbose: bool = False,
+        github_action: bool = False,
+        allowed_vendor_endpoints: List[str] = [],
+    ):
         super().__init__(files, verbose)
         self.github_action = github_action
+        self.allowed_vendor_endpoints = allowed_vendor_endpoints
 
     def validate_args(self) -> bool:
+        if self.github_action:
+            logger.debug("The hook is running in github_action mode, all files will be scanned")
+            return True
+
+        if self.files is None or len(self.files) == 0:
+            logger.debug("No files passed to hook, this hook needs at least 1 file")
+            return False
+
         return True
 
     def _get_version_from_remote(self):
@@ -58,4 +79,25 @@ class RunSecurityScan(Hook):
         return True
 
     def run(self) -> HookRunResult:
-        return HookRunResult(True)
+        # A cyber condition has been applied to using trufflehog, where the endpoints called by the trufflehog scanner need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block any requests made by trufflehog that have not been explicitly allowed
+        with Proxy(
+            port=8899,
+            plugins=[OutgoingRequestInterceptorPlugin],
+            log_level="ERROR",
+            enable_events=False,
+            input_args=["--allowed-trufflehog-vendor-endpoints", ",".join(self.allowed_vendor_endpoints)],
+        ):
+            env = dict(os.environ)
+            env["HTTP_PROXY"] = TRUFFLEHOG_PROXY
+            env["HTTPS_PROXY"] = TRUFFLEHOG_PROXY
+
+            scanner = TrufflehogScanner(
+                self.verbose,
+                self.github_action,
+                self.files,
+                AllowedTrufflehogVendor.all_vendor_codes(),
+            )
+            error_response = scanner.scan(env)
+            if error_response:
+                return HookRunResult(False, error_response)
+            return HookRunResult(True)
