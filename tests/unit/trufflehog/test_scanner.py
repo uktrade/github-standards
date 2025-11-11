@@ -24,12 +24,15 @@ class TestTrufflehogScanner:
             mock_isfile.return_value = True
             assert "--exclude-paths=trufflehog-excludes.txt" in TrufflehogScanner()._get_args()
 
-    def test_with_github_action_true_adds_all_files_for_trufflehog(self):
-        assert "." in TrufflehogScanner(github_action=True)._get_args()
+    def test_with_github_action_true_uses_git_scanning_mode(self):
+        args = TrufflehogScanner(github_action=True)._get_args()
+        assert "file://" in args
+        assert "git" in args
 
-    def test_with_github_action_false_adds_only_provided_files_for_trufflehog(self):
+    def test_with_github_action_false_uses_filesystem_scanning_mode(self):
         files = ["1.txt", "2.txt", "3.txt"]
         args = TrufflehogScanner(github_action=False, files=files)._get_args()
+        assert "filesystem" in args
         for file in files:
             assert file in args
 
