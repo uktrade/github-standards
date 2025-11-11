@@ -67,11 +67,11 @@ jobs:
 
     steps:
       - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
-
       - name: Secret Scanning using our docker image
         run: |
-          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/tmp -w /tmp \
+          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/repo_files -w /repo_files \
           ${{ env.IMAGE }} \
           run_scan \
           --verbose \
-          --github-action
+          --github-action \
+          /repo_files

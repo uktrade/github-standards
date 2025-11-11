@@ -48,9 +48,9 @@ jobs:
           target: testing
 
       - name: Test run security scan
-        run: docker run -v .:/source:rw,Z --workdir /source github-standards-hooks:verification-testing run_scan --verbose README.md
+        run: docker run -v .:/source:rw,Z -w /source github-standards-hooks:verification-testing run_scan --verbose README.md
 
       - name: Test validate security scan
         run: |
           echo 'Test commit message' >> COMMIT.txt
-          docker run --user $(id -u):$(id -g) -v .:/source:rw,Z --workdir /source github-standards-hooks:verification-testing validate_scan --verbose COMMIT.txt
+          docker run --user $(id -u):$(id -g) -v .:/source:rw,Z -w /source github-standards-hooks:verification-testing validate_scan --verbose COMMIT.txt

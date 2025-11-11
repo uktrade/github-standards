@@ -25,15 +25,15 @@ class TestTrufflehogScanner:
             assert "--exclude-paths=trufflehog-excludes.txt" in TrufflehogScanner()._get_args()
 
     def test_with_github_action_true_uses_git_scanning_mode(self):
-        args = TrufflehogScanner(github_action=True)._get_args()
-        assert "file://" in args
+        args = TrufflehogScanner(paths=["/folder1"], github_action=True)._get_args()
+        assert "file:///folder1" in args
         assert "git" in args
 
     def test_with_github_action_false_uses_filesystem_scanning_mode(self):
-        files = ["1.txt", "2.txt", "3.txt"]
-        args = TrufflehogScanner(github_action=False, files=files)._get_args()
+        paths = ["1.txt", "2.txt", "3.txt"]
+        args = TrufflehogScanner(github_action=False, paths=paths)._get_args()
         assert "filesystem" in args
-        for file in files:
+        for file in paths:
             assert file in args
 
     def test_expected_vendor_codes_are_added_to_trufflehog_args(self):

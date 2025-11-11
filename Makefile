@@ -20,11 +20,15 @@ validate-hook-docker:
 	# the EXAMPLE_COMMIT_MSG.txt file is created inside the Dockerfile using the testing target
 	make build-docker-testing
 	echo 'Hello world commit message' > tests/EXAMPLE_COMMIT_MSG.txt
-	docker run --rm -v .:/src:rw,Z --workdir /src github-standards-hooks:testing validate_scan --verbose tests/EXAMPLE_COMMIT_MSG.txt
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing validate_scan --verbose tests/EXAMPLE_COMMIT_MSG.txt
 
 run-hook-python:
 	hooks-cli run_scan --verbose ./src
 
 run-hook-docker:
 	make build-docker-testing
-	docker run --rm -v .:/src:rw,Z --workdir /src github-standards-hooks:testing run_scan --verbose src/hooks/cli.py
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose src/hooks/cli.py
+
+run-hook-docker-github-action:
+	make build-docker-testing
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose --github-action /src

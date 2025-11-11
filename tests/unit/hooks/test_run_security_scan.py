@@ -1,3 +1,4 @@
+from pathlib import Path
 import requests
 import requests_mock
 import tempfile
@@ -10,20 +11,31 @@ from src.hooks.run_security_scan import RunSecurityScan
 
 
 class TestRunSecurityScan:
-    def test_validate_args_without_file_list_returns_false(self):
-        assert RunSecurityScan(files=None).validate_args() is False
+    def test_validate_args_without_path_list_returns_false(self):
+        assert RunSecurityScan(paths=None).validate_args() is False
 
-    def test_validate_args_without_file_list_with_github_actions_mode_true_returns_true(self):
-        assert RunSecurityScan(files=None, github_action=True).validate_args() is True
+    def test_validate_args_with_empty_path_list_returns_false(self):
+        assert RunSecurityScan(paths=[]).validate_args() is False
 
-    def test_validate_args_with_empty_file_list_returns_false(self):
-        assert RunSecurityScan(files=[]).validate_args() is False
+    def test_validate_args_single_path_list_returns_true(self):
+        assert RunSecurityScan(paths=["a.txt"]).validate_args() is True
 
-    def test_validate_args_single_file_list_returns_true(self):
-        assert RunSecurityScan(files=["a.txt"]).validate_args() is True
+    def test_validate_args_multiple_path_list_returns_true(self):
+        assert RunSecurityScan(paths=["a.txt", "b.txt", "c.txt"]).validate_args() is True
 
-    def test_validate_args_multiple_file_list_returns_true(self):
-        assert RunSecurityScan(files=["a.txt", "b.txt", "c.txt"]).validate_args() is True
+    def test_validate_args_without_path_list_with_github_actions_mode_true_returns_false(self):
+        assert RunSecurityScan(paths=None, github_action=True).validate_args() is False
+
+    def test_validate_args_with_multiple_path_list_with_github_actions_mode_true_returns_false(self):
+        assert RunSecurityScan(paths=["a.txt", "b.txt", "c.txt"], github_action=True).validate_args() is False
+
+    def test_validate_args_with_single_file_in_path_list_with_github_actions_mode_true_returns_false(self):
+        assert RunSecurityScan(paths=["a.txt"], github_action=True).validate_args() is False
+
+    def test_validate_args_with_single_directory_in_path_list_with_github_actions_mode_true_returns_true(self):
+        with patch.object(Path, "is_dir") as mock_is_dir:
+            mock_is_dir.return_value = True
+            assert RunSecurityScan(paths=["/a/b/c"], github_action=True).validate_args() is True
 
     def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(self):
         yaml = b"""

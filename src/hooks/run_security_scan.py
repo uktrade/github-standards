@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 import requests
 
 from proxy import Proxy
@@ -22,22 +23,32 @@ logger = LOGGER
 class RunSecurityScan(Hook):
     def __init__(
         self,
-        files: List[str] | None = None,
+        paths: List[str] = [],
         verbose: bool = False,
         github_action: bool = False,
         allowed_vendor_endpoints: List[str] = [],
     ):
-        super().__init__(files, verbose)
+        super().__init__(paths, verbose)
         self.github_action = github_action
         self.allowed_vendor_endpoints = allowed_vendor_endpoints
 
     def validate_args(self) -> bool:
         if self.github_action:
-            logger.debug("The hook is running in github_action mode, all files will be scanned")
+            if self.paths is None:
+                logger.debug("No paths passed to hook, this hook needs a directory as the only path")
+                return False
+            if len(self.paths) != 1:
+                logger.debug("This hook needs a directory as the only path, there are %s paths provided", len(self.paths))
+                return False
+            if not Path(self.paths[0]).is_dir():
+                logger.debug(
+                    "This hook needs a directory as the only path, the path %s provided is not a directory", self.paths[0]
+                )
+                return False
             return True
 
-        if self.files is None or len(self.files) == 0:
-            logger.debug("No files passed to hook, this hook needs at least 1 file")
+        if self.paths is None or len(self.paths) == 0:
+            logger.debug("No paths passed to hook, this hook needs at least 1 paths")
             return False
 
         return True
@@ -107,7 +118,7 @@ class RunSecurityScan(Hook):
             scanner = TrufflehogScanner(
                 self.verbose,
                 self.github_action,
-                self.files,
+                self.paths,
                 AllowedTrufflehogVendor.all_vendor_codes(),
             )
             error_response = scanner.scan(env)

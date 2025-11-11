@@ -33,7 +33,7 @@ def parse_args(argv):
     main_parser = argparse.ArgumentParser(description="DBT pre-commit hooks")
 
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("files", nargs="*", help="Filenames pre-commit has tracked as being changed.", default=[])
+    parent_parser.add_argument("paths", nargs="*", help="Paths pre-commit has tracked as being changed.", default=[])
     parent_parser.add_argument(
         "-v", "--verbose", dest="verbose", action="store_true", help="output debug logs", default=False
     )
@@ -50,12 +50,12 @@ def parse_args(argv):
     )
     run_scan_parser.set_defaults(
         hook=lambda args: RunSecurityScan(
-            args.files, args.verbose, args.github_action, allowed_vendor_endpoints=AllowedTrufflehogVendor.all_endpoints()
+            args.paths, args.verbose, args.github_action, allowed_vendor_endpoints=AllowedTrufflehogVendor.all_endpoints()
         )
     )
 
     validate_scan_parser = subparsers.add_parser("validate_scan", parents=[parent_parser])
-    validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.files, args.verbose))
+    validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.paths, args.verbose))
 
     return main_parser.parse_args(argv)
 
@@ -67,7 +67,6 @@ def main(
         return 1
 
     args = parse_args(argv)
-
     init_logger(args.verbose)
 
     logger.debug("Parsed args: %s", args)
