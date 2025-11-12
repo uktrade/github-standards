@@ -30,5 +30,6 @@ class TestCLI:
                 stdout="Called the trufflehog scanning tool",
                 returncode=0,
             )
+
             main_function(["run_scan", "-v", file.name])
             assert scanner.was_called()

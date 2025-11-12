@@ -212,3 +212,4 @@ test_keys/
 
 .DS_Store
 tests/EXAMPLE_COMMIT_MSG.txt
+.proxy_py/

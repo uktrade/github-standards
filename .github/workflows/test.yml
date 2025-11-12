@@ -32,10 +32,6 @@ jobs:
         run: uv run pytest
 
   run-docker-verification:
-    env:
-      # These are set in the Dockerfile and used here as a workaround for proxy.py
-      USER_ID: 98657
-      GROUP_ID: 87485
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -52,11 +48,9 @@ jobs:
           target: testing
 
       - name: Test run security scan
-        run: docker run --user ${{env.USER_ID}}:${{env.GROUP_ID}} -v .:/source:rw,Z --workdir /source github-standards-hooks:verification-testing run_scan --verbose README.md
+        run: docker run -v .:/source:rw,Z --workdir /source github-standards-hooks:verification-testing run_scan --verbose README.md
 
       - name: Test validate security scan
         run: |
           echo 'Test commit message' >> COMMIT.txt
-          ls -la
-          id
           docker run --user $(id -u):$(id -g) -v .:/source:rw,Z --workdir /source github-standards-hooks:verification-testing validate_scan --verbose COMMIT.txt

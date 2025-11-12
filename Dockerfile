@@ -44,9 +44,11 @@ ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV FORCE_HOOK_CHECKS=1
 
-ENV USER_ID=98657
-ENV GROUP_ID=87485
-
+RUN mkdir /.proxy_py && \
+    mkdir /.proxy_py/certs && \
+    mkdir /.proxy_py/cache && \
+    mkdir /.proxy_py/cache/responses && \
+    mkdir /.proxy_py/cache/content
 
 # Copy the application from the builder
 COPY --from=uv_builder /app/.venv /app/.venv
@@ -55,14 +57,16 @@ COPY --from=trufflehog_builder /usr/bin/trufflehog /usr/bin/trufflehog
 
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
+ENV DEFAULT_PROXY_DIRECTORY="/.proxy_py"
 
 # Create a custom user to run the hooks with. This is needed as pre-commit mounts a volume from the machine running
 # this docker image. Without a custom user, the proxy library fails as it creates local cache inside the volume
-RUN addgroup --gid ${GROUP_ID} -S app_group && adduser -S app_user -G app_group --uid ${USER_ID}
+RUN addgroup -S app_group && \
+    adduser -S app_user -G app_group
 
-USER ${USER_ID}
+USER app_user
 
-WORKDIR /home/${USER_ID}
+WORKDIR /app
 
 ENTRYPOINT ["hooks-cli"]
 

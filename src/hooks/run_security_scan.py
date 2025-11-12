@@ -5,6 +5,7 @@ from proxy import Proxy
 from typing import List
 
 from src.hooks.config import (
+    DEFAULT_PROXY_DIRECTORY,
     LOGGER,
     PRE_COMMIT_FILE,
     RELEASE_CHECK_URL,
@@ -79,13 +80,25 @@ class RunSecurityScan(Hook):
         return True
 
     def run(self) -> HookRunResult:
-        # A cyber condition has been applied to using trufflehog, where the endpoints called by the trufflehog scanner need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block any requests made by trufflehog that have not been explicitly allowed
+        # A cyber condition has been applied to using trufflehog, where the endpoints called by the trufflehog scanner
+        # need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block
+        # any requests made by trufflehog that have not been explicitly allowed
+
+        logger.debug("Using the %s folder for storing proxy.py data", DEFAULT_PROXY_DIRECTORY)
+
         with Proxy(
             port=8899,
             plugins=[OutgoingRequestInterceptorPlugin],
             log_level="ERROR",
             enable_events=False,
-            input_args=["--allowed-trufflehog-vendor-endpoints", ",".join(self.allowed_vendor_endpoints)],
+            input_args=[
+                "--allowed-trufflehog-vendor-endpoints",
+                ",".join(self.allowed_vendor_endpoints),
+                "--cache-dir",
+                f"{DEFAULT_PROXY_DIRECTORY}/cache",
+            ],
+            data_dir=DEFAULT_PROXY_DIRECTORY,
+            ca_cert_dir=f"{DEFAULT_PROXY_DIRECTORY}/certs",
         ):
             env = dict(os.environ)
             env["HTTP_PROXY"] = TRUFFLEHOG_PROXY
