@@ -44,6 +44,10 @@ ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
 ENV FORCE_HOOK_CHECKS=1
 
+ENV USER_ID=98657
+ENV GROUP_ID=87485
+
+
 # Copy the application from the builder
 COPY --from=uv_builder /app/.venv /app/.venv
 # Copy the trufflehog runner from the builder
@@ -52,15 +56,17 @@ COPY --from=trufflehog_builder /usr/bin/trufflehog /usr/bin/trufflehog
 # Place executables in the environment at the front of the path
 ENV PATH="/app/.venv/bin:$PATH"
 
-WORKDIR /app
+# Create a custom user to run the hooks with. This is needed as pre-commit mounts a volume from the machine running
+# this docker image. Without a custom user, the proxy library fails as it creates local cache inside the volume
+RUN addgroup --gid ${GROUP_ID} -S app_group && adduser -S app_user -G app_group --uid ${USER_ID}
+
+USER ${USER_ID}
+
+WORKDIR /home/${USER_ID}
 
 ENTRYPOINT ["hooks-cli"]
 
 FROM base AS testing
 ENV FORCE_HOOK_CHECKS=0
-COPY example.pre-commit-config.yaml /app/.pre-commit-config.yaml
-# Copy this folder so we have some python files to scan when testing
-COPY src /app/src 
-RUN echo 'Hello world commit message' >> /app/EXAMPLE_COMMIT_MSG.txt
 
 FROM base AS release

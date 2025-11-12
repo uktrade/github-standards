@@ -30,6 +30,7 @@ class TestAllowedTrufflehogVendor:
         assert AllowedTrufflehogVendor.all_endpoints() == [
             "api.datadoghq.com",
             "sts.us-east-1.amazonaws.com",
+            "sns.us-east-1.amazonaws.com",
             "circleci.com/api/v2/me",
             "api.github.com",
             "gitlab.com",
@@ -48,7 +49,10 @@ class TestDatadog(BaseVendorTests):
 class TestAWS(BaseVendorTests):
     cls = AWS
     expected_code = "AWS"
-    expected_endpoints = ["sts.us-east-1.amazonaws.com"]
+    expected_endpoints = [
+        "sts.us-east-1.amazonaws.com",
+        "sns.us-east-1.amazonaws.com",
+    ]
 
 
 class TestCircleCI(BaseVendorTests):

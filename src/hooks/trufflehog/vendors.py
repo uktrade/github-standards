@@ -73,6 +73,7 @@ class AWS(AllowedTrufflehogVendor):
     def endpoints(self) -> list[str]:
         return [
             "sts.us-east-1.amazonaws.com",
+            "sns.us-east-1.amazonaws.com",
         ]
 
 
