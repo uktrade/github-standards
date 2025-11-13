@@ -83,6 +83,7 @@ class TestValidateSecurityScan:
               hooks:
                 - id: validate-security-scan
                 - id: run-security-scan
+                - id: run-personal-data-scan
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
