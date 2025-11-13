@@ -18,8 +18,8 @@ class HookRunResult:
 
 
 class Hook(ABC):
-    def __init__(self, files: List[str] | None = None, verbose: bool = False):
-        self.files = files
+    def __init__(self, paths: List[str] = [], verbose: bool = False):
+        self.paths = paths
         self.verbose = verbose
 
     @abstractmethod

@@ -38,7 +38,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 FROM trufflesecurity/trufflehog:${TRUFFLEHOG_VERSION} AS trufflehog_builder
 
 # # Then, use a final image without uv
-FROM python:3.13-alpine AS base
+FROM python:3.13-slim-bookworm AS base
 
 ENV PYTHONUNBUFFERED=1
 ENV PIP_NO_CACHE_DIR=1
@@ -49,6 +49,10 @@ RUN mkdir /.proxy_py && \
     mkdir /.proxy_py/cache && \
     mkdir /.proxy_py/cache/responses && \
     mkdir /.proxy_py/cache/content
+
+# install git using a temp mount to reduce space in the final image
+RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
+    apt-get update && apt-get --no-install-recommends install -y git=1:2.39.5-0+deb12u2
 
 # Copy the application from the builder
 COPY --from=uv_builder /app/.venv /app/.venv
@@ -61,8 +65,8 @@ ENV DEFAULT_PROXY_DIRECTORY="/.proxy_py"
 
 # Create a custom user to run the hooks with. This is needed as pre-commit mounts a volume from the machine running
 # this docker image. Without a custom user, the proxy library fails as it creates local cache inside the volume
-RUN addgroup -S app_group && \
-    adduser -S app_user -G app_group
+RUN groupadd app_group && \
+    useradd -G app_group -m app_user
 
 USER app_user
 
