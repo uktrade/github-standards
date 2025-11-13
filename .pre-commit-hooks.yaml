@@ -2,7 +2,7 @@
     name: Run a security scan
     description: Run a security scan against the files in this commit
     language: docker_image
-    entry: ghcr.io/uktrade/github-standards:latest run_scan
+    entry: --pull "always" ghcr.io/uktrade/github-standards:latest run_scan
     stages: [pre-commit]
     require_serial: true # This avoids the pre-commit spliting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
 
@@ -10,7 +10,7 @@
     name: Run a personal data scan
     description: Run a security scan against the files in this commit
     language: docker_image
-    entry: ghcr.io/uktrade/github-standards:latest run_personal_data_scan
+    entry: --pull "always" ghcr.io/uktrade/github-standards:latest run_personal_data_scan
     stages: [pre-commit]
     require_serial: true # This avoids the pre-commit spliting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
 
@@ -18,6 +18,6 @@
     name: Validate the security scan hook
     description: Validate the hook that runs the security scans has run, and add a signed-off git trailer if security scans have passed
     language: docker_image
-    entry: ghcr.io/uktrade/github-standards:latest validate_scan
+    entry: --pull "always" ghcr.io/uktrade/github-standards:latest validate_scan
     stages: [commit-msg]
 
