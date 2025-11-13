@@ -6,6 +6,24 @@ on:
     branches: ["main"]
 
 jobs:
+  run-version-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version-file: ".python-version"
+
+      - name: Compare project.toml version with pre-commit hooks
+        run: |
+          pip install pyyaml
+          python3 -m src.actions.compare_versions
+
   run-tests:
     runs-on: ubuntu-latest
     permissions:
