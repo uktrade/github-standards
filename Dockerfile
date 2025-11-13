@@ -1,3 +1,4 @@
+# hadolint global ignore=DL3008
 # Using a multi-stage image to create a final image without uv.
 # First, build the application in the `/app` directory.
 ARG TRUFFLEHOG_VERSION='USE_BUILD_ARG'
@@ -52,7 +53,7 @@ RUN mkdir /.proxy_py && \
 
 # install git using a temp mount to reduce space in the final image
 RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
-    apt-get update && apt-get --no-install-recommends install -y git=1:2.39.5-0+deb12u2
+    apt-get update && apt-get --no-install-recommends install -y git
 
 # Copy the application from the builder
 COPY --from=uv_builder /app/.venv /app/.venv
