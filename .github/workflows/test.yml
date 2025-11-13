@@ -51,6 +51,9 @@ jobs:
       - name: Test run security scan
         run: docker run -v .:/source:rw,Z -w /source github-standards-hooks:verification-testing run_scan --verbose README.md
 
+      - name: Test run personal data scan
+        run: docker run -v .:/source:rw,Z -w /source github-standards-hooks:verification-testing run_personal_data_scan --verbose README.md
+
       - name: Test validate security scan
         run: |
           echo 'Test commit message' >> COMMIT.txt
