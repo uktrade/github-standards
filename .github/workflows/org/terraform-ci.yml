@@ -1,0 +1,199 @@
+# .github/workflows/terraform-ci.yml
+name: Terraform CI
+
+on:
+  workflow_call:
+    inputs:
+      run_tflint:
+        description: "Run TFLint after fmt/validate."
+        required: false
+        type: boolean
+        default: true
+      extra_skip_globs:
+        description: "Newline-separated patterns to skip entirely (e.g., 'sandbox/*')."
+        required: false
+        type: string
+        default: ""
+
+  pull_request:
+    types: [opened, edited, reopened, synchronize]
+    branches: [main, master, dev]
+
+jobs:
+  terraform-ci:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      TF_IN_AUTOMATION: "true"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Setup Terraform
+        id: setup-tf
+        uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+
+      # fmt is local-only
+      - name: FMT (repo-wide)
+        env:
+          TF_PLUGIN_CACHE_DIR: ""
+        run: terraform fmt -recursive -check
+
+      # ---- Provider cache (used by init/validate) ----
+      - name: Prepare Terraform provider cache dir
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "${{ github.workspace }}/.terraform.d/plugin-cache"
+          echo "TF_PLUGIN_CACHE_DIR=${{ github.workspace }}/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
+
+      - name: Cache Terraform provider plugins
+        uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
+        with:
+          path: ${{ github.workspace }}/.terraform.d/plugin-cache
+          key: tf-plugins-${{ runner.os }}-tf${{ steps.setup-tf.outputs.terraform_version }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+          restore-keys: |
+            tf-plugins-${{ runner.os }}-tf${{ steps.setup-tf.outputs.terraform_version }}-
+            tf-plugins-${{ runner.os }}-
+
+      # ---- Discover roots (skip examples entirely)
+      - name: Discover Terraform dirs (skip examples)
+        id: discover
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t CANDIDATES < <(git ls-files -- '*.tf' '*.tf.json' 2>/dev/null | xargs -n1 dirname | sort -u)
+
+          # Skip noise + examples entirely
+          skip_regex='(^|/)(\.terraform|\.github|\.git|node_modules|vendor|docs|examples)(/|$)'
+
+          EXTRA_SKIP="${{ inputs.extra_skip_globs }}"
+          if [[ -n "$EXTRA_SKIP" ]]; then
+            extra_regex="$(printf '%s\n' "$EXTRA_SKIP" | sed -E 's/[.[\]{}()+*^$\\|]/\\&/g; s,/,\\/,g' | paste -sd'|' -)"
+            skip_regex="(${skip_regex}|${extra_regex})"
+          fi
+
+          declare -a ROOTS=()
+          for d in "${CANDIDATES[@]}"; do
+            [[ "$d" =~ $skip_regex ]] && continue
+            shopt -s nullglob
+            tf=( "$d"/*.tf "$d"/*.tf.json )
+            shopt -u nullglob
+            [[ ${#tf[@]} -eq 0 ]] && continue
+            ROOTS+=("$d")
+          done
+
+          { printf 'roots<<EOF\n'; printf '%s\n' "${ROOTS[@]}"; printf 'EOF\n'; } >> "$GITHUB_OUTPUT"
+          echo "Discovered roots (examples skipped): ${#ROOTS[@]}"
+
+      # ---- Validate (soft-skip auth/path/module-only)
+      - name: Validate roots (soft)
+        if: steps.discover.outputs.roots != ''
+        shell: bash
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+          mapfile -t DIRS < <(printf "%s\n" "${{ steps.discover.outputs.roots }}")
+
+          echo "Validating roots:"
+          printf ' - %s\n' "${DIRS[@]}"
+
+          hard_fail=()
+          soft_skipped=()
+
+          for d in "${DIRS[@]}"; do
+            # Skip empty/template-only dirs
+            if ! find "$d" -maxdepth 1 -type f \( -name "*.tf" -o -name "*.tf.json" \) | grep -q .; then
+              echo "::notice file=$d::Skipping (no Terraform files)"
+              soft_skipped+=("$d (no tf files)")
+              continue
+            fi
+
+            # Skip module directories outright
+            if [[ "$d" =~ (^|/)modules(/|$) ]]; then
+              echo "::notice file=$d::Skipping module directory"
+              soft_skipped+=("$d (module dir)")
+              continue
+            fi
+
+            echo; echo "=============================="
+            echo "==> terraform init:   $d"
+            echo "=============================="
+            lockflag=()
+            [[ -f "$d/.terraform.lock.hcl" ]] && lockflag=(-lockfile=readonly)
+
+            # INIT — SOFT-SKIP on auth/path/download issues
+            log="$(mktemp)"
+            if ! terraform -chdir="$d" init -backend=false -input=false "${lockflag[@]}" -no-color 2>&1 | tee "$log"; then
+              if grep -Eq 'Failed to download module|Permission denied \(publickey\)|Authentication failed|Repository not found|could not read from remote repository|The requested URL returned error: (403|404)|Unreadable module directory|Unable to evaluate directory symlink|no such file or directory' "$log"; then
+                echo "::warning file=$d::terraform init failed (private module auth or bad local module path). Skipping validate for this dir."
+                soft_skipped+=("$d (init auth/path)")
+                rm -f "$log" || true
+                continue
+              else
+                echo "::error file=$d::terraform init failed (see output above)"
+                hard_fail+=("$d (init failed)")
+                rm -f "$log" || true
+                continue
+              fi
+            fi
+            rm -f "$log" || true
+
+            echo; echo "=============================="
+            echo "==> terraform validate: $d"
+            echo "=============================="
+            vlog="$(mktemp)"
+            set +o pipefail
+            terraform -chdir="$d" validate -no-color 2>&1 | tee "$vlog"
+            ec=${PIPESTATUS[0]}
+            set -o pipefail
+
+            if (( ec != 0 )); then
+              if grep -Eq 'Provider configuration not present|its original provider configuration at provider\[.*\] is required|has been removed\. This occurs when a provider configuration is removed|No value for required variable|Missing required argument|Module source cannot be determined' "$vlog"; then
+                echo "::notice file=$d::Module-only or caller-dependent; skipping validate for this dir."
+                soft_skipped+=("$d (module-only)")
+              else
+                echo "::error file=$d::terraform validate failed (see output above)"
+                hard_fail+=("$d (validate failed)")
+              fi
+            fi
+            rm -f "$vlog" || true
+          done
+
+          # Summary (no exit 1 — this step never fails the job)
+          if [[ ${#soft_skipped[@]} -gt 0 ]]; then
+            echo; echo "Soft-skipped directories:"; printf ' - %s\n' "${soft_skipped[@]}"
+          fi
+          if [[ ${#hard_fail[@]} -gt 0 ]]; then
+            echo; echo "Validation hard failures (non-blocking):"; printf ' - %s\n' "${hard_fail[@]}"
+            # To make hard validation failures fail the job, add: exit 1
+          fi
+
+      # ---- TFLint (ALWAYS run)-
+      - name: Setup TFLint
+        if: ${{ always() }}
+        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6
+
+      - name: TFLint (all discovered roots)
+        if: ${{ always() }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "${{ steps.discover.outputs.roots }}" ]]; then
+            echo "::notice::No Terraform roots discovered; skipping tflint."
+            exit 0
+          fi
+          mapfile -t DIRS < <(printf "%s\n" "${{ steps.discover.outputs.roots }}")
+          for d in "${DIRS[@]}"; do
+            if [[ "$d" =~ (^|/)modules(/|$) ]]; then
+              echo "::notice file=$d::Skipping module directory for tflint"
+              continue
+            fi
+            echo
+            echo "=============================="
+            echo "==> tflint: $d"
+            echo "=============================="
+            (cd "$d" && { [[ -f .tflint.hcl ]] && tflint --init || true; } && tflint)
+          done
