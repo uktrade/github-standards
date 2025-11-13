@@ -52,7 +52,7 @@ RUN mkdir /.proxy_py && \
     mkdir /.proxy_py/cache/content
 
 # install git using a temp mount to reduce space in the final image
-RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
+RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,sharing=locked,target=/var/lib/apt \
     apt-get update && apt-get --no-install-recommends install -y git
 
 # Copy the application from the builder
