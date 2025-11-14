@@ -70,16 +70,16 @@ The commit-msg hook stage is passes a single parameter, which is the name of the
 
 # Releasing
 
-There is a github action that can be run to release a new version of the hooks. To create a new release:
+There is a github workflow that will automatically create a new docker tag, and a github release when a change to the `version` tag inside the `pyproject.toml` file is detected. When a new version needs to be released:
 
-1. Go to https://github.com/uktrade/github-standards/tags and find the latest tag
-1. Go to https://github.com/uktrade/github-standards/actions/workflows/release.yml and click the `Run workflow` button. This repository uses semantic versioning, so in the `Version to release` input add the new version
-1. Press the `Run workflow` button, wait for the action to finish
+1. Open the `pyproject.toml` file, and update the `version` tag to a new value. We use semantic versioning, see [this article](https://www.geeksforgeeks.org/software-engineering/introduction-semantic-versioning/) for help determining what the new version value should be
+2. Make sure the `entry` tag for each of the hooks in the `.pre-commit-hooks.yaml` match this new version. There is an automated test that fails a PR if these values don't match
+3. Open a PR into main. Once approved, merging will trigger a new release
 
 You will now have:
 
 - A github release using the new version, set to the be the latest version
-- A docker image build and deployed to TBC
+- A docker image build and deployed to our [container registry](https://github.com/uktrade/github-standards/pkgs/container/github-standards)
 
 # Usage
 
