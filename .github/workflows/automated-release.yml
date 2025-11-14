@@ -1,17 +1,17 @@
-name: Release
+name: Automated Release
+
 on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Version to release (e.g., 1.2.3)"
-        required: true
-        type: string
+  push:
+    branches:
+      - main
+    paths:
+      - "pyproject.toml"
 
 env:
   REGISTRY: github-standards-hooks
 
 jobs:
-  verify-release-inputs:
+  verify-release-version:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -19,13 +19,31 @@ jobs:
     outputs:
       tag: ${{ steps.version.outputs.tag }}
       version: ${{ steps.version.outputs.version }}
+      requires_release: ${{ steps.version.outputs.requires_release }}
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
         with:
-          ref: main
           fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python
+        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        with:
+          python-version-file: ".python-version"
+
+      - name: Extract version
+        id: extract_version
+        shell: python
+        run: |
+          import os
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+            contents = tomllib.load(f)
+            version = contents["project"]["version"]
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f"version={version}\n")
 
       - name: Validate we're on main branch
         run: |
@@ -37,8 +55,9 @@ jobs:
 
       - name: Process version and tag
         id: version
+        shell: bash
         run: |
-          input_version="${{ github.event.inputs.version }}"
+          input_version="${{ steps.extract_version.outputs.version }}"
           clean_version=${input_version#v}
 
           # Validate version format
@@ -48,21 +67,26 @@ jobs:
           fi
 
           git_tag="v$clean_version"
+          requires_release="true"
 
           # Check if tag already exists
-          if git rev-parse "$git_tag" >/dev/null 2>&1; then
-            echo "Error: Tag $git_tag already exists"
-            exit 1
+          if [ $(git tag -l "$git_tag") ]; then
+            echo "Tag $git_tag already exists"
+            requires_release="false"
           fi
 
           echo "version=$clean_version" >> $GITHUB_OUTPUT
           echo "tag=$git_tag" >> $GITHUB_OUTPUT
+          echo "requires_release=$requires_release" >> $GITHUB_OUTPUT
           echo "Clean version: $clean_version"
           echo "Git tag: $git_tag"
+          echo "Requires release: $requires_release"
 
   # This is a workaround to allow us to pass variables to the push-to-ecr reusable workflow. As that workflow runs in
   # a separate github runner, the env vars in this file are not available
   setup:
+    needs: [verify-release-version]
+    if: ${{ needs.verify-release-version.outputs.requires_release == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -72,7 +96,7 @@ jobs:
       - run: echo "All set!"
 
   build-and-push-latest-image:
-    needs: [verify-release-inputs, setup]
+    needs: [setup, verify-release-version]
     permissions:
       contents: read
       id-token: write
@@ -80,11 +104,11 @@ jobs:
       attestations: write
     uses: ./.github/workflows/build-and-push-to-ghcr.yml
     with:
-      image_tags: latest,${{ needs.verify-release-inputs.outputs.tag }}
+      image_tags: latest,${{ needs.verify-release-version.outputs.tag }}
     secrets: inherit
 
   create-github-release:
-    needs: [verify-release-inputs, build-and-push-latest-image]
+    needs: [setup, verify-release-version, build-and-push-latest-image]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -93,7 +117,7 @@ jobs:
       - name: Create tag and GitHub release
         uses: ncipollo/release-action@b7eabc95ff50cbeeedec83973935c8f306dfcd0b
         with:
-          tag: ${{ needs.verify-release-inputs.outputs.tag }}
-          name: ${{ needs.verify-release-inputs.outputs.tag }}
+          tag: ${{ needs.verify-release-version.outputs.tag }}
+          name: ${{ needs.verify-release-version.outputs.tag }}
           generateReleaseNotes: true
           makeLatest: true
