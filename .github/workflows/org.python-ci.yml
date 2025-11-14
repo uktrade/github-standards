@@ -1,4 +1,4 @@
-name: Python CI
+name: "Organisation ruleset: Python CI"
 
 on:
   pull_request:
