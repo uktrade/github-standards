@@ -1,5 +1,4 @@
-# .github/workflows/terraform-ci.yml
-name: Terraform CI
+name: "Organisation ruleset: Terraform CI"
 
 on:
   workflow_call:

@@ -1,4 +1,4 @@
-name: Common CI
+name: "Organisation ruleset: Common CI"
 
 on:
   pull_request:
