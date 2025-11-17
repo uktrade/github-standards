@@ -74,7 +74,8 @@ There is a github workflow that will automatically create a new docker tag, and 
 
 1. Open the `pyproject.toml` file, and update the `version` tag to a new value. We use semantic versioning, see [this article](https://www.geeksforgeeks.org/software-engineering/introduction-semantic-versioning/) for help determining what the new version value should be
 2. Make sure the `entry` tag for each of the hooks in the `.pre-commit-hooks.yaml` match this new version. There is an automated test that fails a PR if these values don't match
-3. Open a PR into main. Once approved, merging will trigger a new release
+3. Run `uv sync` to ensure the package is set to the correct version
+4. Open a PR into main. Once approved, merging will trigger a new release
 
 You will now have:
 

@@ -141,7 +141,7 @@ wheels = [
 
 [[package]]
 name = "github-standards"
-version = "0.0.18"
+version = "0.0.19"
 source = { editable = "." }
 dependencies = [
     { name = "proxy-py" },
