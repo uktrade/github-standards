@@ -1,21 +1,16 @@
-import os
 from pathlib import Path
 import requests
 
-from proxy import Proxy
 from typing import List
 
 from src.hooks.config import (
-    DEFAULT_PROXY_DIRECTORY,
     LOGGER,
     PRE_COMMIT_FILE,
     RELEASE_CHECK_URL,
-    TRUFFLEHOG_PROXY,
 )
 from src.hooks.hooks_base import Hook, HookRunResult
 from src.hooks.trufflehog.scanner import TrufflehogScanner
 from src.hooks.trufflehog.vendors import AllowedTrufflehogVendor
-from src.proxy.plugins import OutgoingRequestInterceptorPlugin
 
 logger = LOGGER
 
@@ -26,11 +21,9 @@ class RunSecurityScan(Hook):
         paths: List[str] = [],
         verbose: bool = False,
         github_action: bool = False,
-        allowed_vendor_endpoints: List[str] = [],
     ):
         super().__init__(paths, verbose)
         self.github_action = github_action
-        self.allowed_vendor_endpoints = allowed_vendor_endpoints
 
     def validate_args(self) -> bool:
         if self.github_action:
@@ -90,38 +83,34 @@ class RunSecurityScan(Hook):
 
         return True
 
+    def run_security_scan(self):
+        scanner = TrufflehogScanner(
+            self.verbose,
+            self.paths,
+        )
+        error_response = scanner.scan(
+            self.github_action,
+            AllowedTrufflehogVendor.all_endpoints(),
+            AllowedTrufflehogVendor.all_vendor_codes(),
+        )
+        if error_response:
+            return HookRunResult(False, error_response)
+        return HookRunResult(True)
+
+    def run_personal_scan(self):
+        return HookRunResult(True)
+
     def run(self) -> HookRunResult:
         # A cyber condition has been applied to using trufflehog, where the endpoints called by the trufflehog scanner
         # need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block
         # any requests made by trufflehog that have not been explicitly allowed
 
-        logger.debug("Using the %s folder for storing proxy.py data", DEFAULT_PROXY_DIRECTORY)
+        security_scan_result = self.run_security_scan()
+        if security_scan_result.success is False:
+            return security_scan_result
 
-        with Proxy(
-            port=8899,
-            plugins=[OutgoingRequestInterceptorPlugin],
-            log_level="ERROR",
-            enable_events=False,
-            input_args=[
-                "--allowed-trufflehog-vendor-endpoints",
-                ",".join(self.allowed_vendor_endpoints),
-                "--cache-dir",
-                f"{DEFAULT_PROXY_DIRECTORY}/cache",
-            ],
-            data_dir=DEFAULT_PROXY_DIRECTORY,
-            ca_cert_dir=f"{DEFAULT_PROXY_DIRECTORY}/certs",
-        ):
-            env = dict(os.environ)
-            env["HTTP_PROXY"] = TRUFFLEHOG_PROXY
-            env["HTTPS_PROXY"] = TRUFFLEHOG_PROXY
+        personal_data_scan_result = self.run_personal_scan()
+        if personal_data_scan_result.success is False:
+            return personal_data_scan_result
 
-            scanner = TrufflehogScanner(
-                self.verbose,
-                self.github_action,
-                self.paths,
-                AllowedTrufflehogVendor.all_vendor_codes(),
-            )
-            error_response = scanner.scan(env)
-            if error_response:
-                return HookRunResult(False, error_response)
-            return HookRunResult(True)
+        return HookRunResult(True)

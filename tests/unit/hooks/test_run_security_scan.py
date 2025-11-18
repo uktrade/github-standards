@@ -3,10 +3,11 @@ import requests
 import requests_mock
 import tempfile
 
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from src.hooks.config import (
     RELEASE_CHECK_URL,
 )
+from src.hooks.hooks_base import HookRunResult
 from src.hooks.run_security_scan import RunSecurityScan
 
 
@@ -115,22 +116,52 @@ class TestRunSecurityScan:
 
             assert RunSecurityScan().validate_hook_settings() is True
 
-    def test_run_with_error_returns_false(
+    def test_run_security_scan_with_error_returns_false(self):
+        mock_scan_result = MagicMock()
+        mock_scan_result.return_value = "An error"
+        with patch("src.hooks.run_security_scan.TrufflehogScanner") as mock_scanner:
+            mock_scanner().scan = mock_scan_result
+            scan = RunSecurityScan()
+            assert scan.run_security_scan().success is False
+
+    def test_run_security_scan_without_error_returns_true(self):
+        mock_scan_result = MagicMock()
+        mock_scan_result.return_value = None
+        with patch("src.hooks.run_security_scan.TrufflehogScanner") as mock_scanner:
+            mock_scanner().scan = mock_scan_result
+            scan = RunSecurityScan()
+            assert scan.run_security_scan().success is True
+
+    def test_run_with_run_security_scan_error_returns_false(
         self,
     ):
         with (
-            patch("src.hooks.run_security_scan.TrufflehogScanner.scan") as mock_scanner,
-            patch("src.hooks.run_security_scan.Proxy"),
+            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
         ):
-            mock_scanner.return_value = "Error Occured"
+            mock_run_security_scan.return_value = HookRunResult(False)
+
             assert RunSecurityScan().run().success is False
 
-    def test_run_without_error_returns_true(
+    def test_run_with_run_personal_scan_error_returns_false(
         self,
     ):
         with (
-            patch("src.hooks.run_security_scan.TrufflehogScanner.scan") as mock_scanner,
-            patch("src.hooks.run_security_scan.Proxy"),
+            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
+            patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
         ):
-            mock_scanner.return_value = None
+            mock_run_security_scan.return_value = HookRunResult(True)
+            mock_run_personal_scan.return_value = HookRunResult(False)
+
+            assert RunSecurityScan().run().success is False
+
+    def test_with_run_security_scan_true_and_run_personal_scan_true_returns_true(
+        self,
+    ):
+        with (
+            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
+            patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
+        ):
+            mock_run_security_scan.return_value = HookRunResult(True)
+            mock_run_personal_scan.return_value = HookRunResult(True)
+
             assert RunSecurityScan().run().success is True
