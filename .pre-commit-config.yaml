@@ -17,16 +17,7 @@ repos:
       name: run-security-scan
       entry: python3 -m src.hooks.cli run_scan --verbose
       language: python
-      additional_dependencies: [pyyaml, requests, proxy-py]
-      stages: [pre-commit]
-      verbose: true
-      require_serial: true
-
-  -   id: run-personal-data-scan
-      name: run-personal-data-scan
-      entry: python3 -m src.hooks.cli run_personal_data_scan --verbose
-      language: python
-      additional_dependencies: [pyyaml, requests, proxy-py]
+      additional_dependencies: [pyyaml, requests, proxy-py, presidio_analyzer]
       stages: [pre-commit]
       verbose: true
       require_serial: true
@@ -35,7 +26,7 @@ repos:
       name: validate-security-scan
       entry: python3 -m src.hooks.cli validate_scan --verbose
       language: python
-      additional_dependencies: [pyyaml, requests, proxy-py]
+      additional_dependencies: [pyyaml, requests, proxy-py, presidio_analyzer]
       stages: [commit-msg]
       verbose: true
   

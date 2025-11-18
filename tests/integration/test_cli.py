@@ -24,6 +24,7 @@ class TestCLI:
                     "--no-update",
                     "--results=verified,unknown",
                     f"--log-level={TRUFFLEHOG_VERBOSE_LOG_LEVEL}",
+                    "--exclude-paths=scan-exclusions.txt",
                     f"--include-detectors={AllowedTrufflehogVendor.all_vendor_codes_as_str()}",
                     file.name,
                 ],

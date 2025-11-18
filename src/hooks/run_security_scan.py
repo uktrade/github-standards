@@ -9,6 +9,7 @@ from src.hooks.config import (
     RELEASE_CHECK_URL,
 )
 from src.hooks.hooks_base import Hook, HookRunResult
+from src.hooks.presidio.scanner import PresidioScanner
 from src.hooks.trufflehog.scanner import TrufflehogScanner
 from src.hooks.trufflehog.vendors import AllowedTrufflehogVendor
 
@@ -98,6 +99,14 @@ class RunSecurityScan(Hook):
         return HookRunResult(True)
 
     def run_personal_scan(self):
+        scanner = PresidioScanner(
+            self.verbose,
+            self.paths,
+        )
+        error_response = scanner.scan()
+        if error_response:
+            detections_summary = "\n".join([str(detection) for detection in error_response])
+            return HookRunResult(False, detections_summary)
         return HookRunResult(True)
 
     def run(self) -> HookRunResult:
