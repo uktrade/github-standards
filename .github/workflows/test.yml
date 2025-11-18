@@ -6,7 +6,7 @@ on:
     branches: ["main"]
 
 jobs:
-  run-version-test:
+  verify-version:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -24,7 +24,7 @@ jobs:
           pip install pyyaml
           python3 -m src.actions.compare_versions
 
-  run-tests:
+  project-tests:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -49,7 +49,7 @@ jobs:
       - name: Run tests
         run: uv run pytest
 
-  run-docker-verification:
+  docker-tests:
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -76,3 +76,70 @@ jobs:
         run: |
           echo 'Test commit message' >> COMMIT.txt
           docker run --user $(id -u):$(id -g) -v .:/source:rw,Z -w /source github-standards-hooks:verification-testing validate_scan --verbose COMMIT.txt
+
+  git-hooks-test:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Build docker image
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        with:
+          push: false
+          build-args: TRUFFLEHOG_VERSION=${{ vars.TRUFFLEHOG_VERSION }}
+          tags: github-standards-hooks:verification-testing
+          target: testing
+
+      - name: Create pre_commit.yaml file
+        run: |
+          cat <<EOF > .local_hooks.yaml
+          repos:
+            - repo: local
+              hooks:
+                - id: run-security-scan
+                  name: run-security-scan
+                  language: docker_image
+                  entry: github-standards-hooks:verification-testing run_scan --verbose
+                  stages: [pre-commit]
+                  verbose: true
+                  require_serial: true
+
+                - id: run-personal-data-scan
+                  name: run-personal-data-scan
+                  language: docker_image
+                  entry: github-standards-hooks:verification-testing run_personal_data_scan --verbose
+                  stages: [pre-commit]
+                  verbose: true
+                  require_serial: true
+
+                - id: validate-security-scan
+                  name: validate-security-scan
+                  language: docker_image
+                  entry: github-standards-hooks:verification-testing validate_scan --verbose
+                  stages: [commit-msg]
+                  verbose: true
+          EOF
+
+      - name: Test pre-commit runs on example git repo
+        run: |
+          git -c init.defaultBranch=main init test_repo
+          git config --global user.email "ci_test@businessandtrade.gov.uk"
+          git config --global user.name "CI Test"
+
+          cp .gitignore test_repo/.gitignore
+          cp .local_hooks.yaml test_repo/.pre-commit-config.yaml
+
+          cd test_repo
+          python3 -m venv .venv
+          source .venv/bin/activate
+
+          pip install pre-commit
+          pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit
+          pre-commit autoupdate
+
+          git add .
+          git commit -m 'testing pre-commit hooks'

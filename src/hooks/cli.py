@@ -7,7 +7,6 @@ from logging import StreamHandler, captureWarnings, INFO, DEBUG, Formatter
 from src.hooks.config import LOGGER
 from src.hooks.run_personal_data_scan import RunPersonalDataScan
 from src.hooks.run_security_scan import RunSecurityScan
-from src.hooks.trufflehog.vendors import AllowedTrufflehogVendor
 from src.hooks.validate_security_scan import ValidateSecurityScan
 
 from src.hooks.hooks_base import Hook
@@ -49,11 +48,7 @@ def parse_args(argv):
         help="Run this hook in a github action",
         required=False,
     )
-    run_scan_parser.set_defaults(
-        hook=lambda args: RunSecurityScan(
-            args.paths, args.verbose, args.github_action, allowed_vendor_endpoints=AllowedTrufflehogVendor.all_endpoints()
-        )
-    )
+    run_scan_parser.set_defaults(hook=lambda args: RunSecurityScan(args.paths, args.verbose, args.github_action))
 
     validate_scan_parser = subparsers.add_parser("validate_scan", parents=[parent_parser])
     validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.paths, args.verbose))
