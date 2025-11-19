@@ -73,7 +73,7 @@ jobs:
       - name: Get latest release
         id: get-version
         run: |
-          current_release=$(curl https://api.github.com/repos/${{ github.repository }}/releases/latest | jq .name)
+          current_release=$(curl https://api.github.com/repos/uktrade/github-standards/releases/latest | jq .name)
           echo "current_release=$current_release" >> $GITHUB_OUTPUT
 
       - name: Secret Scanning using our docker image
