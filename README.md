@@ -12,14 +12,16 @@
     - [Testing commit-msg hooks](#testing-commit-msg-hooks)
 - [Releasing](#releasing)
 - [Usage](#usage)
-  - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
-  - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
+    - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
+    - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
   - [Post installation setup](#post-installation-setup)
   - [Optional hooks](#optional-hooks)
 - [Trufflehog](#trufflehog)
   - [Detectors](#detectors)
   - [Excluding false positives](#excluding-false-positives)
-  - [Upgrading](#upgrading)
+  - [Upgrading trufflehog](#upgrading-trufflehog)
+- [Bandit](#bandit)
+  - [Upgrading bandit](#upgrading-bandit)
 - [FAQ](#faq)
   - [My PR is failing due to a github action checking a Signed-off-by trailer](#my-pr-is-failing-due-to-a-github-action-checking-a-signed-off-by-trailer)
   - [I'm receiving errors updating the rev version](#im-receiving-errors-updating-the-rev-version)
@@ -128,13 +130,23 @@ If trufflehog has detected a potential secret in your code during a scan that yo
 - If this file doesn't aready exist, create a file at the root of the repository called `trufflehog-excludes.txt`
 - This file contains list of regexes to exclude from trufflehog, separated by a newline. Add the filename in your repository you want to exclude as a new entry in this file
 
-## Upgrading
+## Upgrading trufflehog
 
 When an upgrade to trufflehog is required
 
 1. Open the [repository variables](https://github.com/uktrade/github-standards/settings/variables/actions) page in github
 1. Edit the TRUFFLEHOG_VERSION variable and set it to the new desired version. This version must have a corresponding image tag on the [trufflehog dockerhub page](https://hub.docker.com/r/trufflesecurity/trufflehog/tags)
 1. Create a new github release following the [release instructions](#releasing)
+
+# Bandit
+
+Bandit is used for scannning python repositories to find common security issues. Bandit scans are performed using an org level github action, and focused on finding high severity issues that require immediate developer attention when a PR is raised
+
+## Upgrading bandit
+
+Although bandit provides a [github action](https://github.com/PyCQA/bandit-action) that can run scans during a PR being raised, this action always installs the latest version. As part of a cyber condition for using bandit, we are required to use a pinned version so a custom bandit job has been added to the `org.python-ci.yml` file in this repo.
+
+There is a `bandit-version` `env` variable in this job, that is used to install a specific bandit version. This variable must match a github [release version](https://github.com/PyCQA/bandit/releases)
 
 # FAQ
 
