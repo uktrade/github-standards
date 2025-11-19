@@ -59,7 +59,7 @@ jobs:
 
   secret-scanning:
     env:
-      IMAGE: ghcr.io/uktrade/github-standards:latest
+      IMAGE: ghcr.io/uktrade/github-standards
 
     runs-on: ubuntu-latest
     permissions:
@@ -70,10 +70,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Get latest release
+        id: get-version
+        run: |
+          current_release=$(curl https://api.github.com/repos/${{ github.repository }}/releases/latest | jq .name)
+          echo "current_release=$current_release" >> $GITHUB_OUTPUT
+
       - name: Secret Scanning using our docker image
         run: |
           docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/repo_files -w /repo_files \
-          ${{ env.IMAGE }} \
+          ${{ env.IMAGE }}:${{steps.get-version.outputs.current_release}} \
           run_scan \
           --verbose \
           --github-action \
