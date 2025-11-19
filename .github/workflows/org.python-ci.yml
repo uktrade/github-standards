@@ -10,7 +10,7 @@ jobs:
     # Bandit has it's own github action, however it always installs the latest version and doesn't allow version pinning
     env:
       python-version: "3.13.9"
-      bandit-version: "1.9.0"
+      bandit-version: "1.9.1"
     runs-on: ubuntu-latest
     permissions:
       security-events: write
