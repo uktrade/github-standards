@@ -1,6 +1,11 @@
 name: "Organisation ruleset: Docker CI"
 
 on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - .github/workflows/org.docker-ci.yml
   pull_request:
     types: [opened, edited, reopened, synchronize]
     branches: [main, master, dev]
