@@ -22,6 +22,8 @@
   - [Upgrading trufflehog](#upgrading-trufflehog)
 - [Bandit](#bandit)
   - [Upgrading bandit](#upgrading-bandit)
+- [GitHub actions](#github-actions)
+  - [Testing changes](#testing-changes)
 - [FAQ](#faq)
   - [My PR is failing due to a github action checking a Signed-off-by trailer](#my-pr-is-failing-due-to-a-github-action-checking-a-signed-off-by-trailer)
   - [I'm receiving errors updating the rev version](#im-receiving-errors-updating-the-rev-version)
@@ -147,6 +149,17 @@ Bandit is used for scannning python repositories to find common security issues.
 Although bandit provides a [github action](https://github.com/PyCQA/bandit-action) that can run scans during a PR being raised, this action always installs the latest version. As part of a cyber condition for using bandit, we are required to use a pinned version so a custom bandit job has been added to the `org.python-ci.yml` file in this repo.
 
 There is a `bandit-version` `env` variable in this job, that is used to install a specific bandit version. This variable must match a github [release version](https://github.com/PyCQA/bandit/releases)
+
+# GitHub actions
+
+This repository contains GitHub actions that are triggered by a set of GitHub Rulesets defined at the organisation level. Any repository in the uktrade organisation can opt in to using these GitHub actions by adding GitHub Custom properties to the repository.
+
+## Testing changes
+
+As this github-standards repository uses the GitHub Custom properties, during a PR for this repository the workflows that are run are the version in the main branch. This makes it difficult to test changes to the workflows, as although the files exist in this repo, any changes to them will not take effect until the PR is merged into main. At that point, any issues with the workflow will be present in all repositories using the GitHub Custom properties.
+
+As these workflow runs aren't visible on the PR screen, you need to use view the GitHub actions filter found [here](https://github.com/uktrade/github-standards/actions?query=event%3Apush)
+To solve this, an additional GitHub action on_push trigger has been added to each of the org wide workflows. This trigger will fire on any push event where an org wide workflow yaml file has changed. When raising a PR, the same GitHub workflow will now apppear multiple times when a change to a workflow yaml file is made. Once which is the required status enforced by the GitHub Ruleset and is using the workflow version in the main branch, and a second run which is the workflow version in the branch raising the PR.
 
 # FAQ
 
