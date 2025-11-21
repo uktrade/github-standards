@@ -23,12 +23,19 @@ validate-hook-docker:
 	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing validate_scan --verbose tests/EXAMPLE_COMMIT_MSG.txt
 
 run-hook-python:
-	hooks-cli run_scan --verbose ./src
+	hooks-cli run_scan --verbose ./src tests/test_data/personal_data.txt tests/test_data/personal_data.csv tests/test_data/personal_data.yaml
 
 run-hook-docker:
 	make build-docker-testing
-	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose src/hooks/cli.py
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose ./src tests/test_data/personal_data.txt tests/test_data/personal_data.csv tests/test_data/personal_data.yaml
 
 run-hook-docker-github-action:
 	make build-docker-testing
 	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose --github-action /src
+
+run-personal-data-python:
+	hooks-cli run_personal_data_scan --verbose tests/test_data/personal_data.txt
+
+run-personal-data-docker:
+	make build-docker-testing
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_personal_data_scan --verbose src/hooks/cli.py

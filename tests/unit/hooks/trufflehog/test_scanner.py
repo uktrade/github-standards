@@ -1,3 +1,4 @@
+from pathlib import Path
 from unittest.mock import patch
 from src.hooks.config import (
     TRUFFLEHOG_ERROR_CODE,
@@ -15,14 +16,14 @@ class TestTrufflehogScanner:
         assert f"--log-level={TRUFFLEHOG_INFO_LOG_LEVEL}" in TrufflehogScanner(verbose=False)._get_args([])
 
     def test_get_args_without_exclusions_file_does_not_have_exclude_arg_for_trufflehog(self):
-        with patch("src.hooks.trufflehog.scanner.os.path.exists") as mock_isfile:
-            mock_isfile.return_value = False
-            assert "--exclude-paths=trufflehog-excludes.txt" not in TrufflehogScanner()._get_args([])
+        with patch.object(Path, "exists") as mock_exists:
+            mock_exists.return_value = False
+            assert "--exclude-paths=scan-exclusions.txt" not in TrufflehogScanner()._get_args([])
 
     def test_get_args_with_exclusions_file_present_includes_exclude_arg_for_trufflehog(self):
-        with patch("src.hooks.trufflehog.scanner.os.path.exists") as mock_isfile:
-            mock_isfile.return_value = True
-            assert "--exclude-paths=trufflehog-excludes.txt" in TrufflehogScanner()._get_args([])
+        with patch.object(Path, "exists") as mock_exists:
+            mock_exists.return_value = True
+            assert "--exclude-paths=scan-exclusions.txt" in TrufflehogScanner()._get_args([])
 
     def test_get_args_with_github_action_true_uses_git_scanning_mode(self):
         args = TrufflehogScanner()._get_args(paths=["/folder1"], github_action=True)
@@ -40,23 +41,25 @@ class TestTrufflehogScanner:
         assert "--include-detectors=A,B" in TrufflehogScanner()._get_args([], allowed_vendor_codes=["A", "B"])
 
     def test_get_args_returns_all_expected_args(self):
-        assert TrufflehogScanner()._get_args(
-            ["1.txt"],
-            allowed_vendor_codes=[
-                "a",
-                "b",
-                "c",
-            ],
-        ) == [
-            "trufflehog",
-            "filesystem",
-            "--fail",
-            "--no-update",
-            "--results=verified,unknown",
-            f"--log-level={TRUFFLEHOG_INFO_LOG_LEVEL}",
-            "--include-detectors=a,b,c",
-            "1.txt",
-        ]
+        with patch.object(Path, "exists") as mock_exists:
+            mock_exists.return_value = False
+            assert TrufflehogScanner()._get_args(
+                ["1.txt"],
+                allowed_vendor_codes=[
+                    "a",
+                    "b",
+                    "c",
+                ],
+            ) == [
+                "trufflehog",
+                "filesystem",
+                "--fail",
+                "--no-update",
+                "--results=verified,unknown",
+                f"--log-level={TRUFFLEHOG_INFO_LOG_LEVEL}",
+                "--include-detectors=a,b,c",
+                "1.txt",
+            ]
 
     def test_scan_with_trufflehog_error_code_returns_error_response(self, fp):
         with (

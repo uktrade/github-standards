@@ -1,9 +1,7 @@
-import logging
-
-
+from src.hooks.config import LOGGER
 from src.hooks.hooks_base import Hook, HookRunResult
 
-logger = logging.getLogger()
+logger = LOGGER
 
 
 class RunPersonalDataScan(Hook):

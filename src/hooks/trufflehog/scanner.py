@@ -1,12 +1,14 @@
 import os
 import subprocess
 
+from pathlib import Path
 from proxy import Proxy
 from typing import List
 
 
 from src.hooks.config import (
     DEFAULT_PROXY_DIRECTORY,
+    EXCLUSIONS_FILE_PATH,
     LOGGER,
     TRUFFLEHOG_PROXY,
     TRUFFLEHOG_INFO_LOG_LEVEL,
@@ -56,9 +58,9 @@ class TrufflehogScanner:
         if github_action:
             trufflehog_cmd_args.append("--since-commit=main")
 
-        if os.path.exists("trufflehog-excludes.txt"):
+        if Path("scan-exclusions.txt").exists():
             logger.debug("This repo has an exclusions file, adding this file to the trufflehog runner")
-            trufflehog_cmd_args.append("--exclude-paths=trufflehog-excludes.txt")
+            trufflehog_cmd_args.append(f"--exclude-paths={EXCLUSIONS_FILE_PATH}")
 
         trufflehog_detectors = ",".join(allowed_vendor_codes)
         logger.debug(

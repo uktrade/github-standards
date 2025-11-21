@@ -12,8 +12,8 @@
     - [Testing commit-msg hooks](#testing-commit-msg-hooks)
 - [Releasing](#releasing)
 - [Usage](#usage)
-    - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
-    - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
+  - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
+  - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
   - [Post installation setup](#post-installation-setup)
   - [Optional hooks](#optional-hooks)
 - [Trufflehog](#trufflehog)
@@ -129,7 +129,7 @@ We only use a pre-approved list of trufflehog detectors. Each allowed detector m
 
 If trufflehog has detected a potential secret in your code during a scan that you know is a false positive, you can exclude this from future trufflehog scans. Trufflehog only allows exclusions of an entire file, you cannot exclude individual secrets. To exclude a file from trufflehog:
 
-- If this file doesn't aready exist, create a file at the root of the repository called `trufflehog-excludes.txt`
+- If this file doesn't aready exist, create a file at the root of the repository called `scan-exclusions.txt`
 - This file contains list of regexes to exclude from trufflehog, separated by a newline. Add the filename in your repository you want to exclude as a new entry in this file
 
 ## Upgrading trufflehog
