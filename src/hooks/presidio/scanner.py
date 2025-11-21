@@ -13,7 +13,6 @@ from src.hooks.config import (
     DEFAULT_LANGUAGE_CODE,
     EXCLUSIONS_FILE_PATH,
     LOGGER,
-    SPACY_ENTITIES,
     SPACY_MODEL_NAME,
 )
 
@@ -60,7 +59,8 @@ class PresidioScanner:
                 "supported_languages": [DEFAULT_LANGUAGE_CODE],
                 "recognizers": [
                     {"name": "EmailRecognizer", "type": "predefined"},
-                    {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
+                    # Remove spacy for now, as it false positives comments as person objects
+                    # {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
                 ],
             },
         )
