@@ -15,7 +15,7 @@ dependencies = [
     "requests>=2.32.4",
     "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
 ]
-version = "v0.0.19"
+version = "v1.0.0"
 
 # Presence enables setuptools-scm
 [tool.setuptools_scm]
