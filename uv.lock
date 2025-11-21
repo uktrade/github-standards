@@ -266,7 +266,7 @@ wheels = [
 
 [[package]]
 name = "github-standards"
-version = "0.0.19"
+version = "1.0.0"
 source = { editable = "." }
 dependencies = [
     { name = "en-core-web-sm" },
