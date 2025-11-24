@@ -90,7 +90,9 @@ jobs:
           if [[ -z $tag ]]; then
             tag='latest'
           fi
+
           echo $tag
+
           docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/repo_files -w /repo_files \
           ${{ env.DOCKER_IMAGE }}:$tag \
           run_scan \
