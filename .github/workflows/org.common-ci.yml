@@ -66,7 +66,6 @@ jobs:
     env:
       DOCKER_IMAGE: ghcr.io/uktrade/github-standards
       RELEASE_URL: https://api.github.com/repos/uktrade/github-standards/releases/latest
-
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -76,14 +75,36 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Build docker image
+        if: ${{ github.event_name == 'push' }}
+        id: build
+        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        with:
+          push: false
+          build-args: TRUFFLEHOG_VERSION=${{ vars.TRUFFLEHOG_VERSION }}
+          tags: github-standards-hooks:verification-testing
+          target: testing
+
+      - name: Secret scanning using the locally built docker image
+        if: steps.build.conclusion == 'success'
+        run: |
+          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/repo_files -w /repo_files \
+          github-standards-hooks:verification-testing \
+          run_scan \
+          --verbose \
+          --github-action \
+          /repo_files
+
       - name: Get latest release
+        if: ${{ github.event_name == 'pull_request' }}
         id: get-version
         run: |
           current_release=$(curl ${{env.RELEASE_URL}} | jq .name)
           echo "current_release=$current_release" >> $GITHUB_OUTPUT
         continue-on-error: true # if the call to get the latest release fails, continue with this job but fall back to using the :latest docker image tag
 
-      - name: Secret Scanning using our docker image
+      - name: Secret scanning using the latest released docker image
+        if: steps.get-version.outcome == 'success'
         run: |
           tag=${{steps.get-version.outputs.current_release}}
           # if the release tag is missing from the previous step, use latest instead
