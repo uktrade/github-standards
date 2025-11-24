@@ -4,7 +4,7 @@
     language: docker_image
     entry: ghcr.io/uktrade/github-standards:v1.0.1 run_scan
     stages: [pre-commit]
-    require_serial: true # This avoids the pre-commit spliting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
+    require_serial: true # This avoids the pre-commit splitting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
 
 -   id: run-personal-data-scan
     name: Run a personal data scan
