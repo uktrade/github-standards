@@ -1,0 +1,52 @@
+name: Verify pre-push note
+
+on:
+  push:
+
+jobs:
+  verify-note:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+        with:
+          fetch-depth: 0 # required for notes and commit introspection
+
+      - name: Fetch notes
+        run: |
+          git fetch origin "refs/notes/*:refs/notes/*" || true
+          git log --show-notes=refs/notes/pre-push
+
+      - name: Check pre-push note on tip commit
+        run: |
+          # Determine the SHA to check
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
+          else
+            COMMIT_SHA="${{ github.sha }}"
+          fi
+
+          echo "Checking pre-push note for commit: $COMMIT_SHA"
+
+          note=$(git notes --ref=refs/notes/pre-push show "$COMMIT_SHA" 2>/dev/null || true)
+
+          if [ -z "$note" ]; then
+            echo "::error title=Missing pre-push note::Commit $COMMIT_SHA has no pre-push note."
+            echo "Make sure hooks are installed and push again."
+            exit 1
+          fi
+
+          if ! echo "$note" | grep -q "pre-push:ok"; then
+            echo "::error title=Invalid pre-push note::Commit $COMMIT_SHA has invalid note:"
+            echo "$note"
+            exit 1
+          fi
+
+          if ! echo "$note" | grep -q "checks-version:1"; then
+            echo "::error title=Outdated checks version::Commit $COMMIT_SHA has wrong checks-version:"
+            echo "$note"
+            exit 1
+          fi
+
+          echo "Pre-push note found and valid."
