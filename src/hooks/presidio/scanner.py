@@ -125,23 +125,62 @@ class PresidioScanner:
         )
         return True
 
-    def scan(self) -> None | List[Detection]:
-        analyzer = self._get_analyzer()
-        detections = []
-        for path in self.paths:
-            if self._should_process_path(path):
-                with io.open(path, "r", encoding="utf-8") as file_contents:
+    def _scan_path(self, analyzer: AnalyzerEngine, file_path: str):
+        if Path(file_path).is_dir():
+            logger.debug("Scanning all files in directory %s", file_path)
+            for root, dirs, files in Path(file_path).walk():
+                logger.debug("root %s", root)
+                logger.debug("dirs %s", dirs)
+                logger.debug("files %s", files)
+                for file in files:
+                    logger.debug("full path %s", Path.joinpath(root, file))
+                    yield from self._scan_path(analyzer, str(Path.joinpath(root, file)))
+        else:
+            if self._should_process_path(file_path):
+                with io.open(file_path, "r", encoding="utf-8") as file_contents:
+                    logger.debug("OPENED FILE %s", file_path)
                     for line_number, line in enumerate(file_contents):
+                        # logger.debug("FILE LINE CONTENT %s", line)
                         results = analyzer.analyze(
                             text=line,
                             language=DEFAULT_LANGUAGE_CODE,
                         )
+                        logger.debug("SCANNING FILE RESULTS %s", results)
                         for result in results:
                             logger.debug("Result found in line number %s, for text %s", line_number, line)
-                            detections.append(Detection(path, line_number, result))
+                            yield result
+        # return None
 
-        if detections:
-            return detections
+    def scan(self):
+        analyzer = self._get_analyzer()
+        # detections = []
+        for path in self.paths:
+            yield from self._scan_path(analyzer, path)
+            # if Path(path).is_dir():
+            #     logger.debug("Scanning all files in directory %s", path)
+            #     for root, dirs, files in Path(path).walk():
+            #         for file in files:
+            #             yield from self.scan_file(analyzer, file)
+            # else:
+            #     # logger.debug("SCANNING FILE")
+            #     yield from self.scan_file(analyzer, path)
+            # paths = list()
+            # logger.debug("Paths in %s are %s", path, paths)
+            # for sub_path in paths[2]:
+            #     print(sub_path)
+            # if self._should_process_path(path):
+            #     with io.open(path, "r", encoding="utf-8") as file_contents:
+            #         for line_number, line in enumerate(file_contents):
+            #             results = analyzer.analyze(
+            #                 text=line,
+            #                 language=DEFAULT_LANGUAGE_CODE,
+            #             )
+            #             for result in results:
+            #                 logger.debug("Result found in line number %s, for text %s", line_number, line)
+            #                 detections.append(Detection(path, line_number, result))
 
-        logger.debug("All files were scanned and no personal data was found")
-        return None
+        # if detections:
+        #     return detections
+
+        # logger.debug("All files were scanned and no personal data was found")
+        # yield None

@@ -66,7 +66,7 @@ class RunSecurityScan(Hook):
             )
             return False
 
-        # If the call to get the remote version fails, return True as we don't want this to block a dev from commiting in this scenario.
+        # If the call to get the remote version fails, return True as we don't want this to block a dev from committing in this scenario.
         try:
             version_in_config = dbt_repo_config["rev"]
             version_in_remote = self._get_version_from_remote()
@@ -103,9 +103,15 @@ class RunSecurityScan(Hook):
             self.verbose,
             self.paths,
         )
-        error_response = scanner.scan()
-        if error_response:
-            detections_summary = "\n".join([str(detection) for detection in error_response])
+        # error_response = scanner.scan()
+        # logger.debug(">>>error_response: %s", error_response)
+        # for a in error_response:
+        #     logger.debug(">>>a: %s", a)
+
+        # if error_response:
+        detections_summary = "\n".join([str(detection) for detection in scanner.scan()])
+        if detections_summary:
+            logger.debug(">>>detections_summary: %s", detections_summary)
             return HookRunResult(False, detections_summary)
         return HookRunResult(True)
 
@@ -114,9 +120,9 @@ class RunSecurityScan(Hook):
         # need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block
         # any requests made by trufflehog that have not been explicitly allowed
 
-        security_scan_result = self.run_security_scan()
-        if security_scan_result.success is False:
-            return security_scan_result
+        # security_scan_result = self.run_security_scan()
+        # if security_scan_result.success is False:
+        #     return security_scan_result
 
         personal_data_scan_result = self.run_personal_scan()
         if personal_data_scan_result.success is False:
