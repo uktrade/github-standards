@@ -20,7 +20,7 @@ jobs:
 
       - name: Check pre-push note on tip commit
         run: |
-          # Determine the SHA to check
+          # Determine the SHA to check CH
           if [ "${{ github.event_name }}" = "pull_request" ]; then
             COMMIT_SHA="${{ github.event.pull_request.head.sha }}"
           else
