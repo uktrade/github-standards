@@ -45,7 +45,7 @@ jobs:
 
           if ! echo "$note" | grep -q "checks-version:1"; then
             echo "::error title=Outdated checks version::Commit $COMMIT_SHA has wrong checks-version:"
-            echo "$note"
+            echo "$note" 
             exit 1
           fi
 
