@@ -3,16 +3,16 @@ import sys
 
 
 from typing import List, Optional
-from logging import StreamHandler, captureWarnings, getLogger, INFO, DEBUG, Formatter
-from src.hooks.config import GITHUB_ACTION_PR, GITHUB_ACTION_REPO
+from logging import StreamHandler, captureWarnings, INFO, DEBUG, Formatter
+from src.hooks.config import LOGGER
+from src.hooks.run_personal_data_scan import RunPersonalDataScan
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.validate_security_scan import ValidateSecurityScan
 
 from src.hooks.hooks_base import Hook
 
-logger = getLogger()
 
-GITHUB_ACTION_CHOICES = [GITHUB_ACTION_PR, GITHUB_ACTION_REPO]
+logger = LOGGER
 
 
 def init_logger(verbose):
@@ -33,7 +33,7 @@ def parse_args(argv):
     main_parser = argparse.ArgumentParser(description="DBT pre-commit hooks")
 
     parent_parser = argparse.ArgumentParser(add_help=False)
-    parent_parser.add_argument("files", nargs="*", help="Filenames pre-commit has tracked as being changed.", default=[])
+    parent_parser.add_argument("paths", nargs="*", help="Paths pre-commit has tracked as being changed.", default=[])
     parent_parser.add_argument(
         "-v", "--verbose", dest="verbose", action="store_true", help="output debug logs", default=False
     )
@@ -44,14 +44,17 @@ def parse_args(argv):
         "-g",
         "--github-action",
         dest="github_action",
+        action="store_true",
         help="Run this hook in a github action",
-        choices=GITHUB_ACTION_CHOICES,
         required=False,
     )
-    run_scan_parser.set_defaults(hook=lambda args: RunSecurityScan(args.files, args.verbose, args.github_action))
+    run_scan_parser.set_defaults(hook=lambda args: RunSecurityScan(args.paths, args.verbose, args.github_action))
 
     validate_scan_parser = subparsers.add_parser("validate_scan", parents=[parent_parser])
-    validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.files, args.verbose))
+    validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.paths, args.verbose))
+
+    run_pii_scan_parser = subparsers.add_parser("run_personal_data_scan", parents=[parent_parser])
+    run_pii_scan_parser.set_defaults(hook=lambda args: RunPersonalDataScan(args.paths, args.verbose))
 
     return main_parser.parse_args(argv)
 
@@ -63,7 +66,6 @@ def main(
         return 1
 
     args = parse_args(argv)
-
     init_logger(args.verbose)
 
     logger.debug("Parsed args: %s", args)

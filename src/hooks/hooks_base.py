@@ -1,4 +1,3 @@
-import logging
 import yaml
 
 from abc import ABC, abstractmethod
@@ -6,10 +5,10 @@ from pathlib import Path
 from typing import List
 
 
-from src.hooks.config import FORCE_HOOK_CHECKS, PRE_COMMIT_FILE
+from src.hooks.config import FORCE_HOOK_CHECKS, LOGGER, PRE_COMMIT_FILE
 
 
-logger = logging.getLogger()
+logger = LOGGER
 
 
 class HookRunResult:
@@ -19,28 +18,27 @@ class HookRunResult:
 
 
 class Hook(ABC):
-    def __init__(self, files: List[str] | None = None, verbose: bool = False):
-        self.files = files
+    def __init__(self, paths: List[str] = [], verbose: bool = False):
+        self.paths = paths
         self.verbose = verbose
 
     @abstractmethod
     def validate_args(self) -> bool:
         raise NotImplementedError()
 
-    def _skip_check(self) -> bool:
-        """If this check is ran in the github-standards repository, it will always fail as we use a local hook implementation
-        for running the pre-commit hooks. This ensures we are always running the latest local version, and will catch
-        any development errors early before creating a tagged docker image as part of releasing.
+    def _enforce_settings_checks(self) -> bool:
+        """If this check is run in the github-standards repository or in a github action, it will always fail as
+        there is no .pre-commit-config.yaml available. For this reason, we skip the checks on that file
 
         Returns:
             bool: Whether this check should be skipped
         """
-        return FORCE_HOOK_CHECKS == "0"
+        return FORCE_HOOK_CHECKS == "1"
 
     def validate_hook_settings(self) -> bool:
-        if self._skip_check():
+        if not self._enforce_settings_checks():
             logger.debug(
-                "This hook is being run inside the github-standards repo, the validate hooks settings can be ignored"
+                "This hook is running in environment where the validate hooks settings can be ignored. This is either when running as a github action, or when being run inside the github-standards repository as a local pre-commit hook"
             )
             return True
 

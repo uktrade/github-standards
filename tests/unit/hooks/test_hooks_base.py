@@ -2,7 +2,7 @@ import tempfile
 
 from pathlib import Path
 from unittest.mock import patch
-from src.hooks.hooks_base import Hook
+from src.hooks.hooks_base import Hook, HookRunResult
 
 
 class HooksBaseTestImplementation(Hook):
@@ -12,8 +12,8 @@ class HooksBaseTestImplementation(Hook):
     def _validate_hook_settings(self, dbt_repo_config) -> bool:
         return False
 
-    def run(self) -> bool:
-        return True
+    def run(self) -> HookRunResult:
+        return HookRunResult(True)
 
 
 class TestHooksBase:
@@ -28,7 +28,7 @@ class TestHooksBase:
     def test_validate_hook_settings_with_missing_pre_commit_file_returns_false(self):
         with (
             patch.object(Path, "exists") as mock_exists,
-            patch.object(HooksBaseTestImplementation, "_skip_check", return_value=False),
+            patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
         ):
             mock_exists.return_value = False
             assert HooksBaseTestImplementation().validate_hook_settings() is False
@@ -37,7 +37,7 @@ class TestHooksBase:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(HooksBaseTestImplementation, "_skip_check", return_value=False),
+            patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(b"Not valid yaml")
             tf.seek(0)
@@ -55,7 +55,7 @@ class TestHooksBase:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(HooksBaseTestImplementation, "_skip_check", return_value=False),
+            patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -84,7 +84,7 @@ class TestHooksBase:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(HooksBaseTestImplementation, "_skip_check", return_value=False),
+            patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)

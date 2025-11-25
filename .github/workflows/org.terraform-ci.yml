@@ -1,7 +1,11 @@
-# .github/workflows/terraform-ci.yml
-name: Terraform CI
+name: "Organisation ruleset: Terraform CI"
 
 on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - .github/workflows/org.terraform-ci.yml
   workflow_call:
     inputs:
       run_tflint:

@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=80"]
+requires = ["setuptools>=80", "setuptools-scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,8 +8,18 @@ description = "Hooks for use in a DBT development environment"
 readme = "README.md"
 keywords = ["pre-commit", "dbt", "hooks", "security"]
 requires-python = ">=3.13"
-dependencies = ["pyyaml>=6.0.3", "requests>=2.32.4"]
-dynamic = ["version"]
+dependencies = [
+    "presidio-analyzer>=2.2.360",
+    "proxy-py>=2.4.10",
+    "pyyaml>=6.0.3",
+    "requests>=2.32.4",
+    "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+]
+version = "v1.0.1"
+
+# Presence enables setuptools-scm
+[tool.setuptools_scm]
+
 
 [project.scripts]
 hooks-cli = "src.hooks.cli:main"
@@ -26,6 +36,7 @@ dev = [
     "pytest-cov>=5.0.0",
     "requests-mock>=1.12.1",
     "pytest-subprocess>=1.5.3",
+    "setuptools-scm>=8",
 ]
 
 [tool.uv]

@@ -1,21 +1,20 @@
 import io
-import logging
 import re
 
-from src.hooks.config import MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
+from src.hooks.config import LOGGER, MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
 from src.hooks.hooks_base import Hook, HookRunResult
 
-logger = logging.getLogger()
+logger = LOGGER
 
 
 class ValidateSecurityScan(Hook):
     def validate_args(self) -> bool:
-        if self.files is None or len(self.files) == 0:
+        if self.paths is None or len(self.paths) == 0:
             logger.debug("No files passed to hook, this hook needs 1 file")
             return False
-        if len(self.files) != 1:
+        if len(self.paths) != 1:
             logger.debug(
-                "Only a single filename can be provided to this hook, there were %s files provided", len(self.files)
+                "Only a single filename can be provided to this hook, there were %s files provided", len(self.paths)
             )
             return False
 
@@ -41,7 +40,7 @@ class ValidateSecurityScan(Hook):
         return True
 
     def run(self) -> HookRunResult:
-        commit_msg_file = self.files[0]
+        commit_msg_file = self.paths[0]  # type: ignore
         logger.debug("Reading contents from %s", commit_msg_file)
         with io.open(commit_msg_file, "r+", encoding="utf-8") as fd:
             contents = fd.readlines()

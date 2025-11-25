@@ -2,13 +2,21 @@
     name: Run a security scan
     description: Run a security scan against the files in this commit
     language: docker_image
-    entry: ghcr.io/uktrade/github-standards:latest run_scan
+    entry: ghcr.io/uktrade/github-standards:v1.0.1 run_scan
     stages: [pre-commit]
     require_serial: true # This avoids the pre-commit spliting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
+
+-   id: run-personal-data-scan
+    name: Run a personal data scan
+    description: Run a security scan against the files in this commit
+    language: system
+    entry: bash -c 'echo "This hook is deprecated, it can be removed from your local .pre-commit-config.yaml file for version ghcr.io/uktrade/github-standards:v1.0.1" && exit 0'
+    stages: [pre-commit]
 
 -   id: validate-security-scan
     name: Validate the security scan hook
     description: Validate the hook that runs the security scans has run, and add a signed-off git trailer if security scans have passed
     language: docker_image
-    entry: ghcr.io/uktrade/github-standards:latest validate_scan
+    entry: ghcr.io/uktrade/github-standards:v1.0.1 validate_scan
     stages: [commit-msg]
+

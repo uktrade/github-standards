@@ -1,3 +1,6 @@
+# This value is only used in local dev, see README.md for how to upgrade deployed versions of trufflehog
+TRUFFLEHOG_VERSION=3.90.12
+
 test: 
 	pytest -rP
 
@@ -5,22 +8,34 @@ coverage:
 	COVERAGE_FILE=.coverage pytest --cov-report html:htmlcov --cov=./
 
 build-docker:
-	docker build . -t github-standards-hooks:dev --target release
+	docker build --build-arg TRUFFLEHOG_VERSION=${TRUFFLEHOG_VERSION} . -t github-standards-hooks:dev --target release
 
-build-docker-local-testing:
-	docker build . -t github-standards-hooks:testing --target testing
+build-docker-testing:
+	docker build --build-arg TRUFFLEHOG_VERSION=${TRUFFLEHOG_VERSION} . -t github-standards-hooks:testing --target testing
 
 validate-hook-python:
 	echo 'Hello world' >> ./tests/EXAMPLE_COMMIT_MSG.txt && hooks-cli validate_scan --verbose ./tests/EXAMPLE_COMMIT_MSG.txt
 
 validate-hook-docker:
-	# the EXAMPLE_COMMIT_MSG.txt file is created inside the Dockerfile using the local-testing target
-	make build-docker-local-testing
-	docker run --rm github-standards-hooks:testing validate_scan --verbose EXAMPLE_COMMIT_MSG.txt
+	# the EXAMPLE_COMMIT_MSG.txt file is created inside the Dockerfile using the testing target
+	make build-docker-testing
+	echo 'Hello world commit message' > tests/EXAMPLE_COMMIT_MSG.txt
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing validate_scan --verbose tests/EXAMPLE_COMMIT_MSG.txt
 
 run-hook-python:
-	hooks-cli run_scan --verbose
+	hooks-cli run_scan --verbose ./src tests/test_data/personal_data.txt tests/test_data/personal_data.csv tests/test_data/personal_data.yaml
 
 run-hook-docker:
-	make build-docker-local-testing
-	docker run --rm github-standards-hooks:testing run_scan --verbose src/hooks_base.py
+	make build-docker-testing
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose ./src tests/test_data/personal_data.txt tests/test_data/personal_data.csv tests/test_data/personal_data.yaml
+
+run-hook-docker-github-action:
+	make build-docker-testing
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose --github-action /src
+
+run-personal-data-python:
+	hooks-cli run_personal_data_scan --verbose tests/test_data/personal_data.txt
+
+run-personal-data-docker:
+	make build-docker-testing
+	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_personal_data_scan --verbose src/hooks/cli.py

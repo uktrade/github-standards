@@ -7,17 +7,17 @@ from src.hooks.validate_security_scan import ValidateSecurityScan
 
 
 class TestValidateSecurityScan:
-    def test_validate_args_none_file_list_returns_false(self):
-        assert ValidateSecurityScan(files=None).validate_args() is False
+    def test_validate_args_none_path_list_returns_false(self):
+        assert ValidateSecurityScan(paths=None).validate_args() is False
 
-    def test_validate_args_empty_file_list_returns_false(self):
-        assert ValidateSecurityScan(files=[]).validate_args() is False
+    def test_validate_args_empty_path_list_returns_false(self):
+        assert ValidateSecurityScan(paths=[]).validate_args() is False
 
-    def test_validate_args_file_list_with_more_than_one_item_returns_false(self):
-        assert ValidateSecurityScan(files=["a.txt", "b.txt"]).validate_args() is False
+    def test_validate_args_path_list_with_more_than_one_item_returns_false(self):
+        assert ValidateSecurityScan(paths=["a.txt", "b.txt"]).validate_args() is False
 
-    def test_validate_args_file_list_with_one_item_returns_true(self):
-        assert ValidateSecurityScan(files=["a.txt"]).validate_args() is True
+    def test_validate_args_path_list_with_one_item_returns_true(self):
+        assert ValidateSecurityScan(paths=["a.txt"]).validate_args() is True
 
     def test_validate_hook_settings_with_dbt_hooks_repo_present_without_hooks_element_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
@@ -28,7 +28,7 @@ class TestValidateSecurityScan:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -46,7 +46,7 @@ class TestValidateSecurityScan:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -64,7 +64,7 @@ class TestValidateSecurityScan:
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -83,11 +83,12 @@ class TestValidateSecurityScan:
               hooks:
                 - id: validate-security-scan
                 - id: run-security-scan
+                - id: run-personal-data-scan
         """
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(ValidateSecurityScan, "_skip_check", return_value=False),
+            patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
             tf.write(valid_yaml)
             tf.seek(0)
@@ -99,14 +100,14 @@ class TestValidateSecurityScan:
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=False),
         ):
-            assert ValidateSecurityScan(files=[tf.name]).run().success is False
+            assert ValidateSecurityScan(paths=[tf.name]).run().success is False
 
     def test_run_with_file_with_no_contents_returns_error_code(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
         ):
-            assert ValidateSecurityScan(files=[tf.name]).run().success is False
+            assert ValidateSecurityScan(paths=[tf.name]).run().success is False
 
     def test_run_with_file_with_message_has_signed_off_by_trailer_added(self):
         with (
@@ -116,7 +117,7 @@ class TestValidateSecurityScan:
             tf.write(b"A helpful commit message")
             tf.seek(0)
 
-            assert ValidateSecurityScan(files=[tf.name]).run().success is True
+            assert ValidateSecurityScan(paths=[tf.name]).run().success is True
 
             assert tf.read().decode("UTF-8") == f"A helpful commit message\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
@@ -128,7 +129,7 @@ class TestValidateSecurityScan:
             tf.writelines(line + b"\n" for line in [b"A", b"helpful", b"commit", b" message"])
             tf.seek(0)
 
-            assert ValidateSecurityScan(files=[tf.name]).run().success is True
+            assert ValidateSecurityScan(paths=[tf.name]).run().success is True
 
             assert tf.read().decode("UTF-8") == f"A\nhelpful\ncommit\n message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
@@ -140,6 +141,6 @@ class TestValidateSecurityScan:
             tf.write(b"A helpful commit message\nSigned-off-by: SOMETHING ELSE")
             tf.seek(0)
 
-            assert ValidateSecurityScan(files=[tf.name]).run().success is True
+            assert ValidateSecurityScan(paths=[tf.name]).run().success is True
 
             assert tf.read().decode("UTF-8") == f"A helpful commit message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
