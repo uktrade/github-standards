@@ -1,0 +1,11 @@
+name: Validate repos
+on:
+  pull_request:
+
+jobs:
+  find-repos:
+    runs-on: ubuntu-latest
+    steps:
+      - run: gh api /search/repositories?q=org:uktrade+props.reusable_workflow_opt_in:true+archived:false --jq '.items[].clone_url'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
