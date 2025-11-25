@@ -11,7 +11,7 @@ from presidio_analyzer.recognizer_registry import RecognizerRegistryProvider
 from src.hooks.config import (
     DEFAULT_FILE_TYPES,
     DEFAULT_LANGUAGE_CODE,
-    EXCLUSIONS_FILE_PATH,
+    PRESIDIO_EXCLUSIONS_FILE_PATH,
     LOGGER,
     SPACY_MODEL_NAME,
 )
@@ -105,8 +105,8 @@ class PresidioScanner:
             logger.debug("Path %s is a directory, presidio can only scan files", path)
             return False
 
-        # check against the scan-exclusions file regex
-        if self._is_path_excluded(path, exclusions_file=EXCLUSIONS_FILE_PATH):
+        # check against the exclusions file regex
+        if self._is_path_excluded(path, exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH):
             logger.debug("Path %s is in the excluded file", path)
             return False
 

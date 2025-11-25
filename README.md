@@ -12,14 +12,16 @@
     - [Testing commit-msg hooks](#testing-commit-msg-hooks)
 - [Releasing](#releasing)
 - [Usage](#usage)
-  - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
-  - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
+    - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
+    - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
   - [Post installation setup](#post-installation-setup)
   - [Optional hooks](#optional-hooks)
 - [Trufflehog](#trufflehog)
   - [Detectors](#detectors)
   - [Excluding false positives](#excluding-false-positives)
   - [Upgrading trufflehog](#upgrading-trufflehog)
+- [Presidio](#presidio)
+  - [Excluding false positives](#excluding-false-positives-1)
 - [Bandit](#bandit)
   - [Upgrading bandit](#upgrading-bandit)
 - [GitHub actions](#github-actions)
@@ -88,7 +90,7 @@ You will now have:
 
 # Usage
 
-To use these hooks inside your project, some inital installation needs to be completed. Once installed, the hooks are self validating and will check for new releases each time they are run, with alerts when you need to upgrade.
+To use these hooks inside your project, some initial installation needs to be completed. Once installed, the hooks are self validating and will check for new releases each time they are run, with alerts when you need to upgrade.
 
 If you are already using the pre-commit framework in your project, then follow these instructions. If you are not using the pre-commit framework in your project, then follow these instructions instead
 
@@ -101,7 +103,7 @@ OR
 
 ### My project is not using the pre-commit framework
 
-1. Install the `pre-commit` package using whatever package manager you're using. Alternatively, you can test without a package manager using `pip install pre-commit`. `pre-commit` can be installed as a dev dependancy, it is not needed as a build requirement
+1. Install the `pre-commit` package using whatever package manager you're using. Alternatively, you can test without a package manager using `pip install pre-commit`. `pre-commit` can be installed as a dev dependency, it is not needed as a build requirement
 1. Copy the [example.pre-commit-config.yaml](./example.pre-commit-config.yaml) file from this repository into the root of your repository, and rename to `.pre-commit-config`.
 1. Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both entry points for your repository
 
@@ -129,7 +131,7 @@ We only use a pre-approved list of trufflehog detectors. Each allowed detector m
 
 If trufflehog has detected a potential secret in your code during a scan that you know is a false positive, you can exclude this from future trufflehog scans. Trufflehog only allows exclusions of an entire file, you cannot exclude individual secrets. To exclude a file from trufflehog:
 
-- If this file doesn't aready exist, create a file at the root of the repository called `scan-exclusions.txt`
+- If this file doesn't already exist, create a file at the root of the repository called `security-exclusions.txt`
 - This file contains list of regexes to exclude from trufflehog, separated by a newline. Add the filename in your repository you want to exclude as a new entry in this file
 
 ## Upgrading trufflehog
@@ -140,9 +142,20 @@ When an upgrade to trufflehog is required
 1. Edit the TRUFFLEHOG_VERSION variable and set it to the new desired version. This version must have a corresponding image tag on the [trufflehog dockerhub page](https://hub.docker.com/r/trufflesecurity/trufflehog/tags)
 1. Create a new github release following the [release instructions](#releasing)
 
+# Presidio
+
+To limit the risk of personal data leaks, we use Microsoft Presidio for scanning files to detect any personal information such as email address and name.
+
+## Excluding false positives
+
+If Presidio has detected potential personal data in your repo during a scan that you know is a false positive, you can exclude this from future Presidio scans. Presidio only allows exclusions of an entire file, you cannot exclude individual lines. To exclude a file from Presidio:
+
+- If this file doesn't already exist, create a file at the root of the repository called `personal-data-exclusions.txt`
+- This file contains list of regexes to exclude from Presidio, separated by a newline. Add the filename in your repository you want to exclude as a new entry in this file
+
 # Bandit
 
-Bandit is used for scannning python repositories to find common security issues. Bandit scans are performed using an org level github action, and focused on finding high severity issues that require immediate developer attention when a PR is raised
+Bandit is used for scanning python repositories to find common security issues. Bandit scans are performed using an org level github action, and focused on finding high severity issues that require immediate developer attention when a PR is raised
 
 ## Upgrading bandit
 
@@ -159,7 +172,7 @@ This repository contains GitHub actions that are triggered by a set of GitHub Ru
 As this github-standards repository uses the GitHub Custom properties, during a PR for this repository the workflows that are run are the version in the main branch. This makes it difficult to test changes to the workflows, as although the files exist in this repo, any changes to them will not take effect until the PR is merged into main. At that point, any issues with the workflow will be present in all repositories using the GitHub Custom properties.
 
 As these workflow runs aren't visible on the PR screen, you need to use view the GitHub actions filter found [here](https://github.com/uktrade/github-standards/actions?query=event%3Apush)
-To solve this, an additional GitHub action on_push trigger has been added to each of the org wide workflows. This trigger will fire on any push event where an org wide workflow yaml file has changed. When raising a PR, the same GitHub workflow will now apppear multiple times when a change to a workflow yaml file is made. Once which is the required status enforced by the GitHub Ruleset and is using the workflow version in the main branch, and a second run which is the workflow version in the branch raising the PR.
+To solve this, an additional GitHub action on_push trigger has been added to each of the org wide workflows. This trigger will fire on any push event where an org wide workflow yaml file has changed. When raising a PR, the same GitHub workflow will now appear multiple times when a change to a workflow yaml file is made. Once which is the required status enforced by the GitHub Ruleset and is using the workflow version in the main branch, and a second run which is the workflow version in the branch raising the PR.
 
 # FAQ
 

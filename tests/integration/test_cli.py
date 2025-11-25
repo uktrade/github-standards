@@ -4,7 +4,7 @@ from pytest_subprocess import FakeProcess
 
 
 from src.hooks.cli import main as main_function
-from src.hooks.config import TRUFFLEHOG_VERBOSE_LOG_LEVEL
+from src.hooks.config import TRUFFLEHOG_EXCLUSIONS_FILE_PATH, TRUFFLEHOG_VERBOSE_LOG_LEVEL
 from src.hooks.trufflehog.vendors import AllowedTrufflehogVendor
 
 
@@ -24,7 +24,7 @@ class TestCLI:
                     "--no-update",
                     "--results=verified,unknown",
                     f"--log-level={TRUFFLEHOG_VERBOSE_LOG_LEVEL}",
-                    "--exclude-paths=scan-exclusions.txt",
+                    f"--exclude-paths={TRUFFLEHOG_EXCLUSIONS_FILE_PATH}",
                     f"--include-detectors={AllowedTrufflehogVendor.all_vendor_codes_as_str()}",
                     file.name,
                 ],
