@@ -2,6 +2,7 @@ from pathlib import Path
 from unittest.mock import patch
 from src.hooks.config import (
     TRUFFLEHOG_ERROR_CODE,
+    TRUFFLEHOG_EXCLUSIONS_FILE_PATH,
     TRUFFLEHOG_INFO_LOG_LEVEL,
     TRUFFLEHOG_VERBOSE_LOG_LEVEL,
 )
@@ -18,12 +19,12 @@ class TestTrufflehogScanner:
     def test_get_args_without_exclusions_file_does_not_have_exclude_arg_for_trufflehog(self):
         with patch.object(Path, "exists") as mock_exists:
             mock_exists.return_value = False
-            assert "--exclude-paths=scan-exclusions.txt" not in TrufflehogScanner()._get_args([])
+            assert f"--exclude-paths={TRUFFLEHOG_EXCLUSIONS_FILE_PATH}" not in TrufflehogScanner()._get_args([])
 
     def test_get_args_with_exclusions_file_present_includes_exclude_arg_for_trufflehog(self):
         with patch.object(Path, "exists") as mock_exists:
             mock_exists.return_value = True
-            assert "--exclude-paths=scan-exclusions.txt" in TrufflehogScanner()._get_args([])
+            assert f"--exclude-paths={TRUFFLEHOG_EXCLUSIONS_FILE_PATH}" in TrufflehogScanner()._get_args([])
 
     def test_get_args_with_github_action_true_uses_git_scanning_mode(self):
         args = TrufflehogScanner()._get_args(paths=["/folder1"], github_action=True)
