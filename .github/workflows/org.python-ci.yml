@@ -17,12 +17,18 @@ jobs:
       python-version: "3.13.9"
       bandit-version: "1.9.1"
       results-file: "results.sarif"
+      audit-dir: "audit-reports"
+      # aws_regione: "eu-west-2"
     runs-on: ubuntu-latest
     permissions:
       security-events: write
       actions: read
       contents: read
-    steps:
+      issues: write
+      pull-requests: write
+    steps:  
+      ############# Bandit ##################
+      # TODO: Create ad-hoc DBT bandit action
       - name: Set up Python
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
         with:
@@ -53,3 +59,38 @@ jobs:
         uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb
         with:
           sarif_file: ${{env.results-file}}
+
+      ############# Py Audit ##################
+      # - name: "Git clone the repository"
+      #   uses: actions/checkout@v6
+
+      - name: "Create audit directory"
+        shell: bash
+        run: mkdir -p "${{ env.audit-dir }}"
+        continue-on-error: true
+
+      - name: "Run Python audit (v${{ vars.PY_VERSION }})"
+        uses: uktrade/actions/python@391834c3900a1a071dc57d35f6e13c0e5acbe1c0
+        continue-on-error: true
+        with:
+          python-version: ${{ vars.PY_VERSION }}
+          audit-dir: ${{ env.audit-dir }}
+
+      - name: Notify PR creator
+        if: github.event_name == 'pull_request'
+        uses: uktrade/actions/python@391834c3900a1a071dc57d35f6e13c0e5acbe1c0
+        continue-on-error: true
+        with:
+          token: ${{ github.token }}
+          audit-dir: ${{ env.audit-dir }}
+
+      # - name: "Upload audit reports to S3"
+      #   # Triggered by a merge into main or by the scheduled cron job
+      #   if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+      #   uses: uktrade/actions/upload-to-s3@v0.0.4
+      #   continue-on-error: true
+      #   with:
+      #     audit-dir: ${{ env.audit-dir }}
+      #     aws-region: ${{ env.aws_regione }}
+      #     bucket:  ${{ secrets.BUCKET_NAME }}
+      #     role-to-assume: ${{ secrets.AWS_ROLE }}
