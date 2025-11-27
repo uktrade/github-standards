@@ -12,6 +12,8 @@ on:
 
 jobs:
   validate:
+    env:
+      HADOLINT_VERSION: "v2.14.0"
     name: Validate Dockerfile
     runs-on: ubuntu-latest
     permissions:
@@ -20,9 +22,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
-      - name: Validate Dockerfile with dockerfile-validator
+      - name: Validate Dockerfile
         if: ${{ hashFiles('Dockerfile') != '' }}
-        uses: ghe-actions/dockerfile-validator@12ed0b63096a928bd3db6fc47d482b6f462ab9c6
-        with:
-          dockerfile: "Dockerfile"
-          lint: "hadolint"
+        run: |
+          docker pull hadolint/hadolint:${{env.HADOLINT_VERSION}}
+          docker run -e HADOLINT_FAILURE_THRESHOLD=error -e HADOLINT_VERBOSE=1 --rm -i hadolint/hadolint < Dockerfile
