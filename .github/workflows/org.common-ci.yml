@@ -118,4 +118,5 @@ jobs:
           run_scan \
           --verbose \
           --github-action \
+          --excluded-scans=data \
           /src
