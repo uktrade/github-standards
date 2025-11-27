@@ -14,7 +14,7 @@ jobs:
   pre-commit-check:
     env:
       SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
-      FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer. This is likely due to the pre-commit hook not being configured on your local machine. The usual fix for this issue is to run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, however for more detailed help in setting up the pre-commit hooks, follow the instructions at https://github.com/uktrade/github-standards/README.MD#Usage"
+      FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer. This is likely due to the pre-commit hook not being configured on your local machine. The usual fix for this issue is to run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, however for more detailed help in setting up the pre-commit hooks, follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md#usage"
 
     runs-on: ubuntu-latest
     permissions:

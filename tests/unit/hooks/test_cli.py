@@ -4,6 +4,7 @@ import pytest
 from unittest import mock
 
 from src.hooks.cli import main as main_function, parse_args
+from src.hooks.config import PERSONAL_DATA_SCAN, SECURITY_SCAN
 from src.hooks.hooks_base import HookRunResult
 
 
@@ -62,6 +63,23 @@ class TestCLI:
                 assert result.paths == paths
                 assert result.verbose is False
                 assert result.github_action is False
+
+        def test_parse_args_for_run_with_unknown_excluded_scans_throws_error(self):
+            paths = ["a.txt", "b.txt"]
+            with pytest.raises(SystemExit):
+                testargs = ["run_scan", "--excluded-scans", "not_real"] + paths
+                with mock.patch.object(sys, "argv", testargs):
+                    parse_args(testargs)
+
+        def test_parse_args_for_run_with_all_excluded_scans_returns_expected_args(self):
+            paths = ["a.txt", "b.txt"]
+            testargs = ["run_scan", "--excluded-scans", SECURITY_SCAN, "--excluded-scans", PERSONAL_DATA_SCAN] + paths
+            with mock.patch.object(sys, "argv", testargs):
+                result = parse_args(testargs)
+                assert result.paths == paths
+                assert result.verbose is False
+                assert result.github_action is False
+                assert result.excluded_scans == [SECURITY_SCAN, PERSONAL_DATA_SCAN]
 
         def test_parse_args_for_validate_without_paths_returns_expected_args(self):
             testargs = ["validate_scan"]

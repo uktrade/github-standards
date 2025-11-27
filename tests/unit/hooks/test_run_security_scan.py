@@ -5,7 +5,9 @@ import tempfile
 
 from unittest.mock import MagicMock, patch
 from src.hooks.config import (
+    PERSONAL_DATA_SCAN,
     RELEASE_CHECK_URL,
+    SECURITY_SCAN,
 )
 from src.hooks.hooks_base import HookRunResult
 from src.hooks.presidio.scanner import Detection
@@ -186,3 +188,22 @@ class TestRunSecurityScan:
             mock_run_personal_scan.return_value = HookRunResult(True)
 
             assert RunSecurityScan().run().success is True
+
+    def test_run_with_run_security_scan_excluded_does_not_run_a_security_scan(
+        self,
+    ):
+        with (
+            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
+        ):
+            RunSecurityScan(excluded_scans=[SECURITY_SCAN]).run()
+            mock_run_security_scan.assert_not_called()
+
+    def test_run_with_run_personal_data_scan_excluded_does_not_run_a_security_scan(
+        self,
+    ):
+        with (
+            patch.object(RunSecurityScan, "run_security_scan"),
+            patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
+        ):
+            RunSecurityScan(excluded_scans=[PERSONAL_DATA_SCAN]).run()
+            mock_run_personal_scan.assert_not_called()

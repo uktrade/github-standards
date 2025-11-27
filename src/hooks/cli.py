@@ -4,7 +4,7 @@ import sys
 
 from typing import List, Optional
 from logging import StreamHandler, captureWarnings, INFO, DEBUG, Formatter
-from src.hooks.config import LOGGER
+from src.hooks.config import LOGGER, PERSONAL_DATA_SCAN, SECURITY_SCAN
 from src.hooks.run_personal_data_scan import RunPersonalDataScan
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.validate_security_scan import ValidateSecurityScan
@@ -48,7 +48,18 @@ def parse_args(argv):
         help="Run this hook in a github action",
         required=False,
     )
-    run_scan_parser.set_defaults(hook=lambda args: RunSecurityScan(args.paths, args.verbose, args.github_action))
+    run_scan_parser.add_argument(
+        "-x",
+        "--excluded-scans",
+        help="Any scans to exclude",
+        required=False,
+        choices=[SECURITY_SCAN, PERSONAL_DATA_SCAN],
+        action="append",
+    )
+
+    run_scan_parser.set_defaults(
+        hook=lambda args: RunSecurityScan(args.paths, args.verbose, args.github_action, args.excluded_scans)
+    )
 
     validate_scan_parser = subparsers.add_parser("validate_scan", parents=[parent_parser])
     validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.paths, args.verbose))
