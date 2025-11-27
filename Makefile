@@ -33,9 +33,3 @@ run-hook-docker-github-action:
 	make build-docker-testing
 	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose --github-action /src
 
-run-personal-data-python:
-	hooks-cli run_personal_data_scan --verbose tests/test_data/personal_data.txt
-
-run-personal-data-docker:
-	make build-docker-testing
-	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing run_personal_data_scan --verbose src/hooks/cli.py

@@ -67,6 +67,7 @@ jobs:
       DOCKER_IMAGE: ghcr.io/uktrade/github-standards
       RELEASE_URL: https://api.github.com/repos/uktrade/github-standards/releases/latest
     runs-on: ubuntu-latest
+
     permissions:
       contents: read
 
@@ -82,18 +83,18 @@ jobs:
         with:
           push: false
           build-args: TRUFFLEHOG_VERSION=${{ vars.TRUFFLEHOG_VERSION }}
-          tags: github-standards-hooks:verification-testing
+          tags: github-standards-hooks:common-ci
           target: testing
 
       - name: Secret scanning using the locally built docker image
         if: steps.build.conclusion == 'success'
         run: |
-          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/repo_files -w /repo_files \
-          github-standards-hooks:verification-testing \
+          docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
+          github-standards-hooks:common-ci \
           run_scan \
           --verbose \
           --github-action \
-          /repo_files
+          /src
 
       - name: Get latest release
         if: ${{ github.event_name == 'pull_request' }}
@@ -112,9 +113,9 @@ jobs:
             tag='latest'
           fi
           echo $tag
-          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/repo_files -w /repo_files \
+          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
           ${{ env.DOCKER_IMAGE }}:$tag \
           run_scan \
           --verbose \
           --github-action \
-          /repo_files
+          /src
