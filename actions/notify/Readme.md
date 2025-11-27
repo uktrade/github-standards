@@ -21,7 +21,7 @@ jobs:
       # ...  
       # Run the audit first
       - name: "Run Python audit (v${{ vars.PY_VERSION }})"
-        uses: github-standards/actions/python@latest
+        uses: github-standards/actions/vulnerability-scan/python@latest
         continue-on-error: true
         with:
           audit-dir: ${{ env.audit-dir }}
