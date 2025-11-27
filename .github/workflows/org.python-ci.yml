@@ -80,7 +80,7 @@ jobs:
           audit-dir: ${{ env.audit-dir }}
 
       - name: Notify PR creator
-        if: github.event_name == 'pull_request'
+        if: ${{ github.event_name == 'push' }}
         uses: ./actions/notify/vulnerability
         continue-on-error: true
         with:
