@@ -72,11 +72,11 @@ jobs:
         run: mkdir -p "${{ env.audit-dir }}"
         continue-on-error: true
 
-      - name: "Run Python audit (v${{ vars.PY_VERSION }})"
+      - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
         uses: ./actions/vulnerability-scan/python
         continue-on-error: true
         with:
-          python-version: ${{ vars.PY_VERSION }}
+          python-version: ${{ vars.PYTHON_VERSION }}
           audit-dir: ${{ env.audit-dir }}
 
       - name: Notify PR creator
