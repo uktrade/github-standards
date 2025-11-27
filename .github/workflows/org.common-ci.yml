@@ -113,10 +113,9 @@ jobs:
             tag='latest'
           fi
           echo $tag
-          docker run -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
+          docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
           ${{ env.DOCKER_IMAGE }}:$tag \
           run_scan \
           --verbose \
           --github-action \
-          --excluded-scans=data \
           /src
