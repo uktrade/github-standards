@@ -7,7 +7,6 @@ jobs:
     permissions:
       repository-projects: read
       contents: read
-      repository-custom-properties: read
 
     runs-on: ubuntu-latest
     steps:
