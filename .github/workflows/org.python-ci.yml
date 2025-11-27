@@ -73,7 +73,7 @@ jobs:
         continue-on-error: true
 
       - name: "Run Python audit (v${{ vars.PY_VERSION }})"
-        uses: ./actions/vulnerability-scan/python/action.yml
+        uses: ./actions/vulnerability-scan/python
         continue-on-error: true
         with:
           python-version: ${{ vars.PY_VERSION }}
@@ -81,7 +81,7 @@ jobs:
 
       - name: Notify PR creator
         if: github.event_name == 'pull_request'
-        uses: ./actions/notify/vulnerability/action.yml
+        uses: ./actions/notify/vulnerability
         continue-on-error: true
         with:
           token: ${{ github.token }}
