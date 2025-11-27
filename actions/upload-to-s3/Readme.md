@@ -1,0 +1,35 @@
+# Upload to S3 Action
+
+This composite GitHub Action uploads audit reports (or any `.json` files) from a specified directory to an Amazon S3 bucket. Each uploaded file is automatically prefixed with a UTC timestamp to ensure uniqueness and traceability.
+
+## Features
+
+- Uploads all `.json` files from a given directory
+- Prepends each filename with a timestamp in the format `YYYYMMDD-HHMMSS`
+- Assumes an IAM role via OIDC for secure AWS access
+- Uses AWS CLI for S3 upload
+
+## Usage
+
+```yaml
+# ...
+
+permissions:
+  id-token: write   # Required for requesting the JWT
+  contents: read    # Required for actions/checkout
+
+
+jobs:
+  Vulnerability-Checks:
+    runs-on: ubuntu-latest
+    steps:
+      # ...
+
+      - name: "Upload audit reports to S3"
+        uses: github-standards/actions/upload-to-s3@main
+        with:
+          audit-dir: ${{ env.AUDIT_DIR }}
+          aws-region: ${{ env.AWS_REGION }}
+          bucket:  ${{ env.BUCKET_NAME }}
+          role-to-assume: ${{ env.AWS_ROLE }}
+```
