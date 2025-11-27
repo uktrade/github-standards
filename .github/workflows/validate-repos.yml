@@ -6,9 +6,17 @@ jobs:
   find-repos:
     permissions:
       repository-projects: read
+      contents: read
+      repository-custom-properties: read
 
     runs-on: ubuntu-latest
     steps:
       - run: gh api /search/repositories?q=org:uktrade+archived:false+props.reusable_workflow_opt_in:true --verbose
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Find repos
+        run: |
+          curl --request GET \
+          --url https://api.github.com/search/repositories?q=org%3Auktrade+archived%3Afalse \
+          --header 'authorization: Bearer ${{ secrets.GITHUB_TOKEN }}' \
+          --fail
