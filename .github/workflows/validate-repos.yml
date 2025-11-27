@@ -4,6 +4,9 @@ on:
 
 jobs:
   find-repos:
+    permissions:
+      repository-projects: read
+
     runs-on: ubuntu-latest
     steps:
       - run: gh api /search/repositories?q=org:uktrade+archived:false+props.reusable_workflow_opt_in:true
