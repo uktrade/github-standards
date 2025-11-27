@@ -8,6 +8,8 @@ PRE_COMMIT_FILE = ".pre-commit-config.yaml"
 SIGNED_OFF_BY_TRAILER = "Signed-off-by: DBT pre-commit check"
 MANDATORY_HOOK_IDS = ["validate-security-scan", "run-security-scan"]
 FORCE_HOOK_CHECKS = os.getenv("FORCE_HOOK_CHECKS", "0")
+SECURITY_SCAN = "security"
+PERSONAL_DATA_SCAN = "data"
 
 LOGGER = logging.getLogger("app")
 

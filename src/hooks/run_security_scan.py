@@ -5,8 +5,10 @@ from typing import List
 
 from src.hooks.config import (
     LOGGER,
+    PERSONAL_DATA_SCAN,
     PRE_COMMIT_FILE,
     RELEASE_CHECK_URL,
+    SECURITY_SCAN,
 )
 from src.hooks.hooks_base import Hook, HookRunResult
 from src.hooks.presidio.scanner import PresidioScanner
@@ -22,9 +24,11 @@ class RunSecurityScan(Hook):
         paths: List[str] = [],
         verbose: bool = False,
         github_action: bool = False,
+        excluded_scans: List[str] | None = None,
     ):
         super().__init__(paths, verbose)
         self.github_action = github_action
+        self.excluded_scans = excluded_scans if excluded_scans else []
 
     def validate_args(self) -> bool:
         if self.github_action:
@@ -113,13 +117,18 @@ class RunSecurityScan(Hook):
         # A cyber condition has been applied to using trufflehog, where the endpoints called by the trufflehog scanner
         # need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block
         # any requests made by trufflehog that have not been explicitly allowed
+        if SECURITY_SCAN not in self.excluded_scans:
+            security_scan_result = self.run_security_scan()
+            if security_scan_result.success is False:
+                return security_scan_result
+        else:
+            logger.debug("Security scan is excluded")
 
-        security_scan_result = self.run_security_scan()
-        if security_scan_result.success is False:
-            return security_scan_result
-
-        personal_data_scan_result = self.run_personal_scan()
-        if personal_data_scan_result.success is False:
-            return personal_data_scan_result
+        if PERSONAL_DATA_SCAN not in self.excluded_scans:
+            personal_data_scan_result = self.run_personal_scan()
+            if personal_data_scan_result.success is False:
+                return personal_data_scan_result
+        else:
+            logger.debug("Personal data scan is excluded")
 
         return HookRunResult(True)
