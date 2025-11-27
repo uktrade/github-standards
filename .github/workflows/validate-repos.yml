@@ -9,6 +9,6 @@ jobs:
 
     runs-on: ubuntu-latest
     steps:
-      - run: gh api /search/repositories?q=org:uktrade+archived:false+props.reusable_workflow_opt_in:true
+      - run: gh api /search/repositories?q=org:uktrade+archived:false+props.reusable_workflow_opt_in:true --verbose
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
