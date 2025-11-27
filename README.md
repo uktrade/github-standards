@@ -40,6 +40,8 @@
 
 1. Install uv following these instructions https://docs.astral.sh/uv/getting-started/installation/
 1. Run `uv sync` to create a local virtual environment and install all dependencies
+1. Make sure the venv created by uv is activated in the terminal before running any additional commands
+1. Install trufflehog using `brew install trufflehog`
 
 # Testing
 
