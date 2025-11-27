@@ -22,7 +22,6 @@ runs:
       run: |
         set -e
         REPO_NAME="$(basename "$(realpath .)")"
-        AUDIT_DIR="${{ inputs.audit-dir }}"
 
         # Python: pip-based
         find . -name "requirements.txt" | while read -r req; do
@@ -108,3 +107,5 @@ runs:
             fi
           )
         done
+      env:
+        AUDIT_DIR: ${{ inputs.audit-dir }}

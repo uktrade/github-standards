@@ -35,8 +35,12 @@ runs:
     - name: Upload audit reports to S3
       shell: bash
       run: |
-        for report in "${{ inputs.audit-dir }}"/*.json; do
+        for report in "$AUDIT_DIR"/*.json; do
           base=$(basename "$report")
-          ts="${{ steps.timestamp.outputs.value }}"
-          aws s3 cp "$report" "s3://${{ inputs.bucket }}/${ts}-${base}"
+          timestamp="$TIMESTAMP"
+          aws s3 cp "$report" "s3://$BUCKET/${timestamp}-${base}"
         done
+      env:
+        AUDIT_DIR: ${{ inputs.audit-dir }}
+        BUCKET: ${{ inputs.bucket }}
+        TIMESTAMP: ${{ steps.timestamp.outputs.value }}

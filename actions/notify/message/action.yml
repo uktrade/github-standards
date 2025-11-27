@@ -15,11 +15,14 @@ runs:
     - name: Post PR comment
       uses: actions/github-script@v8
       with:
-        github-token: ${{ inputs.token }}   
+        github-token: ${{ inputs.token }}
         script: |
+          const message = process.env.MESSAGE;
           github.rest.issues.createComment({
             issue_number: context.issue.number,
             owner: context.repo.owner,
             repo: context.repo.repo,
-            body: `${{ inputs.message }}`
+            body: message
           })
+      env:
+        MESSAGE: ${{ inputs.message }}
