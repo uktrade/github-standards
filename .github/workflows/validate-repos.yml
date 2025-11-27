@@ -6,6 +6,6 @@ jobs:
   find-repos:
     runs-on: ubuntu-latest
     steps:
-      - run: gh api /search/repositories?q=org:uktrade+props.reusable_workflow_opt_in:true+archived:false
+      - run: gh api /search/repositories?q=org:uktrade+archived:false+props.reusable_workflow_opt_in:true
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
