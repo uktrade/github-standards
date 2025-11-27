@@ -1,0 +1,28 @@
+name: "Notify"
+description: "Notify PR creator of any message"
+
+inputs:
+  message:
+    description: "Message to post on the PR"
+    required: true
+  token:
+    description: "GitHub token or PAT"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Post PR comment
+      uses: actions/github-script@v8
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const message = process.env.MESSAGE;
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: message
+          })
+      env:
+        MESSAGE: ${{ inputs.message }}
