@@ -107,6 +107,11 @@ class RunSecurityScan(Hook):
             self.verbose,
             self.paths,
         )
+        # TODO
+        # File skipped due to file extension
+        # File excluded from scan
+        # File scanned without issue
+        # File scanned with issues
 
         detections_summary = "\n".join(
             [
