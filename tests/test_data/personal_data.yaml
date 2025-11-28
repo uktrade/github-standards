@@ -1,4 +1,12 @@
-- name: John Smith
-  email: john.smith@test.com
-  postcode: SW1A 1AA
-  phone: 07111111111
+repos:
+- repo: local
+  hooks:
+    # Run the ruff linter and formatter using just command
+    - id: ruff
+      name: ruff
+      description: "Format Python code using ruff format via just command john smith"
+      entry: just format
+      language: system
+      types_or: [python, pyi]
+      pass_filenames: false
+      stages: [pre-commit]

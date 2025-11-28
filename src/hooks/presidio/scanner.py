@@ -14,6 +14,7 @@ from src.hooks.config import (
     DEFAULT_LANGUAGE_CODE,
     PRESIDIO_EXCLUSIONS_FILE_PATH,
     LOGGER,
+    SPACY_ENTITIES,
     SPACY_MODEL_NAME,
 )
 
@@ -21,16 +22,19 @@ logger = LOGGER
 
 
 class PersonalDataDetection:
-    def __init__(self, filename: str, line_number: float, result: RecognizerResult) -> None:
+    def __init__(self, filename: str, result: RecognizerResult, text_value: str | None = None) -> None:
         self.filename = filename
-        self.line_number = line_number
         self.result = result
+        self.text_value = text_value
 
     def __repr__(self) -> str:
-        return f"Found possible personal data.\nFilename: {self.filename}\nLine number: {self.line_number}\nDetected entity: {self.result}"
+        return f"Found possible personal data.\nFilename: {self.filename}\nDetected entity: {self.result}\nText value: {self.text_value}"
 
 
 class PresidioScanner:
+    # TODO sort this class out, duplicated _scan_file_contents to quickly get this live but needs redesigning
+    LINE_BY_LINE_FILE_EXTENSIONS = [".csv"]
+
     def __init__(
         self,
         verbose: bool = False,
@@ -61,7 +65,7 @@ class PresidioScanner:
                 "recognizers": [
                     {"name": "EmailRecognizer", "type": "predefined"},
                     # Remove spacy for now, as it false positives comments as person objects
-                    # {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
+                    {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
                 ],
             },
         )
@@ -84,7 +88,10 @@ class PresidioScanner:
         logger.debug("The path %s was not found in any exclusion regexes", path)
         return False
 
-    def _should_process_path(self, path: str):
+    def _should_scan_path(self, path: str, exclusions: List[re.Pattern[str]]):
+        if self._is_path_excluded(path, exclusions):
+            return False
+
         if not Path(path).exists():
             logger.debug("Path %s does not exist", path)
             return False
@@ -124,37 +131,73 @@ class PresidioScanner:
                     )
                     raise
 
-    def _scan_path(
-        self, analyzer: AnalyzerEngine, entities: List[str], file_path: str, exclusions: List[re.Pattern[str]]
-    ) -> Iterator[PersonalDataDetection]:
-        # check against the scan-exclusions file regex
-        if self._is_path_excluded(file_path, exclusions):
-            logger.debug("Path %s is in the excluded file", file_path)
-            return
+    def _scan_file_contents(
+        self,
+        analyzer: AnalyzerEngine,
+        entities: List[str],
+        file_path: str,
+    ):
+        with io.open(file_path, "r", encoding="utf-8") as fs:
+            contents = fs.read()
 
-        if self._should_process_path(file_path):
-            with io.open(file_path, "r", encoding="utf-8") as file_contents:
-                for line_number, line in enumerate(file_contents):
-                    results = analyzer.analyze(
-                        text=line,
-                        language=DEFAULT_LANGUAGE_CODE,
-                        entities=entities,
+            results = analyzer.analyze(
+                text=contents,
+                language=DEFAULT_LANGUAGE_CODE,
+                entities=entities,
+            )
+            for result in results:
+                logger.debug(
+                    "Result [%s] found",
+                    result,
+                )
+                yield PersonalDataDetection(file_path, result, text_value=contents[result.start : result.end])
+
+    def _scan_line_by_line(
+        self,
+        analyzer: AnalyzerEngine,
+        entities: List[str],
+        file_path: str,
+    ):
+        with io.open(file_path, "r", encoding="utf-8") as fs:
+            for line in fs:
+                results = analyzer.analyze(
+                    text=line,
+                    language=DEFAULT_LANGUAGE_CODE,
+                    entities=entities,
+                )
+                for result in results:
+                    logger.debug(
+                        "Result [%s] found",
+                        result,
                     )
-                    for result in results:
-                        logger.debug(
-                            "Result [%s] found in line number %s, for text %s",
-                            result,
-                            line_number,
-                            line,
-                        )
-                        yield PersonalDataDetection(file_path, line_number, result)
+                    yield PersonalDataDetection(file_path, result, text_value=line[result.start : result.end])
 
-    def _get_paths(self, paths: List[str], github_action: bool = False):
-        if not github_action:
-            return paths
-        repo = git.Repo("./")
-        logger.debug("Scanning files in git repository %s", repo)
-        return [entry.path for entry in repo.tree().traverse()]
+    def _scan_path(
+        self,
+        analyzer: AnalyzerEngine,
+        entities: List[str],
+        file_path: str,
+    ) -> Iterator[PersonalDataDetection]:
+        file_extension = Path(file_path).suffix.lower()
+        if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
+            yield from self._scan_line_by_line(analyzer, entities, file_path)
+        else:
+            yield from self._scan_file_contents(analyzer, entities, file_path)
+
+    def _get_paths_to_scan(
+        self,
+        paths: List[str],
+        exclusions: List[re.Pattern[str]],
+        github_action: bool = False,
+    ):
+        if github_action:
+            repo = git.Repo("./")
+            logger.debug("Scanning files in git repository %s", repo)
+            paths = [entry.path for entry in repo.tree().traverse()]
+
+        for path in paths:
+            if self._should_scan_path(path, exclusions):
+                yield path
 
     def scan(
         self,
@@ -165,8 +208,9 @@ class PresidioScanner:
         exclusions = list(self._get_exclusions(exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH))
         logger.debug("Exclusions file loaded with exclusions %s", exclusions)
 
-        for path in self._get_paths(
+        for path in self._get_paths_to_scan(
             self.paths,
+            exclusions,
             github_action,
         ):
-            yield from self._scan_path(analyzer, entities, path, exclusions)
+            yield from self._scan_path(analyzer, entities, path)
