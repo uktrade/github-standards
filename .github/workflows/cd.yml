@@ -1,0 +1,41 @@
+name: Deploy main branch
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch:
+
+jobs:
+  build-and-push-development-image:
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+      attestations: write
+    uses: ./.github/workflows/build-and-push-to-ghcr.yml
+    with:
+      image_tags: development
+    secrets: inherit
+
+  verify-development-docker-image:
+    needs: ["build-and-push-development-image"]
+    env:
+      DOCKER_IMAGE: ghcr.io/uktrade/github-standards
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          ref: main
+
+      - name: Secret scanning using the latest released docker image
+        run: |
+          tag=development
+          docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
+          ${{ env.DOCKER_IMAGE }}:$tag \
+          run_scan \
+          --verbose \
+          --github-action \
+          /src

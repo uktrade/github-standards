@@ -1,8 +1,9 @@
+import git
 import io
+import re
 
 from pathlib import Path
-import re
-from typing import List
+from typing import Iterator, List
 
 from presidio_analyzer import AnalyzerEngine, RecognizerResult
 from presidio_analyzer.nlp_engine import NlpEngineProvider
@@ -19,7 +20,7 @@ from src.hooks.config import (
 logger = LOGGER
 
 
-class Detection:
+class PersonalDataDetection:
     def __init__(self, filename: str, line_number: float, result: RecognizerResult) -> None:
         self.filename = filename
         self.line_number = line_number
@@ -47,7 +48,7 @@ class PresidioScanner:
             "models": [
                 {"lang_code": DEFAULT_LANGUAGE_CODE, "model_name": SPACY_MODEL_NAME},
             ],
-            "ner_model_configuration": {"labels_to_ignore": ["CARDINAL"]},
+            "ner_model_configuration": {"labels_to_ignore": ["CARDINAL", "MONEY", "WORK_OF_ART", "FAC"]},
         }
 
         # Create NLP engine based on configuration
@@ -73,41 +74,23 @@ class PresidioScanner:
 
         return analyzer
 
-    def _is_path_excluded(self, path, exclusions_file):
-        if not Path(exclusions_file).exists():
-            logger.debug("The exclusions file %s is not present", exclusions_file)
-            return False
+    def _is_path_excluded(self, path: str, exclusions: List[re.Pattern[str]]):
+        for exclusion in exclusions:
+            match = exclusion.search(path)
+            if match is not None:
+                logger.info("Path %s matches regex %s and should be excluded", path, exclusion)
+                return True
 
-        with io.open(exclusions_file, "r", encoding="utf-8") as file:
-            for _, exclusion_regex in enumerate(file):
-                try:
-                    regex = re.compile(exclusion_regex)
-                    match = regex.search(path)
-                    if match is not None:
-                        logger.info("Path %s matches regex %s and should be excluded", path, exclusion_regex)
-
-                        return True
-                    logger.debug("Path %s does not have a match in regex %s", path, exclusion_regex)
-                except re.error:
-                    logger.error(
-                        "The regex %s in file %s could not be compiled into a valid regex", exclusion_regex, exclusions_file
-                    )
-                    raise
-            logger.debug("The path %s was not found in any regexes in file %s", path, exclusions_file)
+        logger.debug("The path %s was not found in any exclusion regexes", path)
         return False
 
-    def _should_process_path(self, path):
+    def _should_process_path(self, path: str):
         if not Path(path).exists():
             logger.debug("Path %s does not exist", path)
             return False
 
         if not Path(path).is_file():
             logger.debug("Path %s is a directory, presidio can only scan files", path)
-            return False
-
-        # check against the exclusions file regex
-        if self._is_path_excluded(path, exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH):
-            logger.debug("Path %s is in the excluded file", path)
             return False
 
         file_extension = Path(path).suffix
@@ -125,23 +108,65 @@ class PresidioScanner:
         )
         return True
 
-    def scan(self) -> None | List[Detection]:
-        analyzer = self._get_analyzer()
-        detections = []
-        for path in self.paths:
-            if self._should_process_path(path):
-                with io.open(path, "r", encoding="utf-8") as file_contents:
-                    for line_number, line in enumerate(file_contents):
-                        results = analyzer.analyze(
-                            text=line,
-                            language=DEFAULT_LANGUAGE_CODE,
+    def _get_exclusions(self, exclusions_file) -> Iterator[re.Pattern[str]]:
+        if not Path(exclusions_file).exists():
+            logger.debug("The exclusions file %s is not present", exclusions_file)
+            return []
+
+        with io.open(exclusions_file, "r", encoding="utf-8") as file:
+            for exclusion_regex in file:
+                try:
+                    yield re.compile(exclusion_regex.rstrip())
+
+                except re.error:
+                    logger.error(
+                        "The regex %s in file %s could not be compiled into a valid regex", exclusion_regex, exclusions_file
+                    )
+                    raise
+
+    def _scan_path(
+        self, analyzer: AnalyzerEngine, entities: List[str], file_path: str, exclusions: List[re.Pattern[str]]
+    ) -> Iterator[PersonalDataDetection]:
+        # check against the scan-exclusions file regex
+        if self._is_path_excluded(file_path, exclusions):
+            logger.debug("Path %s is in the excluded file", file_path)
+            return
+
+        if self._should_process_path(file_path):
+            with io.open(file_path, "r", encoding="utf-8") as file_contents:
+                for line_number, line in enumerate(file_contents):
+                    results = analyzer.analyze(
+                        text=line,
+                        language=DEFAULT_LANGUAGE_CODE,
+                        entities=entities,
+                    )
+                    for result in results:
+                        logger.debug(
+                            "Result [%s] found in line number %s, for text %s",
+                            result,
+                            line_number,
+                            line,
                         )
-                        for result in results:
-                            logger.debug("Result found in line number %s, for text %s", line_number, line)
-                            detections.append(Detection(path, line_number, result))
+                        yield PersonalDataDetection(file_path, line_number, result)
 
-        if detections:
-            return detections
+    def _get_paths(self, paths: List[str], github_action: bool = False):
+        if not github_action:
+            return paths
+        repo = git.Repo("./")
+        logger.debug("Scanning files in git repository %s", repo)
+        return [entry.path for entry in repo.tree().traverse()]
 
-        logger.debug("All files were scanned and no personal data was found")
-        return None
+    def scan(
+        self,
+        github_action: bool = False,
+    ) -> Iterator[PersonalDataDetection]:
+        analyzer = self._get_analyzer()
+        entities = analyzer.get_supported_entities()
+        exclusions = list(self._get_exclusions(exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH))
+        logger.debug("Exclusions file loaded with exclusions %s", exclusions)
+
+        for path in self._get_paths(
+            self.paths,
+            github_action,
+        ):
+            yield from self._scan_path(analyzer, entities, path, exclusions)

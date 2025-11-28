@@ -10,7 +10,7 @@ from src.hooks.config import (
     SECURITY_SCAN,
 )
 from src.hooks.hooks_base import HookRunResult
-from src.hooks.presidio.scanner import Detection
+from src.hooks.presidio.scanner import PersonalDataDetection
 from src.hooks.run_security_scan import RunSecurityScan
 
 
@@ -136,7 +136,7 @@ class TestRunSecurityScan:
             assert scan.run_security_scan().success is True
 
     def test_run_personal_scan_with_error_returns_false(self):
-        detection = Detection("a.txt", 1, MagicMock())
+        detection = PersonalDataDetection("a.txt", 1, MagicMock())
         mock_scan_result = MagicMock()
         mock_scan_result.return_value = [detection]
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
@@ -149,7 +149,7 @@ class TestRunSecurityScan:
 
     def test_run_personal_scan_without_error_returns_true(self):
         mock_scan_result = MagicMock()
-        mock_scan_result.return_value = None
+        mock_scan_result.return_value = []
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()

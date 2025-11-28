@@ -70,7 +70,7 @@ class RunSecurityScan(Hook):
             )
             return False
 
-        # If the call to get the remote version fails, return True as we don't want this to block a dev from commiting in this scenario.
+        # If the call to get the remote version fails, return True as we don't want this to block a dev from committing in this scenario.
         try:
             version_in_config = dbt_repo_config["rev"]
             version_in_remote = self._get_version_from_remote()
@@ -107,9 +107,22 @@ class RunSecurityScan(Hook):
             self.verbose,
             self.paths,
         )
-        error_response = scanner.scan()
-        if error_response:
-            detections_summary = "\n".join([str(detection) for detection in error_response])
+        # TODO
+        # File skipped due to file extension
+        # File excluded from scan
+        # File scanned without issue
+        # File scanned with issues
+
+        detections_summary = "\n".join(
+            [
+                str(detection)
+                for detection in scanner.scan(
+                    self.github_action,
+                )
+            ]
+        )
+        if detections_summary:
+            logger.debug("detections_summary: %s", detections_summary)
             return HookRunResult(False, detections_summary)
         return HookRunResult(True)
 

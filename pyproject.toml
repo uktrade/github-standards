@@ -14,8 +14,9 @@ dependencies = [
     "pyyaml>=6.0.3",
     "requests>=2.32.4",
     "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
+    "gitpython>=3.1.45",
 ]
-version = "v1.0.1"
+version = "v1.1.2"
 
 # Presence enables setuptools-scm
 [tool.setuptools_scm]
