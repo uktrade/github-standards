@@ -80,7 +80,8 @@ jobs:
           audit-dir: ${{ env.audit-dir }}
 
       - name: Notify PR creator
-        if: github.event_name == 'pull_request'
+        # TODO: Ensure only a single comment is created per PR, updated on each run
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
         uses: ./actions/notify/vulnerability
         continue-on-error: true
         with:
