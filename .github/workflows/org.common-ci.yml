@@ -86,7 +86,7 @@ jobs:
           tags: github-standards-hooks:common-ci
           target: testing
 
-      - name: Secret scanning using the locally built docker image
+      - name: Security scanning using the locally built docker image
         if: steps.build.conclusion == 'success'
         run: |
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
@@ -104,7 +104,7 @@ jobs:
           echo "current_release=$current_release" >> $GITHUB_OUTPUT
         continue-on-error: true # if the call to get the latest release fails, continue with this job but fall back to using the :latest docker image tag
 
-      - name: Secret scanning using the latest released docker image
+      - name: Security scanning using the latest released docker image
         if: steps.get-version.outcome == 'success'
         run: |
           tag=${{steps.get-version.outputs.current_release}}
