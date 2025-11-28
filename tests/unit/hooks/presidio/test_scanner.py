@@ -12,30 +12,6 @@ from unittest.mock import MagicMock, patch
 
 
 class TestPresidioScanner:
-    def test_should_process_path_returns_false_when_path_does_not_exist(self):
-        with patch.object(Path, "exists") as mock_exists:
-            mock_exists.return_value = False
-            assert PresidioScanner()._should_process_path("/not_real") is False
-
-    def test_should_process_path_returns_false_when_path_is_a_directory(self):
-        with patch.object(Path, "exists") as mock_exists, patch.object(Path, "is_file") as mock_is_file:
-            mock_exists.return_value = True
-            mock_is_file.return_value = False
-            assert PresidioScanner()._should_process_path("/a") is False
-
-    def test_should_process_path_returns_false_when_path_is_not_accepted_file_extension(self):
-        with patch.object(Path, "exists") as mock_exists, patch.object(Path, "is_file") as mock_is_file:
-            mock_exists.return_value = True
-            mock_is_file.return_value = True
-            assert PresidioScanner()._should_process_path("a.png") is False
-
-    @pytest.mark.parametrize("file_extension", [".txt", ".yml", ".yaml", ".csv"])
-    def test_should_process_path_returns_true_when_path_is_an_accepted_file_extension(self, file_extension):
-        with patch.object(Path, "exists") as mock_exists, patch.object(Path, "is_file") as mock_is_file:
-            mock_exists.return_value = True
-            mock_is_file.return_value = True
-            assert PresidioScanner()._should_process_path(f"a{file_extension}") is True
-
     def test_is_path_excluded_returns_true_when_path_is_excluded(self):
         with tempfile.NamedTemporaryFile("w+t") as tf:
             exclusions = [re.compile(tf.name)]
@@ -45,6 +21,49 @@ class TestPresidioScanner:
         with tempfile.NamedTemporaryFile("w+t") as tf:
             exclusions = [re.compile(tf.name)]
             assert PresidioScanner()._is_path_excluded("/a.txt", exclusions) is False
+
+    def test_should_scan_path_returns_false_when_path_is_excluded(self):
+        with patch.object(PresidioScanner, "_is_path_excluded", return_value=True):
+            assert PresidioScanner()._should_scan_path("/not_real", []) is False
+
+    def test_should_scan_path_returns_false_when_path_does_not_exist(self):
+        with (
+            patch.object(Path, "exists") as mock_exists,
+            patch.object(PresidioScanner, "_is_path_excluded", return_value=False),
+        ):
+            mock_exists.return_value = False
+            assert PresidioScanner()._should_scan_path("/not_real", []) is False
+
+    def test_should_scan_path_returns_false_when_path_is_a_directory(self):
+        with (
+            patch.object(Path, "exists") as mock_exists,
+            patch.object(Path, "is_file") as mock_is_file,
+            patch.object(PresidioScanner, "_is_path_excluded", return_value=False),
+        ):
+            mock_exists.return_value = True
+            mock_is_file.return_value = False
+            assert PresidioScanner()._should_scan_path("/a", []) is False
+
+    def test_should_scan_path_returns_false_when_path_is_not_accepted_file_extension(self):
+        with (
+            patch.object(Path, "exists") as mock_exists,
+            patch.object(Path, "is_file") as mock_is_file,
+            patch.object(PresidioScanner, "_is_path_excluded", return_value=False),
+        ):
+            mock_exists.return_value = True
+            mock_is_file.return_value = True
+            assert PresidioScanner()._should_scan_path("a.png", []) is False
+
+    @pytest.mark.parametrize("file_extension", [".txt", ".yml", ".yaml", ".csv"])
+    def test_should_scan_path_returns_true_when_path_is_an_accepted_file_extension(self, file_extension):
+        with (
+            patch.object(Path, "exists") as mock_exists,
+            patch.object(Path, "is_file") as mock_is_file,
+            patch.object(PresidioScanner, "_is_path_excluded", return_value=False),
+        ):
+            mock_exists.return_value = True
+            mock_is_file.return_value = True
+            assert PresidioScanner()._should_scan_path(f"a{file_extension}", []) is True
 
     def test_get_exclusions_returns_empty_list_when_exclusions_file_is_missing(self):
         assert list(PresidioScanner()._get_exclusions("not_present_file.txt")) == []
@@ -64,48 +83,78 @@ class TestPresidioScanner:
                 re.compile("folder2/*"),
             ]
 
-    def test_scan_path_returns_empty_detections_list_when_path_is_excluded(self):
-        with patch.object(PresidioScanner, "_is_path_excluded", return_value=True):
-            assert list(PresidioScanner()._scan_path(MagicMock(), [], "file1.txt", [])) == []
+    @pytest.mark.parametrize("file_extension", [".csv"])
+    def test_scan_path_scans_line_by_line_for_file_extensions(self, file_extension):
+        with patch.object(PresidioScanner, "_scan_line_by_line") as mock_scan_line_by_line:
+            list(PresidioScanner()._scan_path(MagicMock(), [], f"file1{file_extension}"))
+            mock_scan_line_by_line.assert_called()
 
-    def test_scan_path_returns_empty_detections_list_when_path_should_not_be_processed(self):
-        with (
-            patch.object(PresidioScanner, "_is_path_excluded", return_value=False),
-            patch.object(PresidioScanner, "_should_process_path", return_value=False),
-        ):
-            assert list(PresidioScanner()._scan_path(MagicMock(), [], "file1.txt", [])) == []
+    @pytest.mark.parametrize("file_extension", [".txt", ".yaml"])
+    def test_scan_path_scans_file_contents_for_file_extensions(self, file_extension):
+        with patch.object(PresidioScanner, "_scan_file_contents") as mock__scan_file_contents:
+            list(PresidioScanner()._scan_path(MagicMock(), [], f"file1{file_extension}"))
+            mock__scan_file_contents.assert_called()
 
-    def test_scan_path_returns_detections_list_when_path_has_personal_data(self):
+    def test_scan_line_by_line_returns_detections_list_when_path_has_personal_data(self):
         with (
-            patch.object(PresidioScanner, "_is_path_excluded", return_value=False),
-            patch.object(PresidioScanner, "_should_process_path", return_value=True),
             tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
         ):
-            tf.write("I have personal data")
+            contents = "I have personal data"
+            tf.write(contents)
             tf.seek(0)
 
-            recognizer_results = [RecognizerResult("EMAIL", 0, 25, 1.0), RecognizerResult("PERSON", 3, 18, 0.9)]
-            expected_scan_results = [PersonalDataDetection(tf.name, 0, f) for f in recognizer_results]
+            recognizer_results = [RecognizerResult("EMAIL", 0, 100, 1.0), RecognizerResult("PERSON", 0, 100, 0.9)]
+            expected_scan_results = [PersonalDataDetection(tf.name, f, contents) for f in recognizer_results]
 
             mock_analyzer = MagicMock()
             mock_analyzer.analyze.return_value = recognizer_results
 
-            detections = list(PresidioScanner()._scan_path(mock_analyzer, [], tf.name, []))
+            detections = list(PresidioScanner()._scan_line_by_line(mock_analyzer, [], tf.name))
 
             assert pickle.dumps(detections) == pickle.dumps(expected_scan_results)
 
-    def test_get_paths_returns_same_list_when_not_running_as_github_action(self):
-        files = ["1.txt", "2.json"]
-        assert PresidioScanner()._get_paths(files) == files
+    def test_scan_file_contents_returns_detections_list_when_path_has_personal_data(self):
+        with (
+            tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
+        ):
+            contents = "I have personal data"
+            tf.write(contents)
+            tf.seek(0)
 
-    def test_get_paths_returns_list_of_git_files_when_running_as_github_action(self):
-        with patch("src.hooks.presidio.scanner.git.Repo") as mock_repo:
+            recognizer_results = [RecognizerResult("EMAIL", 0, 100, 1.0), RecognizerResult("PERSON", 0, 100, 0.9)]
+            expected_scan_results = [PersonalDataDetection(tf.name, f, contents) for f in recognizer_results]
+
+            mock_analyzer = MagicMock()
+            mock_analyzer.analyze.return_value = recognizer_results
+
+            detections = list(PresidioScanner()._scan_file_contents(mock_analyzer, [], tf.name))
+
+            assert pickle.dumps(detections) == pickle.dumps(expected_scan_results)
+
+    def test_get_paths_to_scan_returns_same_list_when_not_running_as_github_action(self):
+        files = ["1.txt", "2.json"]
+        with patch.object(PresidioScanner, "_should_scan_path", return_value=True):
+            assert list(PresidioScanner()._get_paths_to_scan(files, [])) == files
+
+    def test_get_paths_to_scan_only_returns_files_that_should_be_scanned(self):
+        files = ["1.txt", "2.json"]
+        with patch.object(PresidioScanner, "_should_scan_path") as mock_should_scan_path:
+            mock_should_scan_path.side_effect = [True, False]
+            assert list(PresidioScanner()._get_paths_to_scan(files, [])) == [files[0]]
+
+    def test_get_paths_to_scan_returns_list_of_git_files_when_running_as_github_action(self):
+        with (
+            patch("src.hooks.presidio.scanner.git.Repo") as mock_repo,
+            patch.object(PresidioScanner, "_should_scan_path", return_value=True),
+        ):
             git_file_1 = MagicMock()
             git_file_1.path = "1.rt"
 
             mock_repo.return_value.tree.return_value.traverse.return_value = [git_file_1]
 
-            assert PresidioScanner()._get_paths(["1.txt", "2.json"], github_action=True) == [git_file_1.path]
+            assert list(PresidioScanner()._get_paths_to_scan(["1.txt", "2.json"], [], github_action=True)) == [
+                git_file_1.path
+            ]
 
     def test_scan_with_no_paths_returns_empty_detections_list(self):
         assert list(PresidioScanner().scan()) == []
@@ -115,6 +164,7 @@ class TestPresidioScanner:
             tempfile.NamedTemporaryFile(suffix=".txt") as tf1,
             tempfile.NamedTemporaryFile(suffix=".csv") as tf2,
             patch.object(PresidioScanner, "_get_analyzer"),
+            patch.object(PresidioScanner, "_scan_path"),
         ):
             tf1.write(b"No personal data here")
             tf1.seek(0)
@@ -127,11 +177,16 @@ class TestPresidioScanner:
     def test_scan_with_a_file_containing_personal_data_returns_no_error_response(self):
         with (
             tempfile.NamedTemporaryFile(suffix=".txt") as tf,
+            patch.object(PresidioScanner, "_get_analyzer"),
+            patch.object(PresidioScanner, "_scan_path") as mock_scan_path,
         ):
             tf.write(b"My email is john.smith@test.com")
             tf.seek(0)
+
+            mock_scan_path.return_value = iter([PersonalDataDetection(tf.name, MagicMock())])
 
             result = list(PresidioScanner(paths=[tf.name]).scan())
 
             assert result is not None
             assert len(result) == 1
+            assert result[0].filename == tf.name
