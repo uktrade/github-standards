@@ -71,7 +71,6 @@ class PresidioScanner:
                 "recognizers": [
                     {"name": "EmailRecognizer", "type": "predefined"},
                     {"name": "PhoneRecognizer", "type": "predefined", "supported_regions": ["GB"]},
-                    # Remove spacy for now, as it false positives comments as person objects
                     {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
                 ],
             },
