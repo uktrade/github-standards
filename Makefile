@@ -23,7 +23,7 @@ validate-hook-docker:
 	docker run --rm -v .:/src:rw,Z -w /src github-standards-hooks:testing validate_scan --verbose tests/EXAMPLE_COMMIT_MSG.txt
 
 run-hook-python:
-	hooks-cli run_scan --verbose ./src tests/test_data/personal_data.txt tests/test_data/personal_data.csv tests/test_data/personal_data.yaml
+	hooks-cli run_scan ./src tests/test_data/personal_data.txt tests/test_data/personal_data.csv tests/test_data/personal_data.yml tests/test_data/personal_data.yaml .pre-commit-config.yaml
 
 run-hook-docker:
 	make build-docker-testing
