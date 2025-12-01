@@ -29,5 +29,5 @@ DEFAULT_PROXY_DIRECTORY = os.getenv("DEFAULT_PROXY_DIRECTORY", "./.proxy_py")
 DEFAULT_LANGUAGE_CODE = "en"
 DEFAULT_FILE_TYPES = [".txt", ".yml", ".yaml", ".csv"]
 SPACY_MODEL_NAME = "en_core_web_sm"
-SPACY_ENTITIES = ["PERSON", "LOCATION"]
+SPACY_ENTITIES = ["LOCATION"]
 PRESIDIO_EXCLUSIONS_FILE_PATH = "personal-data-exclusions.txt"

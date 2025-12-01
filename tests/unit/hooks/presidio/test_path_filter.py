@@ -98,8 +98,8 @@ class TestPathFilter:
             patch.object(PathFilter, "_should_scan_path", return_value=True),
         ):
             git_file_1 = MagicMock()
-            git_file_1.path = "1.rt"
+            git_file_1.abspath = "1.rt"
 
             mock_repo.return_value.tree.return_value.traverse.return_value = [git_file_1]
 
-            assert list(PathFilter().get_paths_to_scan(["1.txt", "2.json"], github_action=True)) == [git_file_1.path]
+            assert list(PathFilter().get_paths_to_scan(["1.txt", "2.json"], github_action=True)) == [git_file_1.abspath]

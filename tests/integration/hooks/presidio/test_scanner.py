@@ -3,6 +3,7 @@ import tempfile
 import pytest
 from src.hooks.presidio.scanner import PresidioScanner
 from presidio_analyzer.predefined_recognizers.generic import PhoneRecognizer, EmailRecognizer
+from presidio_analyzer.predefined_recognizers.nlp_engine_recognizers import SpacyRecognizer
 
 
 class TestPresidioScanner:
@@ -10,9 +11,10 @@ class TestPresidioScanner:
         scanner = PresidioScanner()
         recognizers = scanner._get_analyzer().get_recognizers()
 
-        assert len(recognizers) == 2
+        assert len(recognizers) == 3
         assert recognizers[0].to_dict() == PhoneRecognizer(supported_regions=["GB"]).to_dict()
-        assert recognizers[1].to_dict() == EmailRecognizer().to_dict()
+        assert recognizers[1].to_dict() == SpacyRecognizer(supported_entities=["LOCATION"]).to_dict()
+        assert recognizers[2].to_dict() == EmailRecognizer().to_dict()
 
     def test_scan_returns_matches_for_email_address(self):
         with (
@@ -53,7 +55,7 @@ class TestPresidioScanner:
 
             assert results == []
 
-    def test_scan_returns_no_matches_for_address(self):
+    def test_scan_returns_matches_for_address(self):
         with (
             tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
         ):
@@ -63,4 +65,5 @@ class TestPresidioScanner:
 
             results = list(PresidioScanner(verbose=True, paths=[tf.name]).scan())
 
-            assert results == []
+            assert results[0].result.entity_type == "LOCATION"
+            assert results[0].text_value == "London"

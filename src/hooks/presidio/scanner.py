@@ -10,6 +10,7 @@ from presidio_analyzer.recognizer_registry import RecognizerRegistryProvider
 from src.hooks.config import (
     DEFAULT_LANGUAGE_CODE,
     LOGGER,
+    SPACY_ENTITIES,
     SPACY_MODEL_NAME,
 )
 from src.hooks.presidio.path_filter import PathFilter
@@ -71,7 +72,7 @@ class PresidioScanner:
                     {"name": "EmailRecognizer", "type": "predefined"},
                     {"name": "PhoneRecognizer", "type": "predefined", "supported_regions": ["GB"]},
                     # Remove spacy for now, as it false positives comments as person objects
-                    # {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
+                    {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
                 ],
             },
         )

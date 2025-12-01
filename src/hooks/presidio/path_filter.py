@@ -83,9 +83,9 @@ class PathFilter:
         github_action: bool = False,
     ):
         if github_action:
-            repo = git.Repo("./")
+            repo = git.Repo(paths[0])
             logger.debug("Scanning files in git repository %s", repo)
-            paths = [entry.path for entry in repo.tree().traverse()]
+            paths = [entry.abspath for entry in repo.tree().traverse()]
 
         exclusions = list(self._get_exclusions(exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH))
         logger.debug("Exclusions file loaded with exclusions %s", exclusions)

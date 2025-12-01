@@ -56,6 +56,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        with:
+          fetch-depth: 0
 
       - name: Build docker image
         id: build
@@ -67,12 +69,30 @@ jobs:
           target: testing
 
       - name: Test run security scan
-        run: docker run -v .:/source:rw,Z -w /source github-standards-hooks:docker-tests run_scan --verbose /source
+        run: |
+          docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
+          github-standards-hooks:docker-tests \
+          run_scan \
+          --verbose \
+          /src
+
+      - name: Test run security scan in github action mode
+        run: |
+          docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
+          github-standards-hooks:docker-tests \
+          run_scan \
+          --verbose \
+          --github-action \
+          /src
 
       - name: Test validate security scan
         run: |
           echo 'Test commit message' >> COMMIT.txt
-          docker run --user $(id -u):$(id -g) -v .:/source:rw,Z -w /source github-standards-hooks:docker-tests validate_scan --verbose COMMIT.txt
+          docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
+          github-standards-hooks:docker-tests \
+          validate_scan \
+          --verbose \
+          COMMIT.txt
 
   git-hooks-test:
     runs-on: ubuntu-latest
