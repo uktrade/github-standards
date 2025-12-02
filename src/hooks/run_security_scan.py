@@ -1,6 +1,7 @@
-from pathlib import Path
 import requests
 
+from pathlib import Path
+from prettytable import PrettyTable
 from typing import List
 
 from src.hooks.config import (
@@ -107,23 +108,40 @@ class RunSecurityScan(Hook):
             self.verbose,
             self.paths,
         )
+
         # TODO
         # File skipped due to file extension
         # File excluded from scan
-        # File scanned without issue
-        # File scanned with issues
 
-        detections_summary = "\n".join(
-            [
-                str(detection)
-                for detection in scanner.scan(
-                    self.github_action,
-                )
-            ]
+        scan_results = scanner.scan(
+            self.github_action,
         )
-        if detections_summary:
-            logger.debug("detections_summary: %s", detections_summary)
-            return HookRunResult(False, detections_summary)
+
+        paths_without_issues_table = PrettyTable(["Path"])
+        paths_with_issues_count = 0
+        for scan_result in scan_results:
+            if not scan_result.results or len(scan_result.results) == 0:
+                paths_without_issues_table.add_row([scan_result.path])
+            else:
+                paths_with_issues_count = paths_with_issues_count + 1
+                table = PrettyTable(["Type", "Value", "Score"])
+                for result in scan_result.results:
+                    table.add_row(
+                        [
+                            result.result.entity_type,
+                            result.text_value,
+                            result.result.score,
+                        ]
+                    )
+                logger.info("Detections in file %s", scan_result.path)
+                logger.info(table)
+
+        logger.info("Scanned paths with no data detected")
+        logger.info(paths_without_issues_table)
+
+        if paths_with_issues_count > 0:
+            return HookRunResult(False, f"{paths_with_issues_count} files had personal data detected")
+
         return HookRunResult(True)
 
     def run(self) -> HookRunResult:

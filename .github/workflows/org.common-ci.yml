@@ -92,7 +92,6 @@ jobs:
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
           github-standards-hooks:common-ci \
           run_scan \
-          --verbose \
           --github-action \
           /src
 
@@ -116,6 +115,5 @@ jobs:
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
           ${{ env.DOCKER_IMAGE }}:$tag \
           run_scan \
-          --verbose \
           --github-action \
           /src

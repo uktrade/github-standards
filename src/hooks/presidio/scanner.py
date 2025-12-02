@@ -1,5 +1,6 @@
 import io
 
+import json
 from pathlib import Path
 from typing import Iterator, List
 
@@ -10,7 +11,6 @@ from presidio_analyzer.recognizer_registry import RecognizerRegistryProvider
 from src.hooks.config import (
     DEFAULT_LANGUAGE_CODE,
     LOGGER,
-    SPACY_ENTITIES,
     SPACY_MODEL_NAME,
 )
 from src.hooks.presidio.path_filter import PathFilter
@@ -19,13 +19,18 @@ logger = LOGGER
 
 
 class PersonalDataDetection:
-    def __init__(self, filename: str, result: RecognizerResult, text_value: str | None = None) -> None:
-        self.filename = filename
+    def __init__(self, result: RecognizerResult, text_value: str | None = None) -> None:
         self.result = result
         self.text_value = text_value
 
     def __repr__(self) -> str:
-        return f"Found possible personal data.\nFilename: {self.filename}\nDetected entity: {self.result}\nText value: {self.text_value}"
+        return json.dumps({"type": self.result.entity_type, "value": self.text_value})
+
+
+class ScanResult:
+    def __init__(self, path: str, results: List[PersonalDataDetection]) -> None:
+        self.path = path
+        self.results = results
 
 
 class PresidioScanner:
@@ -57,7 +62,11 @@ class PresidioScanner:
                     "FAC",
                     "PRODUCT",
                     "EVENT",
-                ]
+                    "LANGUAGE",
+                    "ORDINAL",
+                    "PERCENT",
+                    "LAW",
+                ],
             },
         }
 
@@ -71,7 +80,8 @@ class PresidioScanner:
                 "recognizers": [
                     {"name": "EmailRecognizer", "type": "predefined"},
                     {"name": "PhoneRecognizer", "type": "predefined", "supported_regions": ["GB"]},
-                    {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
+                    # Remove spacy for now, as it has a lot of false positives
+                    # {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
                 ],
             },
         )
@@ -86,64 +96,41 @@ class PresidioScanner:
 
         return analyzer
 
-    def _scan_file_contents(
-        self,
-        analyzer: AnalyzerEngine,
-        entities: List[str],
-        file_path: str,
-    ):
-        logger.debug("Scanning file %s contents", file_path)
-        with io.open(file_path, "r", encoding="utf-8") as fs:
-            contents = fs.read()
-            results = analyzer.analyze(
-                text=contents,
-                language=DEFAULT_LANGUAGE_CODE,
-                entities=entities,
-            )
-            for result in results:
-                logger.debug(
-                    "Result [%s] found",
-                    result,
-                )
-                yield PersonalDataDetection(file_path, result, text_value=contents[result.start : result.end])
-
-    def _scan_line_by_line(
-        self,
-        analyzer: AnalyzerEngine,
-        entities: List[str],
-        file_path: str,
-    ):
-        logger.debug("Scanning file %s line by line", file_path)
-        with io.open(file_path, "r", encoding="utf-8") as fs:
-            for line in fs:
-                results = analyzer.analyze(
-                    text=line,
-                    language=DEFAULT_LANGUAGE_CODE,
-                    entities=entities,
-                )
-                for result in results:
-                    logger.debug(
-                        "Result [%s] found",
-                        result,
-                    )
-                    yield PersonalDataDetection(file_path, result, text_value=line[result.start : result.end])
+    def _scan_content(self, analyzer: AnalyzerEngine, entities: List[str], content: str):
+        results = analyzer.analyze(
+            text=content,
+            language=DEFAULT_LANGUAGE_CODE,
+            entities=entities,
+        )
+        if results:
+            logger.debug("Found presidio results %s", results)
+        return [PersonalDataDetection(result, content[result.start : result.end]) for result in results]
 
     def _scan_path(
         self,
         analyzer: AnalyzerEngine,
         entities: List[str],
         file_path: str,
-    ) -> Iterator[PersonalDataDetection]:
+    ) -> Iterator[ScanResult]:
         file_extension = Path(file_path).suffix.lower()
-        if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
-            yield from self._scan_line_by_line(analyzer, entities, file_path)
-        else:
-            yield from self._scan_file_contents(analyzer, entities, file_path)
+        with io.open(file_path, "r", encoding="utf-8") as fs:
+            results: List[PersonalDataDetection] = []
+            if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
+                logger.debug("Scanning file %s line by line", file_path)
+                for line in fs:
+                    results.extend(self._scan_content(analyzer, entities, line.rstrip()))
+            else:
+                logger.debug("Scanning file %s by reading all contents", file_path)
+                results.extend(self._scan_content(analyzer, entities, fs.read()))
+            yield ScanResult(
+                file_path,
+                results=results,
+            )
 
     def scan(
         self,
         github_action: bool = False,
-    ) -> Iterator[PersonalDataDetection]:
+    ) -> Iterator[ScanResult]:
         sources = PathFilter(self.verbose)
 
         analyzer = self._get_analyzer()
