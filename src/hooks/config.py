@@ -27,6 +27,9 @@ DEFAULT_PROXY_DIRECTORY = os.getenv("DEFAULT_PROXY_DIRECTORY", "./.proxy_py")
 
 # Presidio
 DEFAULT_LANGUAGE_CODE = "en"
-CONFIG_FILE = "src/hooks/presidio/engine_config.yaml"
+
+ENGINE_CONFIG_FILE = "engine_config.yaml"
+NLP_CONFIG_FILE = "nlp_config.yaml"
+RECOGNIZER_CONFIG_FILE = "recognizer_config.yaml"
 DEFAULT_FILE_TYPES = [".txt", ".yml", ".yaml", ".csv"]
 PRESIDIO_EXCLUSIONS_FILE_PATH = "personal-data-exclusions.txt"

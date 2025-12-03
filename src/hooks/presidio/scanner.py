@@ -7,9 +7,11 @@ from typing import Iterator, List
 from presidio_analyzer import AnalyzerEngine, RecognizerResult, AnalyzerEngineProvider
 
 from src.hooks.config import (
-    CONFIG_FILE,
+    ENGINE_CONFIG_FILE,
     DEFAULT_LANGUAGE_CODE,
     LOGGER,
+    NLP_CONFIG_FILE,
+    RECOGNIZER_CONFIG_FILE,
 )
 from src.hooks.presidio.path_filter import PathFilter
 
@@ -46,8 +48,12 @@ class PresidioScanner:
         # Set up the engine, loads the NLP module (spaCy model by default)
         # and other PII recognizers
         # Create configuration containing engine name and models
-
-        provider = AnalyzerEngineProvider(analyzer_engine_conf_file=CONFIG_FILE)
+        base_path = Path(__file__).parent
+        provider = AnalyzerEngineProvider(
+            analyzer_engine_conf_file=Path.joinpath(base_path, ENGINE_CONFIG_FILE),
+            nlp_engine_conf_file=Path.joinpath(base_path, NLP_CONFIG_FILE),
+            recognizer_registry_conf_file=Path.joinpath(base_path, RECOGNIZER_CONFIG_FILE),
+        )
         analyzer = provider.create_engine()
 
         return analyzer
