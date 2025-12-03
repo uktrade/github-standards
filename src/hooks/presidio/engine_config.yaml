@@ -1,0 +1,56 @@
+supported_languages: 
+  - en
+default_score_threshold: 0
+
+nlp_configuration:
+  nlp_engine_name: spacy
+  models:
+  -
+    lang_code: en
+    model_name: en_core_web_sm
+
+  ner_model_configuration:
+    labels_to_ignore: 
+      - ORG
+      - ORGANIZATION
+      - CARDINAL
+      - EVENT
+      - FAC
+      - LANGUAGE
+      - LAW
+      - MONEY
+      - ORDINAL
+      - PERCENT
+      - PRODUCT
+      - QUANTITY
+      - WORK_OF_ART
+      - NRP
+
+recognizer_registry:
+  global_regex_flags: 26
+  recognizers: 
+  - name: SpacyRecognizer
+    type: predefined
+    enabled: false # Too many false positives for now
+    supported_entities:
+      - PERSON
+      - LOCATION
+
+  - name: EmailRecognizer
+    type: predefined
+
+  - name: PhoneRecognizer
+    type: predefined
+    supported_regions:
+      - GB
+
+  - name: "PostcodeRecognizer"
+    supported_language: "en"
+    patterns:
+      -
+         name: "postcode (strong)"
+         regex: "^([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})$"
+         score: 0.9
+    context:
+     - postcode
+    supported_entity: "POSTCODE"

@@ -27,8 +27,6 @@ DEFAULT_PROXY_DIRECTORY = os.getenv("DEFAULT_PROXY_DIRECTORY", "./.proxy_py")
 
 # Presidio
 DEFAULT_LANGUAGE_CODE = "en"
+CONFIG_FILE = "src/hooks/presidio/engine_config.yaml"
 DEFAULT_FILE_TYPES = [".txt", ".yml", ".yaml", ".csv"]
-SPACY_MODEL_NAME = "en_core_web_sm"
-# Remove spacy PERSON for now, as it has a lot of false positives
-SPACY_ENTITIES = ["LOCATION"]
 PRESIDIO_EXCLUSIONS_FILE_PATH = "personal-data-exclusions.txt"

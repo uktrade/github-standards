@@ -4,14 +4,12 @@ import json
 from pathlib import Path
 from typing import Iterator, List
 
-from presidio_analyzer import AnalyzerEngine, RecognizerResult
-from presidio_analyzer.nlp_engine import NlpEngineProvider
-from presidio_analyzer.recognizer_registry import RecognizerRegistryProvider
+from presidio_analyzer import AnalyzerEngine, RecognizerResult, AnalyzerEngineProvider
 
 from src.hooks.config import (
+    CONFIG_FILE,
     DEFAULT_LANGUAGE_CODE,
     LOGGER,
-    SPACY_MODEL_NAME,
 )
 from src.hooks.presidio.path_filter import PathFilter
 
@@ -34,7 +32,6 @@ class ScanResult:
 
 
 class PresidioScanner:
-    # TODO sort this class out, duplicated _scan_file_contents to quickly get this live but needs redesigning
     LINE_BY_LINE_FILE_EXTENSIONS = [".csv"]
 
     def __init__(
@@ -49,50 +46,9 @@ class PresidioScanner:
         # Set up the engine, loads the NLP module (spaCy model by default)
         # and other PII recognizers
         # Create configuration containing engine name and models
-        engine_configuration = {
-            "nlp_engine_name": "spacy",
-            "models": [
-                {"lang_code": DEFAULT_LANGUAGE_CODE, "model_name": SPACY_MODEL_NAME},
-            ],
-            "ner_model_configuration": {
-                "labels_to_ignore": [
-                    "CARDINAL",
-                    "MONEY",
-                    "WORK_OF_ART",
-                    "FAC",
-                    "PRODUCT",
-                    "EVENT",
-                    "LANGUAGE",
-                    "ORDINAL",
-                    "PERCENT",
-                    "LAW",
-                ],
-            },
-        }
 
-        # Create NLP engine based on configuration
-        provider = NlpEngineProvider(nlp_configuration=engine_configuration)
-        nlp_engine = provider.create_engine()
-
-        provider = RecognizerRegistryProvider(
-            registry_configuration={
-                "supported_languages": [DEFAULT_LANGUAGE_CODE],
-                "recognizers": [
-                    {"name": "EmailRecognizer", "type": "predefined"},
-                    {"name": "PhoneRecognizer", "type": "predefined", "supported_regions": ["GB"]},
-                    # Remove spacy for now, as it has a lot of false positives
-                    # {"name": "SpacyRecognizer", "type": "predefined", "supported_entities": SPACY_ENTITIES},
-                ],
-            },
-        )
-
-        registry = provider.create_recognizer_registry()
-
-        analyzer = AnalyzerEngine(
-            nlp_engine=nlp_engine,
-            supported_languages=[DEFAULT_LANGUAGE_CODE],
-            registry=registry,
-        )
+        provider = AnalyzerEngineProvider(analyzer_engine_conf_file=CONFIG_FILE)
+        analyzer = provider.create_engine()
 
         return analyzer
 
