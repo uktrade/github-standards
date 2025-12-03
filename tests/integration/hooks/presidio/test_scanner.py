@@ -1,6 +1,7 @@
 import tempfile
 from unittest.mock import patch
 
+from presidio_analyzer import Pattern, PatternRecognizer
 import pytest
 from src.hooks.presidio.path_filter import PathFilter
 from src.hooks.presidio.scanner import PresidioScanner
@@ -12,11 +13,20 @@ class TestPresidioScanner:
         scanner = PresidioScanner()
         recognizers = scanner._get_analyzer().get_recognizers()
 
-        assert len(recognizers) == 2
+        assert len(recognizers) == 3
         recognizers.sort(key=lambda x: x.name)
 
         assert recognizers[0].to_dict() == EmailRecognizer().to_dict()
         assert recognizers[1].to_dict() == PhoneRecognizer(supported_regions=["GB"]).to_dict()
+        assert (
+            recognizers[2].to_dict()
+            == PatternRecognizer(
+                name="PostcodeRecognizer",
+                supported_entity="POSTCODE",
+                patterns=[Pattern("postcode (strong)", "^([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})$", 0.9)],
+                context=["postcode"],
+            ).to_dict()
+        )
 
     def test_scan_returns_matches_for_email_address(self):
         with (
