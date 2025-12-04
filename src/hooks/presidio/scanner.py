@@ -54,6 +54,7 @@ class PresidioScanner:
             nlp_engine_conf_file=Path.joinpath(base_path, NLP_CONFIG_FILE),
             recognizer_registry_conf_file=Path.joinpath(base_path, RECOGNIZER_CONFIG_FILE),
         )
+
         analyzer = provider.create_engine()
 
         return analyzer
@@ -82,8 +83,9 @@ class PresidioScanner:
                 for line in fs:
                     results.extend(self._scan_content(analyzer, entities, line.rstrip()))
             else:
+                contents = fs.read()
                 logger.debug("Scanning file %s by reading all contents", file_path)
-                results.extend(self._scan_content(analyzer, entities, fs.read()))
+                results.extend(self._scan_content(analyzer, entities, contents))
             yield ScanResult(
                 file_path,
                 results=results,

@@ -18,15 +18,15 @@ recognizers:
     type: predefined
     supported_regions:
       - GB
-
-  - name: "PostcodeRecognizer"
+  
+  - name: "UKPostcodeRecognizer"
     supported_language: "en"
     patterns:
       -
-          name: "postcode (strong)"
-          regex: "([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})"
-          score: 1.0
+          name: "postcode (Medium)"
+          regex: "([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})$"
+          score: 0.5
     context:
       - postcode
       - address
-    supported_entity: "POSTCODE"
+    supported_entity: "UK_POSTCODE"
