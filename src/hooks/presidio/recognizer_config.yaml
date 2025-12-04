@@ -24,8 +24,9 @@ recognizers:
     patterns:
       -
           name: "postcode (strong)"
-          regex: "^([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})$"
-          score: 0.9
+          regex: "([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})"
+          score: 1.0
     context:
       - postcode
+      - address
     supported_entity: "POSTCODE"

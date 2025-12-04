@@ -23,8 +23,8 @@ class TestPresidioScanner:
             == PatternRecognizer(
                 name="PostcodeRecognizer",
                 supported_entity="POSTCODE",
-                patterns=[Pattern("postcode (strong)", "^([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})$", 0.9)],
-                context=["postcode"],
+                patterns=[Pattern("postcode (strong)", "([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})", 1.0)],
+                context=["postcode", "address"],
             ).to_dict()
         )
 
@@ -55,6 +55,20 @@ class TestPresidioScanner:
             assert results[0].results[0].result.entity_type == "PHONE_NUMBER"
             assert results[0].results[0].text_value == phone_number
 
+    @pytest.mark.parametrize("postcode", (["CF10 1EP", "SW1A 1AA"]))
+    def test_scan_returns_matches_for_postcode(self, postcode):
+        with (
+            tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
+        ):
+            contents = f"My address is {postcode}"
+            tf.write(contents)
+            tf.seek(0)
+
+            results = list(PresidioScanner(verbose=True, paths=[tf.name]).scan())
+
+            assert results[0].results[0].result.entity_type == "POSTCODE"
+            assert results[0].results[0].text_value == postcode
+
     def test_scan_returns_no_matches_for_names(self):
         with (
             tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
@@ -71,7 +85,7 @@ class TestPresidioScanner:
         with (
             tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
         ):
-            contents = "I live at 10 Downing Street, SW1A 2AA, London"
+            contents = "I live at 10 Downing Street, London"
             tf.write(contents)
             tf.seek(0)
 
