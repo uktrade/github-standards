@@ -1,2 +1,3 @@
 tests/test_data/*
 .github/workflows/test.yml
+.github/workflows/org.common-ci.yml
