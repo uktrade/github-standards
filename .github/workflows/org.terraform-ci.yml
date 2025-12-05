@@ -165,7 +165,7 @@ jobs:
 
             # INIT — SOFT-SKIP on auth/path/download issues
             log="$(mktemp)"
-            if ! terraform -chdir="$d" init -backend=false -input=false "${lockflag[@]}" -no-color 2>&1 | tee "$log"; then
+            if ! terraform -chdir="$d" init -backend=false -input=false "${lockflag[@]}" --upgrade -no-color 2>&1 | tee "$log"; then
               if grep -Eq 'Failed to download module|Permission denied \(publickey\)|Authentication failed|Repository not found|could not read from remote repository|The requested URL returned error: (403|404)|Unreadable module directory|Unable to evaluate directory symlink|no such file or directory' "$log"; then
                 echo "::warning file=$d::terraform init failed (private module auth or bad local module path). Skipping validate for this dir."
                 soft_skipped+=("$d (init auth/path)")
