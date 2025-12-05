@@ -1,0 +1,32 @@
+global_regex_flags: 26
+
+supported_languages: 
+  - en
+
+recognizers: 
+  - name: SpacyRecognizer
+    type: predefined
+    enabled: false # Too many false positives for now
+    supported_entities:
+      - PERSON
+      - LOCATION
+
+  - name: EmailRecognizer
+    type: predefined
+
+  - name: PhoneRecognizer
+    type: predefined
+    supported_regions:
+      - GB
+  
+  - name: "UKPostcodeRecognizer"
+    supported_language: "en"
+    patterns:
+      -
+          name: "postcode (Medium)"
+          regex: "([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})$"
+          score: 0.5
+    context:
+      - postcode
+      - address
+    supported_entity: "UK_POSTCODE"

@@ -26,6 +26,8 @@ def init_logger(verbose):
     formatter = Formatter(fmt="%(asctime)s.%(msecs)03d %(levelname)s:\t%(message)s", datefmt="%Y-%m-%d %H:%M:%S")
     handler.setFormatter(formatter)
     logger.addHandler(handler)
+    logger.propagate = False
+
     logger.debug("Logging initialized with level %s", log_level)
 
 

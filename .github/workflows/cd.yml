@@ -30,7 +30,7 @@ jobs:
         with:
           ref: main
 
-      - name: Secret scanning using the latest released docker image
+      - name: Security scanning using the latest released docker image
         run: |
           tag=development
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \

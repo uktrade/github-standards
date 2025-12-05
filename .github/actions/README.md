@@ -8,8 +8,8 @@ Here’s a sample configuration for the `vulnerability-checks.yml` workflow with
 
 | Action | Description |
 |--------|-------------|
-| `github-standards/actions/vulnerability-scan/python@latest` | Runs a Python vulnerability audit using the specified customizable version |
-| `github-standards/actions/vulnerability-scan/upload-to-s3@latest` | Uploads generated audit reports to a secure S3 bucket |
+| `github-standards/.github/actions/vulnerability-scan/python@latest` | Runs a Python vulnerability audit using the specified customizable version |
+| `github-standards/.github/actions/vulnerability-scan/upload-to-s3@latest` | Uploads generated audit reports to a secure S3 bucket |
 
 ```yaml
 on:
@@ -42,7 +42,7 @@ jobs:
         continue-on-error: true
 
       - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
-        uses: github-standards/actions/vulnerability-scan/python@latest
+        uses: github-standards/.github/actions/vulnerability-scan/python@latest
         continue-on-error: true
         with:
           audit-dir: ${{ env.audit-dir }}
@@ -50,7 +50,7 @@ jobs:
 
       - name: Notify PR creator
         if: github.event_name == 'pull_request'
-        uses: github-standards/actions/notify/vulnerability@latest
+        uses: github-standards/.github/actions/notify/vulnerability@latest
         continue-on-error: true
         with:
           token: ${{ github.token }}
@@ -59,7 +59,7 @@ jobs:
       - name: "Upload audit reports to S3"
         # Triggered by a merge into main or by the scheduled cron job
         if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        uses: github-standards/actions/vulnerability-scan/upload-to-s3@latest
+        uses: github-standards/.github/actions/vulnerability-scan/upload-to-s3@latest
         continue-on-error: true
         with:
           audit-dir: ${{ env.audit-dir }}

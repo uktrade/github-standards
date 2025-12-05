@@ -29,6 +29,7 @@
 - [FAQ](#faq)
   - [My PR is failing due to a github action checking a Signed-off-by trailer](#my-pr-is-failing-due-to-a-github-action-checking-a-signed-off-by-trailer)
   - [I'm receiving errors updating the rev version](#im-receiving-errors-updating-the-rev-version)
+  - [I'm seeing pre-commit hooks run multiple times in the logs](#im-seeing-pre-commit-hooks-run-multiple-times-in-the-logs)
 
 # Features
 
@@ -173,7 +174,7 @@ This repository contains GitHub actions that are triggered by a set of GitHub Ru
 
 As this github-standards repository uses the GitHub Custom properties, during a PR for this repository the workflows that are run are the version in the main branch. This makes it difficult to test changes to the workflows, as although the files exist in this repo, any changes to them will not take effect until the PR is merged into main. At that point, any issues with the workflow will be present in all repositories using the GitHub Custom properties.
 
-As these workflow runs aren't visible on the PR screen, you need to use view the GitHub actions filter found [here](https://github.com/uktrade/github-standards/actions?query=event%3Apush)
+As these workflow runs aren't visible on the PR screen, you need to use view the GitHub actions filter found [here](https://github.com/uktrade/github-standards/.github/actions?query=event%3Apush)
 To solve this, an additional GitHub action on_push trigger has been added to each of the org wide workflows. This trigger will fire on any push event where an org wide workflow yaml file has changed. When raising a PR, the same GitHub workflow will now appear multiple times when a change to a workflow yaml file is made. Once which is the required status enforced by the GitHub Ruleset and is using the workflow version in the main branch, and a second run which is the workflow version in the branch raising the PR.
 
 # FAQ
@@ -186,3 +187,7 @@ To solve this, an additional GitHub action on_push trigger has been added to eac
 ## I'm receiving errors updating the rev version
 
 - Try running `pre-commit gc` and `pre-commit clean` to remove any previous cached versions pre-commit has locally
+
+## I'm seeing pre-commit hooks run multiple times in the logs
+
+The scans run using the https://github.com/uktrade/github-standards repo are scoped to run across defined git hook stages, controlled via a config file inside this repo. However if you are using other pre-commit hooks, for example the ruff formatter, you may see these scans appear multiple times. Adding a `stages` array to your `.pre-commit-config.yaml` file can solve this, where the value is [pre-commit]

@@ -1,4 +1,5 @@
 from pathlib import Path
+from presidio_analyzer import RecognizerResult
 import requests
 import requests_mock
 import tempfile
@@ -10,7 +11,7 @@ from src.hooks.config import (
     SECURITY_SCAN,
 )
 from src.hooks.hooks_base import HookRunResult
-from src.hooks.presidio.scanner import PersonalDataDetection
+from src.hooks.presidio.scanner import PersonalDataDetection, ScanResult
 from src.hooks.run_security_scan import RunSecurityScan
 
 
@@ -135,17 +136,18 @@ class TestRunSecurityScan:
             scan = RunSecurityScan()
             assert scan.run_security_scan().success is True
 
-    def test_run_personal_scan_with_error_returns_false(self):
-        detection = PersonalDataDetection("a.txt", 1, MagicMock())
+    def test_run_personal_scan_with_data_detected_returns_false(self):
+        detection = PersonalDataDetection(RecognizerResult("test_recognizer", 1, 2, 1), "found value")
+        scan_result = ScanResult("", [detection])
         mock_scan_result = MagicMock()
-        mock_scan_result.return_value = [detection]
+        mock_scan_result.return_value = [scan_result]
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
             result = scan.run_personal_scan()
 
             assert result.success is False
-            assert result.message == str(detection)
+            assert result.message == "1 files had personal data detected"
 
     def test_run_personal_scan_without_error_returns_true(self):
         mock_scan_result = MagicMock()
