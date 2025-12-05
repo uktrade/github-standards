@@ -94,6 +94,9 @@ jobs:
           restore-keys: |
             tf-plugins-${{ runner.os }}-tf${{ steps.setup-tf.outputs.terraform_version }}-
             tf-plugins-${{ runner.os }}-
+      - name: Clear per-directory .terraform providers
+        run: |
+          find . -type d -name ".terraform" -exec rm -rf {} +
 
       # ---- Discover roots (skip examples entirely)
       - name: Discover Terraform dirs (skip examples)
