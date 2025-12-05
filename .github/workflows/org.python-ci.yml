@@ -11,8 +11,8 @@ on:
     branches: [main, master, dev]
 
 jobs:
-  security-vulnerability-scan:
-    # Bandit has it's own github action, however it always installs the latest version and doesn't allow version pinning
+  security-scan:
+    # Bandit has its own GitHub Action; however, it always installs the latest version and does not allow version pinning.
     env:
       python-version: "3.13.9"
       bandit-version: "1.9.1"
@@ -23,6 +23,8 @@ jobs:
       actions: read
       contents: read
     steps:
+      ############# Bandit ##################
+      # TODO: Create an ad-hoc DBT Bandit Action
       - name: Set up Python
         uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
         with:
@@ -53,3 +55,36 @@ jobs:
         uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb
         with:
           sarif_file: ${{env.results-file}}
+
+  vulnerability-scan:
+    env:
+      audit-dir: "audit-reports"
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git clone the repository"
+        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+
+      - name: "Create audit directory"
+        shell: bash
+        run: mkdir -p "${{ env.audit-dir }}"
+        continue-on-error: true
+
+      - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
+        uses: ./.github/actions/vulnerability-scan/python
+        continue-on-error: true
+        with:
+          python-version: ${{ vars.PYTHON_VERSION }}
+          audit-dir: ${{ env.audit-dir }}
+
+      - name: Notify PR creator
+        # TODO: Ensure only a single comment is created per PR, updated on each run
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        uses: ./.github/notify/vulnerability
+        continue-on-error: true
+        with:
+          token: ${{ github.token }}
+          audit-dir: ${{ env.audit-dir }}
