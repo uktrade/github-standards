@@ -18,6 +18,11 @@ on:
         required: false
         type: string
         default: ""
+      secrets:
+      APP_ID:
+        required: true
+      APP_PRIVATE_KEY:
+        required: true
 
   pull_request:
     types: [opened, edited, reopened, synchronize]
