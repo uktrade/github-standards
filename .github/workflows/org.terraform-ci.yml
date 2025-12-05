@@ -44,17 +44,16 @@ jobs:
 
           # Check for .terraform-version file
           if [[ -f ".terraform-version" ]]; then
-            VERSION="$(cat .terraform-version | tr -d '[:space:]')"
+            VERSION="$(sed 's/[[:space:]]//g' .terraform-version || true)"
             echo "Using version from .terraform-version: $VERSION"
           fi
 
           # Check required_version in Terraform code if not found
           if [[ -z "$VERSION" ]]; then
-            # Find first required_version constraint
-            RV=$(grep -Rho 'required_version *= *"[^"]\+"' . | head -n1 | sed 's/.*"//; s/"$//')
+            RV="$(grep -Rho 'required_version *= *"[^"]\+"' . || true)"
             if [[ -n "$RV" ]]; then
-              echo "Using version from required_version: $RV"
-              VERSION="$RV"
+              VERSION="$(echo "$RV" | head -n1 | sed 's/.*"//; s/"$//')"
+              echo "Found required_version: $VERSION"
             fi
           fi
 
@@ -65,6 +64,7 @@ jobs:
           fi
 
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "Terraform version resolved to: $VERSION"
 
       - name: Setup Terraform
         id: setup-tf
