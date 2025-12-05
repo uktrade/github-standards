@@ -84,7 +84,7 @@ jobs:
 
       # GitHub App token for cloning private module repos
       - name: Verify GitHub App secrets present
-        env:
+        secrets:
           APP_ID: ${{ secrets.APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.APP_PRIVATE_KEY }}
         run: |
@@ -95,9 +95,10 @@ jobs:
       - name: Get GitHub App token for modules
         id: app-token
         uses: actions/create-github-app-token@7e473efe3cb98aa54f8d4bac15400b15fad77d94
-        with:
+        secrets:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+        with:
           owner: uktrade
 
       - name: Configure git auth for private module clones
