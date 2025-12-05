@@ -72,6 +72,8 @@ jobs:
         uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
         with:
           repository: "uktrade/github-standards"
+          sparse-checkout: |
+            .github/actions
 
       - name: "Create audit directory"
         shell: bash
