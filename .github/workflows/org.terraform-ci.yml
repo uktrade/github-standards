@@ -34,10 +34,43 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - name: Determine Terraform Version
+        id: tf-version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION=""
+
+          # Check for .terraform-version file
+          if [[ -f ".terraform-version" ]]; then
+            VERSION="$(cat .terraform-version | tr -d '[:space:]')"
+            echo "Using version from .terraform-version: $VERSION"
+          fi
+
+          # Check required_version in Terraform code if not found
+          if [[ -z "$VERSION" ]]; then
+            # Find first required_version constraint
+            RV=$(grep -Rho 'required_version *= *"[^"]\+"' . | head -n1 | sed 's/.*"//; s/"$//')
+            if [[ -n "$RV" ]]; then
+              echo "Using version from required_version: $RV"
+              VERSION="$RV"
+            fi
+          fi
+
+          # Default to latest
+          if [[ -z "$VERSION" ]]; then
+            VERSION="latest"
+            echo "No version found; using default: latest"
+          fi
+
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Setup Terraform
         id: setup-tf
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: ${{ steps.tf-version.outputs.version }}
 
       # fmt is local-only
       - name: FMT (repo-wide)
