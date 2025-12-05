@@ -72,8 +72,8 @@ jobs:
         uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
         with:
           repository: "uktrade/github-standards"
-          sparse-checkout: |
-            .github/actions
+          path: github-standards
+          sparse-checkout: .github/actions # This appears misleading, it always checks out the entire repo contents
 
       - name: "Create audit directory"
         shell: bash
@@ -81,7 +81,7 @@ jobs:
         continue-on-error: true
 
       - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
-        uses: ./.github/actions/vulnerability-scan/python
+        uses: ./github-standards/.github/actions/vulnerability-scan/python
         continue-on-error: true
         with:
           python-version: ${{ vars.PYTHON_VERSION }}
@@ -90,7 +90,7 @@ jobs:
       - name: Notify PR creator
         # TODO: Ensure only a single comment is created per PR, updated on each run
         if: github.event_name == 'pull_request' && github.event.action == 'opened'
-        uses: ./.github/notify/vulnerability
+        uses: ./github-standards/.github/actions/notify/vulnerability
         continue-on-error: true
         with:
           token: ${{ github.token }}
