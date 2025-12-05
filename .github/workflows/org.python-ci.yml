@@ -68,6 +68,11 @@ jobs:
       - name: "Git clone the repository"
         uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
 
+      - name: "Git clone the standards repository"
+        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        with:
+          repository: "uktrade/github-standards"
+
       - name: "Create audit directory"
         shell: bash
         run: mkdir -p "${{ env.audit-dir }}"
