@@ -19,10 +19,10 @@ on:
         type: string
         default: ""
       secrets:
-      APP_ID:
-        required: true
-      APP_PRIVATE_KEY:
-        required: true
+        APP_ID:
+          required: false
+        APP_PRIVATE_KEY:
+          required: false
 
   pull_request:
     types: [opened, edited, reopened, synchronize]
