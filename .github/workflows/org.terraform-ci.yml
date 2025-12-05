@@ -44,33 +44,32 @@ jobs:
 
           # Check for .terraform-version file
           if [[ -f ".terraform-version" ]]; then
-            VERSION="$(sed 's/[[:space:]]//g' .terraform-version || true)"
-            echo "Using version from .terraform-version: $VERSION"
-          fi
-
-          # Check required_version in Terraform code if not found
-          if [[ -z "$VERSION" ]]; then
-            RV="$(grep -Rho 'required_version *= *"[^"]\+"' . || true)"
-            if [[ -n "$RV" ]]; then
-              VERSION="$(echo "$RV" | head -n1 | sed 's/.*"//; s/"$//')"
-              echo "Found required_version: $VERSION"
+            VERSION=$(sed -E 's/#.*//; s/[[:space:]]+//g' .terraform-version)
+            if [[ -n "$VERSION" ]]; then
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "Terraform version resolved from .terraform-version: $VERSION"
+              exit 0
             fi
           fi
-
-          # Default to latest
-          if [[ -z "$VERSION" ]]; then
-            VERSION="latest"
-            echo "No version found; using default: latest"
+          RV=$(grep -Rho 'required_version *= *"= *[0-9]+\.[0-9]+\.[0-9]+"' . || true)
+          if [[ -n "$RV" ]]; then
+            VERSION=$(echo "$RV" | sed -E 's/.*"= *([0-9]+\.[0-9]+\.[0-9]+)".*/\1/' | head -n1)
+            if [[ -n "$VERSION" ]]; then
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "Terraform version resolved from required_version: $VERSION"
+              exit 0
+            fi
           fi
-
-          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-          echo "Terraform version resolved to: $VERSION"
+          VERSION="latest"
+          echo "version=latest" >> "$GITHUB_OUTPUT"
+          echo "Terraform version resolved to fallback: $VERSION"
 
       - name: Setup Terraform
         id: setup-tf
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
         with:
           terraform_version: ${{ steps.tf-version.outputs.version }}
+          terraform_wrapper: false
 
       # fmt is local-only
       - name: FMT (repo-wide)
