@@ -79,7 +79,7 @@ jobs:
 
       # GitHub App token for cloning private module repos
       - name: Verify GitHub App secrets present
-        secrets:
+        with:
           APP_ID: ${{ secrets.TERRAFORM_MODULE_ACCESS_APP_ID }}
           APP_PRIVATE_KEY: ${{ secrets.TERRAFORM_MODULE_ACCESS_PRIVATE_KEY }}
         run: |
@@ -90,7 +90,7 @@ jobs:
       - name: Get GitHub App token for modules
         id: app-token
         uses: actions/create-github-app-token@7e473efe3cb98aa54f8d4bac15400b15fad77d94
-        secrets:
+        with:
           app-id: ${{ secrets.TERRAFORM_MODULE_ACCESS_APP_ID }}
           private-key: ${{ secrets.TERRAFORM_MODULE_ACCESS_PRIVATE_KEY }}
         with:
