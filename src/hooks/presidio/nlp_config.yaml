@@ -21,3 +21,4 @@ ner_model_configuration:
     - QUANTITY
     - WORK_OF_ART
     - NRP
+    - MISC

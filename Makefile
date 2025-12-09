@@ -5,7 +5,7 @@ test:
 	pytest -rP
 
 coverage: 
-	COVERAGE_FILE=.coverage pytest --cov-report html:htmlcov --cov=./
+	COVERAGE_FILE=.coverage pytest tests/unit --cov-report html:htmlcov --cov=./
 
 build-docker:
 	docker build --build-arg TRUFFLEHOG_VERSION=${TRUFFLEHOG_VERSION} . -t github-standards-hooks:dev --target release
