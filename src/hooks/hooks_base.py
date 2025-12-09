@@ -11,10 +11,14 @@ from src.hooks.config import FORCE_HOOK_CHECKS, LOGGER, PRE_COMMIT_FILE
 logger = LOGGER
 
 
-class HookRunResult:
-    def __init__(self, success: bool, message: str | None = None):
-        self.success = success
-        self.message = message
+class HookRunResult(ABC):
+    @abstractmethod
+    def run_success(self) -> bool:
+        raise NotImplementedError()
+
+    @abstractmethod
+    def run_summary(self) -> str | None:
+        raise NotImplementedError()
 
 
 class Hook(ABC):
@@ -70,5 +74,5 @@ class Hook(ABC):
         raise NotImplementedError()
 
     @abstractmethod
-    def run(self) -> HookRunResult:
+    async def run(self) -> HookRunResult:
         raise NotImplementedError()

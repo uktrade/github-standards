@@ -1,9 +1,9 @@
 import git
-import io
 import re
 
-from pathlib import Path
-from typing import Iterator, List
+from anyio import open_file, Path
+
+from typing import List
 
 
 from src.hooks.config import (
@@ -34,15 +34,15 @@ class PathFilter:
         logger.debug("The path %s was not found in any exclusion regexes", path)
         return False
 
-    def _should_scan_path(self, path: str, exclusions: List[re.Pattern[str]]):
+    async def _should_scan_path(self, path: str, exclusions: List[re.Pattern[str]]):
         if self._is_path_excluded(path, exclusions):
             return False
 
-        if not Path(path).exists():
+        if not await Path(path).exists():
             logger.debug("Path %s does not exist", path)
             return False
 
-        if not Path(path).is_file():
+        if not await Path(path).is_file():
             logger.debug("Path %s is a directory, presidio can only scan files", path)
             return False
 
@@ -61,23 +61,27 @@ class PathFilter:
         )
         return True
 
-    def _get_exclusions(self, exclusions_file) -> Iterator[re.Pattern[str]]:
-        if not Path(exclusions_file).exists():
-            logger.debug("The exclusions file %s is not present", exclusions_file)
-            return []
+    async def _get_exclusions(self, exclusions_file: str):
+        exclusions = []
 
-        with io.open(exclusions_file, "r", encoding="utf-8") as file:
-            for exclusion_regex in file:
+        if not await Path(exclusions_file).exists():
+            logger.debug("The exclusions file %s is not present", exclusions_file)
+            return exclusions
+
+        async with await open_file(exclusions_file) as f:
+            async for exclusion_regex in f:
                 try:
-                    yield re.compile(exclusion_regex.rstrip())
+                    regex = re.compile(exclusion_regex.rstrip())
+                    exclusions.append(regex)
 
                 except re.error:
                     logger.error(
                         "The regex %s in file %s could not be compiled into a valid regex", exclusion_regex, exclusions_file
                     )
                     raise
+        return exclusions
 
-    def get_paths_to_scan(
+    async def get_paths_to_scan(
         self,
         paths: List[str],
         github_action: bool = False,
@@ -87,9 +91,9 @@ class PathFilter:
             logger.debug("Scanning files in git repository %s", repo)
             paths = [entry.abspath for entry in repo.tree().traverse()]
 
-        exclusions = list(self._get_exclusions(exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH))
+        exclusions = await self._get_exclusions(exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH)
         logger.debug("Exclusions file loaded with exclusions %s", exclusions)
 
         for path in paths:
-            if self._should_scan_path(path, exclusions):
+            if await self._should_scan_path(path, exclusions):
                 yield path

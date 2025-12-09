@@ -1,7 +1,7 @@
+import asyncio
 import requests
 
 from pathlib import Path
-from prettytable import PrettyTable
 from typing import List
 
 from src.hooks.config import (
@@ -12,11 +12,42 @@ from src.hooks.config import (
     SECURITY_SCAN,
 )
 from src.hooks.hooks_base import Hook, HookRunResult
-from src.hooks.presidio.scanner import PresidioScanner
-from src.hooks.trufflehog.scanner import TrufflehogScanner
+from src.hooks.presidio.scanner import PresidioScanResult, PresidioScanner
+from src.hooks.trufflehog.scanner import TrufflehogScanResult, TrufflehogScanner
 from src.hooks.trufflehog.vendors import AllowedTrufflehogVendor
 
 logger = LOGGER
+
+
+class RunSecurityScanResult(HookRunResult):
+    def __init__(
+        self,
+        trufflehog_scan_result: TrufflehogScanResult,
+        presidio_scan_result: PresidioScanResult,
+    ):
+        self.trufflehog_scan_result = trufflehog_scan_result
+        self.presidio_scan_result = presidio_scan_result
+
+    def run_success(self) -> bool:
+        is_success = True
+        if self.trufflehog_scan_result:
+            if self.trufflehog_scan_result.detected_keys is not None:
+                is_success = False
+        if self.presidio_scan_result:
+            if self.presidio_scan_result.invalid_path_scans and len(self.presidio_scan_result.invalid_path_scans) > 0:
+                is_success = False
+        return is_success
+
+    def run_summary(self) -> str | None:
+        trufflehog_summary = ""
+        presidio_summary = ""
+        if self.trufflehog_scan_result:
+            trufflehog_summary = str(self.trufflehog_scan_result)
+
+        if self.presidio_scan_result:
+            presidio_summary = str(self.presidio_scan_result)
+
+        return "".join(["\n", trufflehog_summary, "\n", "\n", presidio_summary])
 
 
 class RunSecurityScan(Hook):
@@ -89,77 +120,44 @@ class RunSecurityScan(Hook):
 
         return True
 
-    def run_security_scan(self):
-        scanner = TrufflehogScanner(
+    async def run_security_scan(self) -> TrufflehogScanResult:
+        return await TrufflehogScanner(
             self.verbose,
             self.paths,
-        )
-        error_response = scanner.scan(
+        ).scan(
             self.github_action,
             AllowedTrufflehogVendor.all_endpoints(),
             AllowedTrufflehogVendor.all_vendor_codes(),
         )
-        if error_response:
-            return HookRunResult(False, error_response)
-        return HookRunResult(True)
 
-    def run_personal_scan(self):
-        scanner = PresidioScanner(
+    async def run_personal_scan(self) -> PresidioScanResult:
+        return await PresidioScanner(
             self.verbose,
             self.paths,
-        )
+        ).scan(self.github_action)
 
         # TODO
         # File skipped due to file extension
         # File excluded from scan
 
-        scan_results = scanner.scan(
-            self.github_action,
-        )
+    async def run(self) -> RunSecurityScanResult:
+        security_scan_task = None
+        personal_data_scan_task = None
 
-        paths_without_issues_table = PrettyTable(["Path"])
-        paths_with_issues_count = 0
-        for scan_result in scan_results:
-            if not scan_result.results or len(scan_result.results) == 0:
-                paths_without_issues_table.add_row([scan_result.path])
+        async with asyncio.TaskGroup() as tg:
+            if SECURITY_SCAN not in self.excluded_scans:
+                security_scan_task = tg.create_task(self.run_security_scan())
             else:
-                paths_with_issues_count = paths_with_issues_count + 1
-                table = PrettyTable(["Type", "Value", "Score"])
-                for result in scan_result.results:
-                    table.add_row(
-                        [
-                            result.result.entity_type,
-                            result.text_value,
-                            result.result.score,
-                        ]
-                    )
-                logger.info("Detections in file %s", scan_result.path)
-                logger.info(table)
+                logger.debug("Security scan is excluded")
 
-        logger.info("Scanned paths with no data detected")
-        logger.info(paths_without_issues_table)
+            if PERSONAL_DATA_SCAN not in self.excluded_scans:
+                personal_data_scan_task = tg.create_task(self.run_personal_scan())
+            else:
+                logger.debug("Personal data scan is excluded")
 
-        if paths_with_issues_count > 0:
-            return HookRunResult(False, f"{paths_with_issues_count} files had personal data detected")
+        security_scan_result = security_scan_task.result() if security_scan_task else None
+        personal_data_scan_result = personal_data_scan_task.result() if personal_data_scan_task else None
 
-        return HookRunResult(True)
-
-    def run(self) -> HookRunResult:
-        # A cyber condition has been applied to using trufflehog, where the endpoints called by the trufflehog scanner
-        # need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block
-        # any requests made by trufflehog that have not been explicitly allowed
-        if SECURITY_SCAN not in self.excluded_scans:
-            security_scan_result = self.run_security_scan()
-            if security_scan_result.success is False:
-                return security_scan_result
-        else:
-            logger.debug("Security scan is excluded")
-
-        if PERSONAL_DATA_SCAN not in self.excluded_scans:
-            personal_data_scan_result = self.run_personal_scan()
-            if personal_data_scan_result.success is False:
-                return personal_data_scan_result
-        else:
-            logger.debug("Personal data scan is excluded")
-
-        return HookRunResult(True)
+        return RunSecurityScanResult(
+            trufflehog_scan_result=security_scan_result, presidio_scan_result=personal_data_scan_result
+        )

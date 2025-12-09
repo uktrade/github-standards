@@ -1,9 +1,11 @@
+import anyio
 import argparse
 import sys
 
 
 from typing import List, Optional
 from logging import StreamHandler, captureWarnings, INFO, DEBUG, Formatter
+
 from src.hooks.config import LOGGER, PERSONAL_DATA_SCAN, SECURITY_SCAN
 from src.hooks.run_personal_data_scan import RunPersonalDataScan
 from src.hooks.run_security_scan import RunSecurityScan
@@ -72,13 +74,9 @@ def parse_args(argv):
     return main_parser.parse_args(argv)
 
 
-def main(
-    argv: Optional[List[str]] = None,
-) -> int:
-    if not sys.argv:
-        return 1
-
+async def main_async(argv: Optional[List[str]] = None):
     args = parse_args(argv)
+
     init_logger(args.verbose)
 
     logger.debug("Parsed args: %s", args)
@@ -99,13 +97,21 @@ def main(
         return 1
     logger.debug("Hook '%s' passed hook settings check", hook.__class__.__name__)
 
-    run_result = hook.run()
-    if not run_result.success:
+    run_result = await hook.run()
+    logger.info("%s", run_result.run_summary())
+
+    if not run_result.run_success():
         logger.info("Hook '%s' did not successfully run.", hook)
-        logger.info("%s", run_result.message)
         return 1
 
     return 0
+
+
+def main(argv: Optional[List[str]] = None):
+    if not sys.argv:
+        return 1
+
+    anyio.run(main_async, argv)
 
 
 if __name__ == "__main__":

@@ -1,10 +1,11 @@
-import io
-
+from io import StringIO
+from anyio import open_file
 import json
 from pathlib import Path
-from typing import Iterator, List
+from typing import List
 
 from presidio_analyzer import AnalyzerEngine, RecognizerResult, AnalyzerEngineProvider
+from prettytable import PrettyTable
 
 from src.hooks.config import (
     ENGINE_CONFIG_FILE,
@@ -31,6 +32,49 @@ class ScanResult:
     def __init__(self, path: str, results: List[PersonalDataDetection]) -> None:
         self.path = path
         self.results = results
+
+
+class PresidioScanResult:
+    def __init__(
+        self,
+    ) -> None:
+        self.valid_path_scans: List[ScanResult] = []
+        self.invalid_path_scans: List[ScanResult] = []
+
+    def add_scan_result(self, scan_result: ScanResult):
+        if not scan_result.results or len(scan_result.results) == 0:
+            self.valid_path_scans.append(scan_result)
+        else:
+            self.invalid_path_scans.append(scan_result)
+
+    def __str__(self) -> str:
+        heading = "--------PERSONAL DATA SCAN SUMMARY--------"
+        with StringIO() as output_buffer:
+            output_buffer.write(heading)
+            if self.valid_path_scans:
+                output_buffer.write("\n\nFILES WITHOUT PERSONAL DATA\n")
+                paths_without_issues_table = PrettyTable(["Path"])
+                for valid_path in self.valid_path_scans:
+                    paths_without_issues_table.add_row([valid_path.path])
+                output_buffer.write(str(paths_without_issues_table))
+
+            if self.invalid_path_scans:
+                output_buffer.write("\n\nFILES CONTAINING PERSONAL DATA\n")
+
+                for invalid_path_scan in self.invalid_path_scans:
+                    output_buffer.write(f"\n{invalid_path_scan.path}\n")
+                    table = PrettyTable(["Type", "Value", "Score"])
+                    for invalid_path in invalid_path_scan.results:
+                        table.add_row(
+                            [
+                                invalid_path.result.entity_type,
+                                invalid_path.text_value,
+                                invalid_path.result.score,
+                            ]
+                        )
+                    output_buffer.write(str(table))
+                    output_buffer.write("\n")
+            return output_buffer.getvalue()
 
 
 class PresidioScanner:
@@ -69,36 +113,40 @@ class PresidioScanner:
             logger.debug("Found presidio results %s", results)
         return [PersonalDataDetection(result, content[result.start : result.end]) for result in results]
 
-    def _scan_path(
+    async def _scan_path(
         self,
         analyzer: AnalyzerEngine,
         entities: List[str],
         file_path: str,
-    ) -> Iterator[ScanResult]:
+    ) -> ScanResult:
         file_extension = Path(file_path).suffix.lower()
-        with io.open(file_path, "r", encoding="utf-8") as fs:
+        async with await open_file(file_path, "r", encoding="utf-8") as fs:
             results: List[PersonalDataDetection] = []
             if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
                 logger.debug("Scanning file %s line by line", file_path)
-                for line in fs:
+                async for line in fs:
                     results.extend(self._scan_content(analyzer, entities, line.rstrip()))
             else:
-                contents = fs.read()
+                contents = await fs.read()
                 logger.debug("Scanning file %s by reading all contents", file_path)
                 results.extend(self._scan_content(analyzer, entities, contents))
-            yield ScanResult(
+            return ScanResult(
                 file_path,
                 results=results,
             )
 
-    def scan(
+    async def scan(
         self,
         github_action: bool = False,
-    ) -> Iterator[ScanResult]:
+    ) -> PresidioScanResult:
         sources = PathFilter(self.verbose)
 
         analyzer = self._get_analyzer()
         entities = analyzer.get_supported_entities()
 
-        for path in sources.get_paths_to_scan(self.paths, github_action):
-            yield from self._scan_path(analyzer, entities, path)
+        scan_result = PresidioScanResult()
+
+        async for path in sources.get_paths_to_scan(self.paths, github_action):
+            path_scan_result = await self._scan_path(analyzer, entities, path)
+            scan_result.add_scan_result(path_scan_result)
+        return scan_result

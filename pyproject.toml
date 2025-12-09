@@ -16,6 +16,8 @@ dependencies = [
     "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
     "gitpython>=3.1.45",
     "prettytable>=3.17.0",
+    "asyncio>=4.0.0",
+    "anyio>=4.12.0",
 ]
 version = "v1.1.2"
 
@@ -54,3 +56,6 @@ extend-select = ["T201"]
 
 [tool.coverage.run]
 omit = ['tests/*']
+
+[tool.pytest]
+anyio_mode = "auto"
