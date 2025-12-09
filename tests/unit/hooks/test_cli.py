@@ -3,9 +3,8 @@ import pytest
 
 from unittest import mock
 
-from src.hooks.cli import main as main_function, parse_args
+from src.hooks.cli import main as main_function, main_async, parse_args
 from src.hooks.config import PERSONAL_DATA_SCAN, SECURITY_SCAN
-from src.hooks.hooks_base import HookRunResult
 
 
 class TestCLI:
@@ -106,12 +105,13 @@ class TestCLI:
                 assert result.verbose is False
 
     class TestMain:
-        def test_no_arguments_provided_returns_expected_error(self):
+        async def test_no_arguments_provided_returns_expected_error(self):
             testargs = []
             with mock.patch.object(sys, "argv", testargs):
-                assert main_function() == 1
+                assert main_function(testargs) == 1
 
-        def test_hook_with_failing_validate_args_returns_expected_error(self):
+    class TestMainAsync:
+        async def test_hook_with_failing_validate_args_returns_expected_error(self):
             mock_hook = mock.MagicMock()
             mock_hook.validate_args = mock.MagicMock(return_value=False)
 
@@ -120,9 +120,9 @@ class TestCLI:
 
             with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
                 mock_parse_args.return_value = mock_args
-                assert main_function() == 1
+                assert await main_async() == 1
 
-        def test_hook_with_failing_validate_hook_settings_returns_expected_error(self):
+        async def test_hook_with_failing_validate_hook_settings_returns_expected_error(self):
             mock_hook = mock.MagicMock()
             mock_hook.validate_args = mock.MagicMock(return_value=True)
             mock_hook.validate_hook_settings = mock.MagicMock(return_value=False)
@@ -132,30 +132,44 @@ class TestCLI:
 
             with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
                 mock_parse_args.return_value = mock_args
-                assert main_function() == 1
+                assert await main_async() == 1
 
-        def test_hook_with_an_unsuccessful_run_result_returns_expected_error(self):
+        async def test_hook_with_an_unsuccessful_run_result_returns_expected_exit_code(self):
             mock_hook = mock.MagicMock()
             mock_hook.validate_args = mock.MagicMock(return_value=True)
             mock_hook.validate_hook_settings = mock.MagicMock(return_value=True)
-            mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=False))
+
+            mock_run_result = mock.MagicMock()
+            mock_run_result.run_summary.return_value = "Hook ran with an error"
+            mock_run_result.run_success.return_value = False
+
+            mock_run = mock.AsyncMock(return_value=mock_run_result)
+
+            mock_hook.run = mock_run
 
             mock_args = mock.MagicMock()
             mock_args.hook.return_value = mock_hook
 
             with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
                 mock_parse_args.return_value = mock_args
-                assert main_function() == 1
+                assert await main_async() == 1
 
-        def test_hook_with_a_successful_run_result_returns_expected_error(self):
+        async def test_hook_with_a_successful_run_result_returns_expected_exit_code(self):
             mock_hook = mock.MagicMock()
             mock_hook.validate_args = mock.MagicMock(return_value=True)
             mock_hook.validate_hook_settings = mock.MagicMock(return_value=True)
-            mock_hook.run = mock.MagicMock(return_value=HookRunResult(success=True))
+
+            mock_run_result = mock.MagicMock()
+            mock_run_result.run_summary.return_value = "Hook ran successfully"
+            mock_run_result.run_success.return_value = True
+
+            mock_run = mock.AsyncMock(return_value=mock_run_result)
+
+            mock_hook.run = mock_run
 
             mock_args = mock.MagicMock()
             mock_args.hook.return_value = mock_hook
 
             with mock.patch.object(sys, "argv", [""]), mock.patch("src.hooks.cli.parse_args") as mock_parse_args:
                 mock_parse_args.return_value = mock_args
-                assert main_function() == 0
+                assert await main_async() == 0

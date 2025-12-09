@@ -12,8 +12,8 @@ class HooksBaseTestImplementation(Hook):
     def _validate_hook_settings(self, dbt_repo_config) -> bool:
         return False
 
-    def run(self) -> HookRunResult:
-        return HookRunResult(True)
+    async def run(self) -> HookRunResult:
+        return HookRunResult()
 
 
 class TestHooksBase:

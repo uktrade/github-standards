@@ -4,15 +4,15 @@ import requests
 import requests_mock
 import tempfile
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, patch
 from src.hooks.config import (
     PERSONAL_DATA_SCAN,
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
-from src.hooks.hooks_base import HookRunResult
-from src.hooks.presidio.scanner import PersonalDataDetection, ScanResult
+from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, ScanResult
 from src.hooks.run_security_scan import RunSecurityScan
+from src.hooks.trufflehog.scanner import TrufflehogScanResult
 
 
 class TestRunSecurityScan:
@@ -120,92 +120,88 @@ class TestRunSecurityScan:
 
             assert RunSecurityScan().validate_hook_settings() is True
 
-    def test_run_security_scan_with_error_returns_false(self):
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = "An error"
+    async def test_run_security_scan_with_detected_keys_returns_keys(self):
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value.detected_keys = "Keys found"
         with patch("src.hooks.run_security_scan.TrufflehogScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            assert scan.run_security_scan().success is False
+            result = await scan.run_security_scan()
+            assert result.detected_keys == "Keys found"
 
-    def test_run_security_scan_without_error_returns_true(self):
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = None
+    async def test_run_security_scan_without_detected_keys_returns_nothing(self):
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value.detected_keys = None
         with patch("src.hooks.run_security_scan.TrufflehogScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            assert scan.run_security_scan().success is True
+            result = await scan.run_security_scan()
+            assert result.detected_keys is None
 
-    def test_run_personal_scan_with_data_detected_returns_false(self):
+    async def test_run_personal_scan_with_data_detected_returns_expected_results(self):
         detection = PersonalDataDetection(RecognizerResult("test_recognizer", 1, 2, 1), "found value")
-        scan_result = ScanResult("", [detection])
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = [scan_result]
+        scan_result = PresidioScanResult()
+        scan_result.add_scan_result(ScanResult("file.txt", [detection]))
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            result = scan.run_personal_scan()
+            result = await scan.run_personal_scan()
 
-            assert result.success is False
-            assert result.message == "1 files had personal data detected"
+            assert len(result.invalid_path_scans) == 1
+            assert len(result.valid_path_scans) == 0
 
-    def test_run_personal_scan_without_error_returns_true(self):
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = []
+    async def test_run_personal_scan_without_data_detected_returns_expected_results(self):
+        scan_result = PresidioScanResult()
+        scan_result.add_scan_result(ScanResult("file.txt", []))
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            assert scan.run_personal_scan().success is True
+            result = await scan.run_personal_scan()
 
-    def test_run_with_run_security_scan_error_returns_false(
-        self,
-    ):
-        with (
-            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
-        ):
-            mock_run_security_scan.return_value = HookRunResult(False)
+            assert len(result.invalid_path_scans) == 0
+            assert len(result.valid_path_scans) == 1
 
-            assert RunSecurityScan().run().success is False
-
-    def test_run_with_run_personal_scan_error_returns_false(
+    async def test_run_with_run_security_scan_true_and_run_personal_scan_true_returns_result_for_both(
         self,
     ):
         with (
             patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
             patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
         ):
-            mock_run_security_scan.return_value = HookRunResult(True)
-            mock_run_personal_scan.return_value = HookRunResult(False)
+            mock_run_security_scan.return_value = TrufflehogScanResult()
+            mock_run_personal_scan.return_value = PresidioScanResult()
 
-            assert RunSecurityScan().run().success is False
+            result = await RunSecurityScan().run()
+            assert result.trufflehog_scan_result is not None
+            assert result.presidio_scan_result is not None
 
-    def test_with_run_security_scan_true_and_run_personal_scan_true_returns_true(
+            mock_run_personal_scan.assert_called_once()
+            mock_run_security_scan.assert_called_once()
+
+    async def test_run_with_run_security_scan_excluded_does_not_run_a_security_scan(
         self,
     ):
         with (
             patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
             patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
         ):
-            mock_run_security_scan.return_value = HookRunResult(True)
-            mock_run_personal_scan.return_value = HookRunResult(True)
+            await RunSecurityScan(excluded_scans=[SECURITY_SCAN]).run()
 
-            assert RunSecurityScan().run().success is True
-
-    def test_run_with_run_security_scan_excluded_does_not_run_a_security_scan(
-        self,
-    ):
-        with (
-            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
-        ):
-            RunSecurityScan(excluded_scans=[SECURITY_SCAN]).run()
+            mock_run_personal_scan.assert_called_once()
             mock_run_security_scan.assert_not_called()
 
-    def test_run_with_run_personal_data_scan_excluded_does_not_run_a_security_scan(
+    async def test_run_with_run_personal_data_scan_excluded_does_not_run_a_security_scan(
         self,
     ):
         with (
-            patch.object(RunSecurityScan, "run_security_scan"),
+            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
             patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
         ):
-            RunSecurityScan(excluded_scans=[PERSONAL_DATA_SCAN]).run()
+            await RunSecurityScan(excluded_scans=[PERSONAL_DATA_SCAN]).run()
+
             mock_run_personal_scan.assert_not_called()
+            mock_run_security_scan.assert_called_once()

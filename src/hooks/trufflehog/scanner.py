@@ -1,7 +1,6 @@
 import os
-import subprocess
+from anyio import run_process, Path
 
-from pathlib import Path
 from proxy import Proxy
 from typing import List
 
@@ -20,6 +19,16 @@ from src.proxy.plugins import OutgoingRequestInterceptorPlugin
 logger = LOGGER
 
 
+class TrufflehogScanResult:
+    def __init__(self, detected_keys: str | None = None) -> None:
+        self.detected_keys = detected_keys
+
+    def __str__(self) -> str:
+        heading = "--------SECURITY SCAN SUMMARY--------"
+        result = self.detected_keys if self.detected_keys else "No security issues detected"
+        return f"{heading}\n\n{result}"
+
+
 class TrufflehogScanner:
     def __init__(
         self,
@@ -29,7 +38,7 @@ class TrufflehogScanner:
         self.verbose = verbose
         self.paths = paths
 
-    def _get_args(
+    async def _get_args(
         self,
         paths: List[str],
         github_action: bool = False,
@@ -58,7 +67,7 @@ class TrufflehogScanner:
         if github_action:
             trufflehog_cmd_args.append("--since-commit=main")
 
-        if Path(TRUFFLEHOG_EXCLUSIONS_FILE_PATH).exists():
+        if await Path(TRUFFLEHOG_EXCLUSIONS_FILE_PATH).exists():
             logger.debug("This repo has an exclusions file, adding this file to the trufflehog runner")
             trufflehog_cmd_args.append(f"--exclude-paths={TRUFFLEHOG_EXCLUSIONS_FILE_PATH}")
 
@@ -81,12 +90,12 @@ class TrufflehogScanner:
         env["HTTPS_PROXY"] = TRUFFLEHOG_PROXY
         return env
 
-    def scan(
+    async def scan(
         self,
         github_action: bool = False,
         allowed_vendor_endpoints: List[str] = [],
         allowed_vendor_codes: List[str] = [],
-    ):
+    ) -> TrufflehogScanResult:
         # A cyber condition has been applied to using trufflehog, where the endpoints called by the trufflehog scanner
         # need to be monitored. We don't have that in place currently, so for now use proxy.py running locally and block
         # any requests made by trufflehog that have not been explicitly allowed
@@ -108,27 +117,21 @@ class TrufflehogScanner:
         ):
             env = self._get_trufflehog_env_vars()
 
-            args = self._get_args(
+            args = await self._get_args(
                 self.paths,
                 github_action,
                 allowed_vendor_codes,
             )
-
-            trufflehog_run = subprocess.run(
+            trufflehog_run = await run_process(
                 args,
-                text=True,
-                capture_output=True,
-                shell=False,
-                check=False,  # We are manually checking the response code of the trufflehog scan, setting check=True will raise an exception
+                check=False,
                 env=env,
             )
 
-            trufflehog_response = trufflehog_run.stdout if trufflehog_run.stdout else trufflehog_run.stderr
             logger.debug("Trufflehog returncode was '%s'", trufflehog_run.returncode)
-
             if trufflehog_run.returncode != TRUFFLEHOG_SUCCESS_CODE:
-                logger.debug("Trufflehog security scan failed with result: %s", trufflehog_response)
-                return trufflehog_response
+                logger.debug("Trufflehog security scan failed with result: %s", trufflehog_run.stderr.decode())
+                return TrufflehogScanResult(trufflehog_run.stdout.decode())
 
-            logger.debug("Trufflehog security scan successfully completed with result: %s", trufflehog_response)
-            return None
+            logger.debug("Trufflehog security scan successfully completed with result: %s", trufflehog_run.stdout.decode())
+            return TrufflehogScanResult()

@@ -1,8 +1,9 @@
-import tempfile
+import pytest
+
+from anyio import NamedTemporaryFile
 from unittest.mock import patch
 
 from presidio_analyzer import Pattern, PatternRecognizer
-import pytest
 from src.hooks.presidio.path_filter import PathFilter
 from src.hooks.presidio.scanner import PresidioScanner
 from presidio_analyzer.predefined_recognizers.generic import PhoneRecognizer, EmailRecognizer
@@ -28,72 +29,82 @@ class TestPresidioScanner:
             ).to_dict()
         )
 
-    def test_scan_returns_matches_for_email_address(self):
-        with (
-            tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
-        ):
+    async def test_scan_returns_matches_for_email_address(self):
+        async with NamedTemporaryFile(
+            mode="w+t",
+            suffix=".txt",
+        ) as tf:
             contents = "My email is test_email@test.com"
-            tf.write(contents)
-            tf.seek(0)
 
-            results = list(PresidioScanner(verbose=True, paths=[tf.name]).scan())
+            await tf.write(contents)
+            await tf.seek(0)
 
-            assert results[0].results[0].result.entity_type == "EMAIL_ADDRESS"
-            assert results[0].results[0].text_value == "test_email@test.com"
+            results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
+
+            assert results.invalid_path_scans[0].results[0].result.entity_type == "EMAIL_ADDRESS"
+            assert results.invalid_path_scans[0].results[0].text_value == "test_email@test.com"
 
     @pytest.mark.parametrize("phone_number", (["02920000000", "07000000000"]))
-    def test_scan_returns_matches_for_phone_number(self, phone_number):
-        with (
-            tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
-        ):
+    async def test_scan_returns_matches_for_phone_number(self, phone_number):
+        async with NamedTemporaryFile(
+            mode="w+t",
+            suffix=".txt",
+        ) as tf:
             contents = f"My phone number is {phone_number}"
-            tf.write(contents)
-            tf.seek(0)
+            await tf.write(contents)
+            await tf.seek(0)
 
-            results = list(PresidioScanner(verbose=True, paths=[tf.name]).scan())
+            results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert results[0].results[0].result.entity_type == "PHONE_NUMBER"
-            assert results[0].results[0].text_value == phone_number
+            assert results.invalid_path_scans[0].results[0].result.entity_type == "PHONE_NUMBER"
+            assert results.invalid_path_scans[0].results[0].text_value == phone_number
 
     @pytest.mark.parametrize("postcode", (["SW1A 1AA", "CF10 4PD"]))
-    def test_scan_returns_matches_for_postcode(self, postcode):
-        with (
-            tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
-            patch.object(PathFilter, "_get_exclusions") as mock_exclusions,
-        ):
-            mock_exclusions.return_value = []
-            contents = f"My postcode is {postcode}"
-            tf.write(contents)
-            tf.seek(0)
+    async def test_scan_returns_matches_for_postcode(self, postcode):
+        async with NamedTemporaryFile(
+            mode="w+t",
+            suffix=".txt",
+        ) as tf:
+            with (
+                patch.object(PathFilter, "_get_exclusions") as mock_exclusions,
+            ):
+                mock_exclusions.return_value = []
+                contents = f"My postcode is {postcode}"
+                await tf.write(contents)
+                await tf.seek(0)
 
-            results = list(PresidioScanner(verbose=True, paths=[tf.name]).scan())
+                results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert results[0].results[0].result.entity_type == "UK_POSTCODE"
-            assert results[0].results[0].text_value == postcode
+                assert results.invalid_path_scans[0].results[0].result.entity_type == "UK_POSTCODE"
+                assert results.invalid_path_scans[0].results[0].text_value == postcode
 
-    def test_scan_returns_no_matches_for_names(self):
-        with (
-            tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
-        ):
+    async def test_scan_returns_no_matches_for_names(self):
+        async with NamedTemporaryFile(
+            mode="w+t",
+            suffix=".txt",
+        ) as tf:
             contents = "My name is john smith"
-            tf.write(contents)
-            tf.seek(0)
+            await tf.write(contents)
+            await tf.seek(0)
 
-            results = list(PresidioScanner(verbose=True, paths=[tf.name]).scan())
+            results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert results[0].results == []
+            assert len(results.invalid_path_scans) == 0
+            assert len(results.valid_path_scans) == 1
 
-    def test_scan_returns_no_matches_for_location(self):
-        with (
-            tempfile.NamedTemporaryFile(suffix=".txt", mode="w+t") as tf,
-        ):
+    async def test_scan_returns_no_matches_for_location(self):
+        async with NamedTemporaryFile(
+            mode="w+t",
+            suffix=".txt",
+        ) as tf:
             contents = "I live at 10 Downing Street, London"
-            tf.write(contents)
-            tf.seek(0)
+            await tf.write(contents)
+            await tf.seek(0)
 
-            results = list(PresidioScanner(verbose=True, paths=[tf.name]).scan())
+            results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert results[0].results == []
+            assert len(results.invalid_path_scans) == 0
+            assert len(results.valid_path_scans) == 1
 
     @pytest.mark.parametrize(
         "file",
@@ -106,8 +117,10 @@ class TestPresidioScanner:
             ]
         ),
     )
-    def test_scan_path_with_test_file_return_a_match(self, file):
+    async def test_scan_path_with_test_file_containing_personal_data_returns_at_least_one_match(self, file):
         with patch.object(PathFilter, "_get_exclusions") as mock_exclusions:
             mock_exclusions.return_value = []
-            results = list(PresidioScanner(verbose=True, paths=[file]).scan())
-            assert len(results[0].results) > 0
+            results = await PresidioScanner(verbose=True, paths=[file]).scan()
+
+            assert len(results.invalid_path_scans) > 0
+            assert len(results.valid_path_scans) == 0

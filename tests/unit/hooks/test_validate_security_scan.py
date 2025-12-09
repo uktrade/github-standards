@@ -95,21 +95,23 @@ class TestValidateSecurityScan:
 
             assert ValidateSecurityScan().validate_hook_settings() is True
 
-    def test_run_when_validate_hook_settings_failes_returns_error_code(self):
+    async def test_run_when_validate_hook_settings_failes_returns_error_code(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=False),
         ):
-            assert ValidateSecurityScan(paths=[tf.name]).run().success is False
+            result = await ValidateSecurityScan(paths=[tf.name]).run()
+            assert result.success is False
 
-    def test_run_with_file_with_no_contents_returns_error_code(self):
+    async def test_run_with_file_with_no_contents_returns_error_code(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
         ):
-            assert ValidateSecurityScan(paths=[tf.name]).run().success is False
+            result = await ValidateSecurityScan(paths=[tf.name]).run()
+            assert result.success is False
 
-    def test_run_with_file_with_message_has_signed_off_by_trailer_added(self):
+    async def test_run_with_file_with_message_has_signed_off_by_trailer_added(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
@@ -117,11 +119,13 @@ class TestValidateSecurityScan:
             tf.write(b"A helpful commit message")
             tf.seek(0)
 
-            assert ValidateSecurityScan(paths=[tf.name]).run().success is True
+            result = await ValidateSecurityScan(paths=[tf.name]).run()
+
+            assert result.success is True
 
             assert tf.read().decode("UTF-8") == f"A helpful commit message\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
-    def test_run_with_file_with_multiline_message_has_signed_off_by_trailer_added(self):
+    async def test_run_with_file_with_multiline_message_has_signed_off_by_trailer_added(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
@@ -129,11 +133,13 @@ class TestValidateSecurityScan:
             tf.writelines(line + b"\n" for line in [b"A", b"helpful", b"commit", b" message"])
             tf.seek(0)
 
-            assert ValidateSecurityScan(paths=[tf.name]).run().success is True
+            result = await ValidateSecurityScan(paths=[tf.name]).run()
+
+            assert result.success is True
 
             assert tf.read().decode("UTF-8") == f"A\nhelpful\ncommit\n message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
-    def test_run_with_file_with_existing_signed_off_header_is_replaced(self):
+    async def test_run_with_file_with_existing_signed_off_header_is_replaced(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
@@ -141,6 +147,8 @@ class TestValidateSecurityScan:
             tf.write(b"A helpful commit message\nSigned-off-by: SOMETHING ELSE")
             tf.seek(0)
 
-            assert ValidateSecurityScan(paths=[tf.name]).run().success is True
+            result = await ValidateSecurityScan(paths=[tf.name]).run()
+
+            assert result.success is True
 
             assert tf.read().decode("UTF-8") == f"A helpful commit message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
