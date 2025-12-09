@@ -14,6 +14,7 @@ from src.hooks.config import (
     NLP_CONFIG_FILE,
     RECOGNIZER_CONFIG_FILE,
 )
+from src.hooks.presidio.spacy_post_processing_recognizer import SpacyPostProcessingRecognizer
 from src.hooks.presidio.path_filter import PathFilter
 
 logger = LOGGER
@@ -28,7 +29,7 @@ class PersonalDataDetection:
         return json.dumps({"type": self.result.entity_type, "value": self.text_value})
 
 
-class ScanResult:
+class PathScanResult:
     def __init__(self, path: str, results: List[PersonalDataDetection]) -> None:
         self.path = path
         self.results = results
@@ -38,10 +39,10 @@ class PresidioScanResult:
     def __init__(
         self,
     ) -> None:
-        self.valid_path_scans: List[ScanResult] = []
-        self.invalid_path_scans: List[ScanResult] = []
+        self.valid_path_scans: List[PathScanResult] = []
+        self.invalid_path_scans: List[PathScanResult] = []
 
-    def add_scan_result(self, scan_result: ScanResult):
+    def add_scan_result(self, scan_result: PathScanResult):
         if not scan_result.results or len(scan_result.results) == 0:
             self.valid_path_scans.append(scan_result)
         else:
@@ -98,8 +99,8 @@ class PresidioScanner:
             nlp_engine_conf_file=Path.joinpath(base_path, NLP_CONFIG_FILE),
             recognizer_registry_conf_file=Path.joinpath(base_path, RECOGNIZER_CONFIG_FILE),
         )
-
         analyzer = provider.create_engine()
+        analyzer.registry.add_recognizer(SpacyPostProcessingRecognizer())
 
         return analyzer
 
@@ -118,7 +119,7 @@ class PresidioScanner:
         analyzer: AnalyzerEngine,
         entities: List[str],
         file_path: str,
-    ) -> ScanResult:
+    ) -> PathScanResult:
         file_extension = Path(file_path).suffix.lower()
         async with await open_file(file_path, "r", encoding="utf-8") as fs:
             results: List[PersonalDataDetection] = []
@@ -130,7 +131,7 @@ class PresidioScanner:
                 contents = await fs.read()
                 logger.debug("Scanning file %s by reading all contents", file_path)
                 results.extend(self._scan_content(analyzer, entities, contents))
-            return ScanResult(
+            return PathScanResult(
                 file_path,
                 results=results,
             )

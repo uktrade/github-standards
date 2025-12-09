@@ -10,7 +10,7 @@ from src.hooks.config import (
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
-from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, ScanResult
+from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PathScanResult
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.trufflehog.scanner import TrufflehogScanResult
 
@@ -141,7 +141,7 @@ class TestRunSecurityScan:
     async def test_run_personal_scan_with_data_detected_returns_expected_results(self):
         detection = PersonalDataDetection(RecognizerResult("test_recognizer", 1, 2, 1), "found value")
         scan_result = PresidioScanResult()
-        scan_result.add_scan_result(ScanResult("file.txt", [detection]))
+        scan_result.add_scan_result(PathScanResult("file.txt", [detection]))
         mock_scan_result = AsyncMock()
         mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
@@ -154,7 +154,7 @@ class TestRunSecurityScan:
 
     async def test_run_personal_scan_without_data_detected_returns_expected_results(self):
         scan_result = PresidioScanResult()
-        scan_result.add_scan_result(ScanResult("file.txt", []))
+        scan_result.add_scan_result(PathScanResult("file.txt", []))
         mock_scan_result = AsyncMock()
         mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:

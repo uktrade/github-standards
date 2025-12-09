@@ -4,7 +4,7 @@ import pytest
 import tempfile
 
 
-from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanner, ScanResult
+from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanner, PathScanResult
 from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
 
 
@@ -21,7 +21,7 @@ class TestPresidioScanner:
             found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
             found_phone = PersonalDataDetection(RecognizerResult("PHONE", 0, 10, 1), text_value="B")
 
-            expected_scan_result = ScanResult(tf.name, [found_email, found_phone])
+            expected_scan_result = PathScanResult(tf.name, [found_email, found_phone])
             mock_scan_content.side_effect = [
                 [found_email],
                 [],
@@ -51,7 +51,7 @@ class TestPresidioScanner:
 
             found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
 
-            expected_scan_result = ScanResult(tf.name, [found_email])
+            expected_scan_result = PathScanResult(tf.name, [found_email])
             mock_scan_content.return_value = [found_email]
 
             result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name)
@@ -99,7 +99,7 @@ class TestPresidioScanner:
             patch.object(PresidioScanner, "_scan_path") as mock_scan_path,
         ):
             mock_path_filter.return_value.get_paths_to_scan.return_value.__aiter__.return_value = ["file1.txt", "file3.csv"]
-            mock_scan_path.side_effect = [ScanResult("file1.txt", results=[]), ScanResult("file3.csv", results=[])]
+            mock_scan_path.side_effect = [PathScanResult("file1.txt", results=[]), PathScanResult("file3.csv", results=[])]
 
             result = await PresidioScanner(paths=["file1.txt", "file2.txt", "file3.csv"]).scan()
             assert len(result.invalid_path_scans) == 0
