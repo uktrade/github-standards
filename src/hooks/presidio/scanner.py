@@ -49,9 +49,8 @@ class PresidioScanResult:
             self.invalid_path_scans.append(scan_result)
 
     def __str__(self) -> str:
-        heading = "--------PERSONAL DATA SCAN SUMMARY--------"
         with StringIO() as output_buffer:
-            output_buffer.write(heading)
+            output_buffer.write("--------PERSONAL DATA SCAN SUMMARY--------")
             if self.valid_path_scans:
                 output_buffer.write("\n\nFILES WITHOUT PERSONAL DATA\n")
                 paths_without_issues_table = PrettyTable(["Path"])
@@ -75,6 +74,9 @@ class PresidioScanResult:
                         )
                     output_buffer.write(str(table))
                     output_buffer.write("\n")
+                output_buffer.write(
+                    "\nTO EXCLUDE THESE FILES FROM BEING SCANNED FOR PERSONAL DATA, FOLLOW THE INSTRUCTIONS AT https://github.com/uktrade/github-standards?tab=readme-ov-file#excluding-false-positives-1"
+                )
             return output_buffer.getvalue()
 
 
