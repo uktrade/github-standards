@@ -1,0 +1,70 @@
+name: "Organisation ruleset: CI Scans"
+
+on:
+  # push:
+  #   branches-ignore:
+  #     - main
+  #   paths:
+  #     - .github/workflows/org.common-scans.yml
+  pull_request:
+
+jobs:
+  repository-languages:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/github-script@ed597411d8f924073f98dfc5c65a23a2325f34cd
+        id: set-repo-languages
+        with:
+          script: |
+            const { data } = await github.rest.repos.listLanguages({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+            });
+            console.log(Object.keys(data))
+            return Object.keys(data)
+    outputs:
+      languages: ${{ steps.set-repo-languages.outputs.result }}
+
+  # Ideally we would have a single job that uses the value from the repository-languages job as a matrix.
+  # This is currently unsupported by github, so each language is manually added and skipped
+
+  python-scan:
+    if: ${{contains(fromJSON(needs.repository-languages.outputs.languages), 'Python') }}
+    needs: [repository-languages]
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+      issues: write
+      pull-requests: write
+    uses: ./.github/workflows/org.python-ci.yml
+
+  docker-scan:
+    if: ${{contains(fromJSON(needs.repository-languages.outputs.languages), 'Dockerfile') }}
+    needs: [repository-languages]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/org.docker-ci.yml
+
+  terraform-scan:
+    if: ${{contains(fromJSON(needs.repository-languages.outputs.languages), 'Terraform') }}
+    needs: [repository-languages]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/org.terraform-ci.yml
+
+  typescript-scan:
+    if: ${{contains(fromJSON(needs.repository-languages.outputs.languages), 'Typescript') }}
+    needs: [repository-languages]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/org.docker-ci.yml
+
+  node-scan:
+    if: ${{contains(fromJSON(needs.repository-languages.outputs.languages), 'Node') }}
+    needs: [repository-languages]
+    permissions:
+      contents: read
+    uses: ./.github/workflows/org.docker-ci.yml

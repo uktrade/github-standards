@@ -1,14 +1,13 @@
 name: "Organisation ruleset: Python CI"
 
 on:
+  workflow_dispatch:
+  workflow_call:
   push:
     branches-ignore:
       - main
     paths:
       - .github/workflows/org.python-ci.yml
-  pull_request:
-    types: [opened, edited, reopened, synchronize]
-    branches: [main, master, dev]
 
 jobs:
   security-scan:
