@@ -21,8 +21,9 @@ jobs:
 
       - name: Compare project.toml version with pre-commit hooks
         run: |
+          pip install anyio
           pip install pyyaml
-          python3 -m src.actions.compare_versions
+          python3 -m src.actions.compare_versions.action
 
   project-tests:
     runs-on: ubuntu-latest

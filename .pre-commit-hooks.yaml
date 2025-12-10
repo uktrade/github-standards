@@ -20,3 +20,18 @@
     entry: ghcr.io/uktrade/github-standards:v1.2.1 validate_scan
     stages: [commit-msg]
 
+# Development hooks
+-   id: run-security-scan-development
+    name: Run a security scan
+    description: Run a security scan against the files in this commit. This uses the development docker tag to always run the latest version of code in the main branch
+    language: docker_image
+    entry: ghcr.io/uktrade/github-standards:development run_scan
+    stages: [pre-commit]
+    require_serial: true # This avoids the pre-commit splitting the list of changed files into batches of 4, and calling the pre-commit hook multiple times
+
+-   id: validate-security-scan-development
+    name: Validate the security scan hook
+    description: Validate the hook that runs the security scans has run, and add a signed-off git trailer if security scans have passed. This uses the development docker tag to always run the latest version of code in the main branch
+    language: docker_image
+    entry: ghcr.io/uktrade/github-standards:development validate_scan
+    stages: [commit-msg]
