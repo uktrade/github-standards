@@ -57,6 +57,8 @@ jobs:
           sarif_file: ${{env.results-file}}
 
   vulnerability-scan:
+    # Checking for public, skipping private and internal
+    if: ${{ github.event.repository.visibility == 'public' }}
     env:
       audit-dir: "audit-reports"
     permissions:
