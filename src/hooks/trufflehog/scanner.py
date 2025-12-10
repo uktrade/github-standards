@@ -1,5 +1,7 @@
 import os
+
 from anyio import run_process, Path
+from io import StringIO
 
 from proxy import Proxy
 from typing import List
@@ -24,9 +26,16 @@ class TrufflehogScanResult:
         self.detected_keys = detected_keys
 
     def __str__(self) -> str:
-        heading = "--------SECURITY SCAN SUMMARY--------"
-        result = self.detected_keys if self.detected_keys else "No security issues detected"
-        return f"{heading}\n\n{result}"
+        with StringIO() as output_buffer:
+            output_buffer.write("--------SECURITY SCAN SUMMARY--------")
+            if self.detected_keys:
+                output_buffer.write(self.detected_keys)
+                output_buffer.write(
+                    "\n\nTO EXCLUDE THESE FILES FROM BEING SCANNED FOR SECURITY DATA, FOLLOW THE INSTRUCTIONS AT https://github.com/uktrade/github-standards?tab=readme-ov-file#excluding-false-positives"
+                )
+            else:
+                output_buffer.write("No security issues detected")
+            return output_buffer.getvalue()
 
 
 class TrufflehogScanner:
