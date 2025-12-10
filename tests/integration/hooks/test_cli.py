@@ -1,12 +1,30 @@
+import tempfile
 from anyio import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import patch
 
 
-from src.hooks.cli import main_async
+from src.hooks.cli import main_async, main
 from src.hooks.config import TRUFFLEHOG_ERROR_CODE
 
 
 class TestCLI:
+    def test_run_main_with_secret_data_and_personal_data_returns_sys_exit(self):
+        with (
+            tempfile.TemporaryDirectory() as root_td,
+            tempfile.NamedTemporaryFile(dir=root_td, mode="w+", prefix="has_personal_data_", suffix=".txt") as root_file,
+            patch("src.hooks.trufflehog.scanner.run_process") as mock_run_process,
+        ):
+            root_file.write("My name is John Smith")
+            root_file.write("My email is john.smith@test.com")
+            root_file.seek(0)
+
+            # trufflehog needs to be installed, mock the subprocess.run call to avoid calling directly
+            mock_run_process.return_value.stdout = "Found keys".encode()
+            mock_run_process.return_value.stderr = "Called the scanning tool and keys were found".encode()
+            mock_run_process.return_value.returncode = TRUFFLEHOG_ERROR_CODE
+
+            assert main(["run_scan", "-v", root_td]) == 1
+
     async def test_run_scan_with_secret_data(self):
         async with (
             TemporaryDirectory(prefix="root_dir_") as root_td,

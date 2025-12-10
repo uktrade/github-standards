@@ -111,7 +111,7 @@ def main(argv: Optional[List[str]] = None):
     if not sys.argv:
         return 1
 
-    anyio.run(main_async, argv)
+    return anyio.run(main_async, argv)
 
 
 if __name__ == "__main__":
