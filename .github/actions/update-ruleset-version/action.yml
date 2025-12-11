@@ -1,0 +1,13 @@
+name: Update ruleset version
+description: Update the github ruleset to use the new tag
+
+# Define your inputs here.
+inputs:
+  tag:
+    description: The new release tag
+    required: true
+    default: v1.2.0
+
+runs:
+  using: node24
+  main: dist/index.js

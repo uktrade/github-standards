@@ -9,55 +9,63 @@ jobs:
     permissions:
       contents: read
     steps:
-      - name: Create GitHub App token
-        id: create-token
-        uses: actions/create-github-app-token@v2
-        with:
-          app-id: ${{ vars.APP_ID }}
-          private-key: ${{ secrets.ACTIONS_APP_PRIVATE_KEY }}
+      - name: Checkout current repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
 
-      - uses: actions/github-script@v8
-        id: get-rulesets
+      - name: update-version
+        uses: ./.github/actions/update-ruleset-version
         with:
-          github-token: ${{ steps.create-token.outputs.token }}
-          script: |
-            const { data } = await github.rest.repos.getOrgRulesets({
-                org: 'uktrade',
-            });
-            console.log(JSON.stringify(data))
-            return Object.keys(data)
+          tag: v1.2.0
 
-      - uses: actions/github-script@v8
-        id: get-common-ci-test-ruleset
-        with:
-          github-token: ${{ steps.create-token.outputs.token }}
-          script: |
-            const { data } = await github.rest.repos.getOrgRuleset({
-                org: 'uktrade',
-                ruleset_id: 11043937,
-            });
-            console.log(JSON.stringify(data))
+    #   - name: Create GitHub App token
+    #     id: create-token
+    #     uses: actions/create-github-app-token@v2
+    #     with:
+    #       app-id: ${{ vars.APP_ID }}
+    #       private-key: ${{ secrets.ACTIONS_APP_PRIVATE_KEY }}
 
-      - uses: actions/github-script@v8
-        id: update-common-ci-test-ruleset
-        with:
-          github-token: ${{ steps.create-token.outputs.token }}
-          script: |
-            const { data } = await github.rest.repos.updateOrgRuleset({
-                org: 'uktrade',
-                ruleset_id: 11043937,
-                rules: [{
-                    "type": "workflows",
-                    "parameters": {
-                        "do_not_enforce_on_create": false,
-                        "workflows": [
-                            {
-                                "repository_id": 1057191945,
-                                "path": ".github/workflows/org.common-ci.yml",
-                                "ref": "refs/tags/v1.2.0"
-                            }
-                        ]
-                    }
-                }]
-            });
-            console.log(JSON.stringify(data))
+    #   - uses: actions/github-script@v8
+    #     id: get-rulesets
+    #     with:
+    #       github-token: ${{ steps.create-token.outputs.token }}
+    #       script: |
+    #         const { data } = await github.rest.repos.getOrgRulesets({
+    #             org: 'uktrade',
+    #         });
+    #         console.log(JSON.stringify(data))
+    #         return Object.keys(data)
+
+    #   - uses: actions/github-script@v8
+    #     id: get-common-ci-test-ruleset
+    #     with:
+    #       github-token: ${{ steps.create-token.outputs.token }}
+    #       script: |
+    #         const { data } = await github.rest.repos.getOrgRuleset({
+    #             org: 'uktrade',
+    #             ruleset_id: 11043937,
+    #         });
+    #         console.log(JSON.stringify(data))
+
+    #   - uses: actions/github-script@v8
+    #     id: update-common-ci-test-ruleset
+    #     with:
+    #       github-token: ${{ steps.create-token.outputs.token }}
+    #       script: |
+    #         const { data } = await github.rest.repos.updateOrgRuleset({
+    #             org: 'uktrade',
+    #             ruleset_id: 11043937,
+    #             rules: [{
+    #                 "type": "workflows",
+    #                 "parameters": {
+    #                     "do_not_enforce_on_create": false,
+    #                     "workflows": [
+    #                         {
+    #                             "repository_id": 1057191945,
+    #                             "path": ".github/workflows/org.common-ci.yml",
+    #                             "ref": "refs/tags/v1.2.0"
+    #                         }
+    #                     ]
+    #                 }
+    #             }]
+    #         });
+    #         console.log(JSON.stringify(data))
