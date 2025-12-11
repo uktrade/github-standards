@@ -1,0 +1,42 @@
+name: Update ruleset
+
+on:
+  push:
+
+jobs:
+  update-ruleset-tags:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Create GitHub App token
+        id: create-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.ACTIONS_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            github-standards
+
+      - uses: actions/github-script@v8
+        id: get-common-ci-test-ruleset
+        with:
+          github-token: ${{ steps.create-token.outputs.token }}
+          script: |
+            const { data } = await github.rest.repos.getOrgRuleset({
+                org: 'uktrade',
+                ruleset_id: 11043937,
+            });
+            console.log(JSON.stringify(data))
+
+      - name: update-version
+        uses: ./.github/actions/update-ruleset-version
+        with:
+          tag: v1.2.0
+          org-repository-id: ${{ vars.ORG_WORKFLOW_REPOSITORY_ID }}
+          token: ${{ steps.create-token.outputs.token }}
+          ruleset-ids: 11043937,6768460

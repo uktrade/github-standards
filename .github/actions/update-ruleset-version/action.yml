@@ -1,0 +1,42 @@
+name: Update ruleset version
+description: Update the github ruleset to use the new tag
+
+inputs:
+  tag:
+    description: The new release tag
+    required: true
+    type: string
+  org-repository-id:
+    description: The id of the repository containing the common org workflows
+    required: true
+    type: number
+  token:
+    description: 'GitHub auth token with permission to get and update repository rulesets'
+    required: true
+    type: string
+  ruleset-ids:
+    description: Either a single id or a comma separated list of the ids to update
+    required: true
+    type: string
+
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Install Python
+      uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+      with:
+        python-version-file: ".python-version"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@681c641aba71e4a1c380be3ab5e12ad51f415867
+
+    - name: Install the project
+      run: uv sync --locked --all-extras
+      shell: bash
+
+    - name: Update version
+      run: |
+        export ORG_WORKFLOW_REPOSITORY_ID=${{ inputs.org-repository-id }}
+        uv run src/actions/update_ruleset_version/action.py ${{ inputs.tag }} ${{ inputs.token }} ${{ inputs.ruleset-ids }}
+      shell: bash

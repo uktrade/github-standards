@@ -121,3 +121,28 @@ jobs:
           name: ${{ needs.verify-release-version.outputs.tag }}
           generateReleaseNotes: true
           makeLatest: true
+
+  update-ruleset-version:
+    needs:
+      [
+        setup,
+        verify-release-version,
+        build-and-push-latest-image,
+        create-github-release,
+      ]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+
+      - name: Create GitHub App token
+        id: create-token
+        uses: actions/create-github-app-token@29824e69f54612133e76f7eaac726eef6c875baf
+        with:
+          app-id: ${{ vars.APP_ID }}
+          private-key: ${{ secrets.ACTIONS_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: |
+            github-standards
