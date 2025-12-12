@@ -57,7 +57,7 @@ jobs:
           sarif_file: ${{env.results-file}}
 
   vulnerability-scan:
-    if: false # Disabled for now until we use dbt-pip-audit packedge
+    if: false # Disabled for now until we use dbt-pip-audit package
     # Checking for public, skipping private and internal
     # if: ${{ github.event.repository.visibility == 'public' }}
     env:
