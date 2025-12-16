@@ -47,6 +47,7 @@ namespaces = false
 
 [tool.uv]
 package = true
+required-version = "==0.9.17"
 
 [tool.ruff]
 line-length = 125
