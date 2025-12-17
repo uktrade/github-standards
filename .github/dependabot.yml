@@ -4,10 +4,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "cron"
-      cronjob: "40 11 * * *"
+      interval: "weekly"
   - package-ecosystem: uv
     directory: "/"
     schedule:
-      interval: "cron"
-      cronjob: "40 11 * * *"
+      interval: "weekly"
