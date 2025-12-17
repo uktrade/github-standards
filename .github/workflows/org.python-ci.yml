@@ -35,7 +35,7 @@ jobs:
         run: pip install 'bandit[sarif,toml]==${{env.bandit-version}}'
 
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Run Bandit
         shell: bash
@@ -68,10 +68,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: "Git clone the repository"
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: "Git clone the standards repository"
-        uses: actions/checkout@c2d88d3ecc89a9ef08eebf45d9637801dcee7eb5
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
         with:
           repository: "uktrade/github-standards"
           path: github-standards
