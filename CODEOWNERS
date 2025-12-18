@@ -1,5 +1,5 @@
-- @uktrade/github-standards
+* @uktrade/github-standards
 
 # This config file contains the trufflehog vendors, and needs a review from a more specific list of users
 
-src/hooks/trufflehog/vendors.py @uktrade/github-standards-admin
+/src/hooks/trufflehog/vendors.py @uktrade/github-standards-admin
