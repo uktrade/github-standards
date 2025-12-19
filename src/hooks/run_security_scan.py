@@ -114,15 +114,13 @@ class RunSecurityScan(Hook):
             version_in_remote = await self._get_version_from_remote()
 
             if version_in_config != version_in_remote:
-                logger.info(
+                logger.error(
                     "The version in your local config is %s, but the latest version is %s. Run `pre-commit autoupdate --repo https://github.com/uktrade/github-standards` to update to the latest version",
                     version_in_config,
                     version_in_remote,
                 )
-                return False
         except Exception:
             logger.exception("The remote version check failed", stack_info=True)
-            return True
 
         return True
 
