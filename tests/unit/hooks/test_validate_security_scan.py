@@ -19,83 +19,47 @@ class TestValidateSecurityScan:
     def test_validate_args_path_list_with_one_item_returns_true(self):
         assert ValidateSecurityScan(paths=["a.txt"]).validate_args() is True
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_without_hooks_element_in_pre_commit_file_returns_false(self):
-        valid_yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v111
-        """
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_hooks_element_in_pre_commit_file_returns_false(
+        self,
+    ):
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
-            tf.write(valid_yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v1"}
 
-            assert ValidateSecurityScan().validate_hook_settings() is False
+            assert await ValidateSecurityScan()._validate_hook_settings(repo) is False
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_without_ids_element_in_pre_commit_file_returns_false(self):
-        valid_yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v111
-              hooks:
-                - version
-        """
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_ids_element_in_pre_commit_file_returns_false(
+        self,
+    ):
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
-            tf.write(valid_yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v1", "hooks": ["version"]}
 
-            assert ValidateSecurityScan().validate_hook_settings() is False
+            assert await ValidateSecurityScan()._validate_hook_settings(repo) is False
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_without_mandatory_is_in_pre_commit_file_returns_false(self):
-        valid_yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v111
-              hooks:
-                - id: something
-        """
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_mandatory_is_in_pre_commit_file_returns_false(
+        self,
+    ):
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
-            tf.write(valid_yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v1", "hooks": [{"id": "something"}]}
+            assert await ValidateSecurityScan()._validate_hook_settings(repo) is False
 
-            assert ValidateSecurityScan().validate_hook_settings() is False
-
-    def test_validate_hook_settings_with_repo_and_hooks_present_in_pre_commit_file_returns_true(self):
-        valid_yaml = b"""
-        repos:
-            - repo: https://github.com/pre-commit/pre-commit-hooks
-              rev: v6.0.0  
-              hooks:
-              - id: no-commit-to-branch
-            - repo: https://github.com/uktrade/github-standards
-              rev: v111
-              hooks:
-                - id: validate-security-scan
-                - id: run-security-scan
-                - id: run-personal-data-scan
-        """
+    async def test_validate_hook_settings_with_repo_and_hooks_present_in_pre_commit_file_returns_true(self):
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(ValidateSecurityScan, "_enforce_settings_checks", return_value=True),
         ):
-            tf.write(valid_yaml)
-            tf.seek(0)
+            repo = {
+                "repo": "https://github.com/uktrade/github-standards",
+                "rev": "v1",
+                "hooks": [{"id": "validate-security-scan"}, {"id": "run-security-scan"}, {"id": "run-personal-data-scan"}],
+            }
+            assert await ValidateSecurityScan()._validate_hook_settings(repo) is True
 
-            assert ValidateSecurityScan().validate_hook_settings() is True
-
-    async def test_run_when_validate_hook_settings_failes_returns_error_code(self):
+    async def test_run_when_validate_hook_settings_fails_returns_error_code(self):
         with (
             tempfile.NamedTemporaryFile() as tf,
             patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=False),

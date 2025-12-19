@@ -125,7 +125,7 @@ class TestCLI:
         async def test_hook_with_failing_validate_hook_settings_returns_expected_error(self):
             mock_hook = mock.MagicMock()
             mock_hook.validate_args = mock.MagicMock(return_value=True)
-            mock_hook.validate_hook_settings = mock.MagicMock(return_value=False)
+            mock_hook.validate_hook_settings = mock.AsyncMock(return_value=False)
 
             mock_args = mock.MagicMock()
             mock_args.hook.return_value = mock_hook
@@ -137,7 +137,7 @@ class TestCLI:
         async def test_hook_with_an_unsuccessful_run_result_returns_expected_exit_code(self):
             mock_hook = mock.MagicMock()
             mock_hook.validate_args = mock.MagicMock(return_value=True)
-            mock_hook.validate_hook_settings = mock.MagicMock(return_value=True)
+            mock_hook.validate_hook_settings = mock.AsyncMock(return_value=True)
 
             mock_run_result = mock.MagicMock()
             mock_run_result.run_summary.return_value = "Hook ran with an error"
@@ -157,7 +157,7 @@ class TestCLI:
         async def test_hook_with_a_successful_run_result_returns_expected_exit_code(self):
             mock_hook = mock.MagicMock()
             mock_hook.validate_args = mock.MagicMock(return_value=True)
-            mock_hook.validate_hook_settings = mock.MagicMock(return_value=True)
+            mock_hook.validate_hook_settings = mock.AsyncMock(return_value=True)
 
             mock_run_result = mock.MagicMock()
             mock_run_result.run_summary.return_value = "Hook ran successfully"

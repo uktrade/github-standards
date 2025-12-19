@@ -1,8 +1,13 @@
+import pytest
+import requests
+
+import pytest_asyncio
+
+from aiohttp import ClientResponseError, web
+from aiohttp.pytest_plugin import AiohttpClient
+
 from pathlib import Path
 from presidio_analyzer import RecognizerResult
-import requests
-import requests_mock
-import tempfile
 
 from unittest.mock import AsyncMock, patch
 from src.hooks.config import (
@@ -13,6 +18,14 @@ from src.hooks.config import (
 from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PathScanResult
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.trufflehog.scanner import TrufflehogScanResult
+
+
+@pytest_asyncio.fixture
+async def aio_client_with_app(aiohttp_client: AiohttpClient):
+    web_app = web.Application()
+    client = await aiohttp_client(web_app)
+    client.app.router._frozen = False  # Allows setting fake requests inside a unit test
+    return client
 
 
 class TestRunSecurityScan:
@@ -42,83 +55,63 @@ class TestRunSecurityScan:
             mock_is_dir.return_value = True
             assert RunSecurityScan(paths=["/a/b/c"], github_action=True).validate_args() is True
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(self):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-        """
-
+    @pytest.mark.asyncio
+    async def test_get_version_from_remote_raises_exception_for_http_errors(self, aio_client_with_app):
+        aio_client_with_app.app.router.add_route(
+            "GET",
+            RELEASE_CHECK_URL,
+            lambda _: web.Response(status=404),
+        )
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
+            patch.object(RunSecurityScan, "_get_client_session", return_value=aio_client_with_app),
+            pytest.raises(ClientResponseError),
         ):
-            tf.write(yaml)
-            tf.seek(0)
+            assert await RunSecurityScan()._get_version_from_remote() is False
 
-            assert RunSecurityScan().validate_hook_settings() is False
-
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_false(
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(
         self,
     ):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v1
-        """
-
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
-            patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v2"),
         ):
-            tf.write(yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards"}
 
-            assert RunSecurityScan().validate_hook_settings() is False
+            assert await RunSecurityScan()._validate_hook_settings(repo) is False
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_when_remote_version_http_error_returns_true(
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_false(
         self,
     ):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v1
-        """
-
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
-            requests_mock.Mocker() as m,
+            patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v5"),
         ):
-            m.get(RELEASE_CHECK_URL, exc=requests.exceptions.HTTPError)
-            tf.write(yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v3"}
 
-            assert RunSecurityScan().validate_hook_settings() is True
+            assert await RunSecurityScan()._validate_hook_settings(repo) is False
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_matching_remote_version_returns_true(
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_when_remote_version_http_error_returns_true(
         self,
     ):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v1
-        """
-
+        mock_get_version_from_remote = AsyncMock()
+        mock_get_version_from_remote.side_effect = requests.exceptions.HTTPError
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
-            requests_mock.Mocker() as m,
+            patch.object(RunSecurityScan, "_get_version_from_remote", mock_get_version_from_remote),
         ):
-            m.get(RELEASE_CHECK_URL, json={"tag_name": "v1"})
-            tf.write(yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v1"}
 
-            assert RunSecurityScan().validate_hook_settings() is True
+            assert await RunSecurityScan()._validate_hook_settings(repo) is True
+
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_matching_remote_version_returns_true(
+        self,
+    ):
+        with (
+            patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
+            patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v1"),
+        ):
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v1"}
+
+            assert await RunSecurityScan()._validate_hook_settings(repo) is True
 
     async def test_run_security_scan_with_detected_keys_returns_keys(self):
         mock_scan_result = AsyncMock()

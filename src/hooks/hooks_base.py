@@ -1,7 +1,7 @@
 import yaml
 
+from anyio import open_file, Path
 from abc import ABC, abstractmethod
-from pathlib import Path
 from typing import List
 
 
@@ -39,19 +39,19 @@ class Hook(ABC):
         """
         return FORCE_HOOK_CHECKS == "1"
 
-    def validate_hook_settings(self) -> bool:
+    async def validate_hook_settings(self) -> bool:
         if not self._enforce_settings_checks():
             logger.debug(
                 "This hook is running in environment where the validate hooks settings can be ignored. This is either when running as a github action, or when being run inside the github-standards repository as a local pre-commit hook"
             )
             return True
 
-        if not Path(PRE_COMMIT_FILE).exists():
+        if not await Path(PRE_COMMIT_FILE).exists():
             logger.debug("File %s does not exist in this repository. This file must be present", PRE_COMMIT_FILE)
             return False
 
-        with open(PRE_COMMIT_FILE, "r", encoding="utf-8") as file:
-            config = yaml.safe_load(file)
+        async with await open_file(PRE_COMMIT_FILE, "r", encoding="utf-8") as file:
+            config = yaml.safe_load(await file.read())
 
             if "repos" not in config:
                 logger.debug("File %s does not contain a repo tag", PRE_COMMIT_FILE)
@@ -60,17 +60,18 @@ class Hook(ABC):
             dbt_hook_repo = list(
                 filter(lambda x: "https://github.com/uktrade/github-standards" in x["repo"], config["repos"])
             )
+
             if not dbt_hook_repo:
                 logger.debug("File %s does not contain the github standards hooks repo", PRE_COMMIT_FILE)
                 return False
+
             if len(dbt_hook_repo) != 1:
                 logger.debug("File %s can only contain one github-standards repo entry", PRE_COMMIT_FILE)
                 return False
-
-            return self._validate_hook_settings(dbt_hook_repo[0])
+            return await self._validate_hook_settings(dbt_hook_repo[0])
 
     @abstractmethod
-    def _validate_hook_settings(self, dbt_repo_config) -> bool:
+    async def _validate_hook_settings(self, dbt_repo_config) -> bool:
         raise NotImplementedError()
 
     @abstractmethod

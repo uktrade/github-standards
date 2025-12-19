@@ -1,5 +1,5 @@
 import asyncio
-import requests
+import aiohttp
 
 from pathlib import Path
 from typing import List
@@ -83,19 +83,25 @@ class RunSecurityScan(Hook):
 
         return True
 
-    def _get_version_from_remote(self):
-        req = requests.get(
-            RELEASE_CHECK_URL,
+    def _get_client_session(self) -> aiohttp.ClientSession:
+        return aiohttp.ClientSession(
+            base_url="https://api.github.com",
             headers={
-                "Accept": "application/vnd.github.v3+json",
+                "Accept": "application/vnd.github+json",
             },
-            timeout=3,  # This is a low timeout, we don't want to block commits or make devs wait for the github api
         )
-        req.raise_for_status()
-        content = req.json()
-        return content["tag_name"]
 
-    def _validate_hook_settings(self, dbt_repo_config):
+    async def _get_version_from_remote(self):
+        session = self._get_client_session()
+        # This is a low timeout, we don't want to block commits or make devs wait for the github api
+        timeout = aiohttp.ClientTimeout(total=1)
+        async with session.get(RELEASE_CHECK_URL, raise_for_status=True, timeout=timeout) as response:
+            logger.debug("Received %s response from %s", response.status, response.real_url)
+            json_content = await response.json()
+            await session.close()
+            return json_content["tag_name"]
+
+    async def _validate_hook_settings(self, dbt_repo_config):
         if "rev" not in dbt_repo_config:
             logger.debug(
                 "File %s contains the github standards hooks repo, but is missing the rev child element", PRE_COMMIT_FILE
@@ -105,7 +111,7 @@ class RunSecurityScan(Hook):
         # If the call to get the remote version fails, return True as we don't want this to block a dev from committing in this scenario.
         try:
             version_in_config = dbt_repo_config["rev"]
-            version_in_remote = self._get_version_from_remote()
+            version_in_remote = await self._get_version_from_remote()
 
             if version_in_config != version_in_remote:
                 logger.info(
