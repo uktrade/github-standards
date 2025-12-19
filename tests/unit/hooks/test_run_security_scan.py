@@ -1,3 +1,4 @@
+import json
 import pytest
 import requests
 
@@ -11,6 +12,7 @@ from presidio_analyzer import RecognizerResult
 
 from unittest.mock import AsyncMock, patch
 from src.hooks.config import (
+    LOGGER,
     PERSONAL_DATA_SCAN,
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
@@ -68,6 +70,18 @@ class TestRunSecurityScan:
         ):
             assert await RunSecurityScan()._get_version_from_remote() is False
 
+    @pytest.mark.asyncio
+    async def test_get_version_from_remote_returns_expected_json(self, aio_client_with_app):
+        aio_client_with_app.app.router.add_route(
+            "GET",
+            RELEASE_CHECK_URL,
+            lambda _: web.Response(status=200, content_type="application/json", text=json.dumps({"tag_name": "v1122"})),
+        )
+        with (
+            patch.object(RunSecurityScan, "_get_client_session", return_value=aio_client_with_app),
+        ):
+            assert await RunSecurityScan()._get_version_from_remote() == "v1122"
+
     async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(
         self,
     ):
@@ -78,16 +92,20 @@ class TestRunSecurityScan:
 
             assert await RunSecurityScan()._validate_hook_settings(repo) is False
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_false(
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_true_but_logs_error(
         self,
+        caplog,
     ):
         with (
             patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
             patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v5"),
         ):
+            logger = LOGGER
+            logger.propagate = True  # Enable propagation for this logger
             repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v3"}
 
-            assert await RunSecurityScan()._validate_hook_settings(repo) is False
+            assert await RunSecurityScan()._validate_hook_settings(repo) is True
+            assert caplog.records[1].levelname == "ERROR"
 
     async def test_validate_hook_settings_with_dbt_hooks_repo_present_when_remote_version_http_error_returns_true(
         self,

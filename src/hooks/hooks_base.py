@@ -68,6 +68,7 @@ class Hook(ABC):
             if len(dbt_hook_repo) != 1:
                 logger.debug("File %s can only contain one github-standards repo entry", PRE_COMMIT_FILE)
                 return False
+
             return await self._validate_hook_settings(dbt_hook_repo[0])
 
     @abstractmethod
