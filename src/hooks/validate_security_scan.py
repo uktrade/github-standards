@@ -32,7 +32,7 @@ class ValidateSecurityScan(Hook):
 
         return True
 
-    def _validate_hook_settings(self, dbt_repo_config) -> bool:
+    async def _validate_hook_settings(self, dbt_repo_config) -> bool:
         if "hooks" not in dbt_repo_config:
             logger.info(
                 "File %s contains the github standards hooks repo, but is missing the hooks child element", PRE_COMMIT_FILE

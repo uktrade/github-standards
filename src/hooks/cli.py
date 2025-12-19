@@ -91,7 +91,7 @@ async def main_async(argv: Optional[List[str]] = None):
         return 1
     logger.debug("Hook '%s' passed args validation check", hook.__class__.__name__)
 
-    is_valid_hook = hook.validate_hook_settings()
+    is_valid_hook = await hook.validate_hook_settings()
     if not is_valid_hook:
         logger.debug("Hook '%s' did not pass hook settings validation check", hook)
         return 1

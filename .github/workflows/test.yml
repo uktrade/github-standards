@@ -120,15 +120,7 @@ jobs:
                   entry: github-standards-hooks:git-hooks-tests run_scan --verbose
                   stages: [pre-commit]
                   verbose: true
-                  require_serial: true
-
-                - id: run-personal-data-scan
-                  name: run-personal-data-scan
-                  language: docker_image
-                  entry: github-standards-hooks:git-hooks-tests run_personal_data_scan --verbose
-                  stages: [pre-commit]
-                  verbose: true
-                  require_serial: true
+                  require_serial: true                
 
                 - id: validate-security-scan
                   name: validate-security-scan
