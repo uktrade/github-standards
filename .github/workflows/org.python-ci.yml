@@ -52,7 +52,7 @@ jobs:
 
       - name: Upload SARIF file
         if: ${{steps.check-failures.outputs.has_errors == 'true'}}
-        uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
         with:
           sarif_file: ${{env.results-file}}
 
