@@ -1,0 +1,34 @@
+{
+  "id": 11223344,
+  "name": "workflow-test",
+  "target": "branch",
+  "source_type": "Organization",
+  "source": "my_org",
+  "enforcement": "evaluate",
+  "rules": [
+    { "type": "max_file_size", "max_file_size": 123 },
+    {
+      "type": "workflows",
+      "parameters": {
+        "do_not_enforce_on_create": false,
+        "workflows": [
+          {
+            "repository_id": 1234,
+            "path": ".github/workflows/workflow_1.yml",
+            "ref": "refs/tags/v1.1.1"
+          },
+          {
+            "repository_id": 1234,
+            "path": ".github/workflows/workflow_2.yml",
+            "ref": "refs/tags/v1.1.1"
+          },
+          {
+            "repository_id": 5678,
+            "path": ".github/workflows/workflow_1.yml",
+            "ref": "refs/main"
+          }
+        ]
+      }
+    }
+  ]
+}
