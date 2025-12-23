@@ -1,6 +1,9 @@
 import pytest
+import src.hooks.presidio.scanner as scanner
 
-from anyio import NamedTemporaryFile
+from random import randint
+from anyio import NamedTemporaryFile, TemporaryDirectory
+from tempfile import NamedTemporaryFile as NamedTemporaryFileSync
 from unittest.mock import patch
 
 from presidio_analyzer import Pattern, PatternRecognizer
@@ -44,8 +47,8 @@ class TestPresidioScanner:
 
             results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert results.invalid_path_scans[0].results[0].result.entity_type == "EMAIL_ADDRESS"
-            assert results.invalid_path_scans[0].results[0].text_value == "test_email@test.com"
+            assert results.paths_containing_personal_data[0].results[0].result.entity_type == "EMAIL_ADDRESS"
+            assert results.paths_containing_personal_data[0].results[0].text_value == "test_email@test.com"
 
     @pytest.mark.parametrize("phone_number", (["02920000000", "07000000000"]))
     async def test_scan_returns_matches_for_phone_number(self, phone_number):
@@ -59,8 +62,8 @@ class TestPresidioScanner:
 
             results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert results.invalid_path_scans[0].results[0].result.entity_type == "PHONE_NUMBER"
-            assert results.invalid_path_scans[0].results[0].text_value == phone_number
+            assert results.paths_containing_personal_data[0].results[0].result.entity_type == "PHONE_NUMBER"
+            assert results.paths_containing_personal_data[0].results[0].text_value == phone_number
 
     @pytest.mark.parametrize("postcode", (["SW1A 1AA", "CF10 4PD"]))
     async def test_scan_returns_matches_for_postcode(self, postcode):
@@ -78,8 +81,8 @@ class TestPresidioScanner:
 
                 results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-                assert results.invalid_path_scans[0].results[0].result.entity_type == "UK_POSTCODE"
-                assert results.invalid_path_scans[0].results[0].text_value == postcode
+                assert results.paths_containing_personal_data[0].results[0].result.entity_type == "UK_POSTCODE"
+                assert results.paths_containing_personal_data[0].results[0].text_value == postcode
 
     async def test_scan_returns_no_matches_for_names(self):
         async with NamedTemporaryFile(
@@ -92,8 +95,8 @@ class TestPresidioScanner:
 
             results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert len(results.invalid_path_scans) == 0
-            assert len(results.valid_path_scans) == 1
+            assert len(results.paths_containing_personal_data) == 0
+            assert len(results.paths_without_personal_data) == 1
 
     async def test_scan_returns_matches_for_location(self):
         async with NamedTemporaryFile(
@@ -106,8 +109,8 @@ class TestPresidioScanner:
 
             results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
-            assert len(results.invalid_path_scans) == 1
-            assert len(results.valid_path_scans) == 0
+            assert len(results.paths_containing_personal_data) == 1
+            assert len(results.paths_without_personal_data) == 0
 
     @pytest.mark.parametrize(
         "file",
@@ -125,5 +128,55 @@ class TestPresidioScanner:
             mock_exclusions.return_value = []
             results = await PresidioScanner(verbose=True, paths=[file]).scan()
 
-            assert len(results.invalid_path_scans) > 0
-            assert len(results.valid_path_scans) == 0
+            assert len(results.paths_containing_personal_data) > 0
+            assert len(results.paths_without_personal_data) == 0
+
+    async def test_scan_for_files_with_each_path_status_returns_expected_results(self):
+        async with TemporaryDirectory(delete=True) as td:
+            files_to_skip = [
+                NamedTemporaryFileSync(
+                    dir=td,
+                    suffix=".pdf",
+                    mode="w+t",
+                    prefix=f"SKIPPED_FILE_{i}_",
+                )
+                for i in range(10, randint(15, 30))
+            ]
+
+            files_to_exclude = [
+                NamedTemporaryFileSync(
+                    dir=td,
+                    suffix=".txt",
+                    mode="w+t",
+                    prefix=f"EXCLUDED_FILE_{i}_",
+                )
+                for i in range(10, randint(15, 30))
+            ]
+            exclude_file = NamedTemporaryFileSync(dir=td, mode="w+t")
+            exclude_file.writelines(f"{exclude_file.name}\r" for exclude_file in files_to_exclude)
+            exclude_file.seek(0)
+
+            files_to_with_no_personal_data = [
+                NamedTemporaryFileSync(
+                    dir=td,
+                    suffix=".txt",
+                    mode="w+t",
+                    prefix=f"NO_PERSONAL_DATA_FILE_{i}_",
+                )
+                for i in range(10, randint(15, 30))
+            ]
+
+            all_files = files_to_skip + files_to_exclude + files_to_with_no_personal_data
+
+            with patch.object(scanner, "PRESIDIO_EXCLUSIONS_FILE_PATH", exclude_file.name):
+                paths = [file.name for file in all_files]
+                scan_result = await PresidioScanner(verbose=True, paths=paths).scan()
+                assert set([result.path for result in scan_result.paths_excluded]) == set(
+                    [file.name for file in files_to_exclude]
+                )
+                assert set([result.path for result in scan_result.paths_skipped]) == set(
+                    [file.name for file in files_to_skip]
+                )
+                assert set([result.path for result in scan_result.paths_without_personal_data]) == set(
+                    [file.name for file in files_to_with_no_personal_data]
+                )

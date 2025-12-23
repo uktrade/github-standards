@@ -1,6 +1,9 @@
+import asyncio
+import json
+import re
+
 from io import StringIO
 from anyio import open_file
-import json
 from pathlib import Path
 from typing import List
 
@@ -12,10 +15,11 @@ from src.hooks.config import (
     DEFAULT_LANGUAGE_CODE,
     LOGGER,
     NLP_CONFIG_FILE,
+    PRESIDIO_EXCLUSIONS_FILE_PATH,
     RECOGNIZER_CONFIG_FILE,
 )
 from src.hooks.presidio.spacy_post_processing_recognizer import SpacyPostProcessingRecognizer
-from src.hooks.presidio.path_filter import PathFilter
+from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 
 logger = LOGGER
 
@@ -30,38 +34,65 @@ class PersonalDataDetection:
 
 
 class PathScanResult:
-    def __init__(self, path: str, results: List[PersonalDataDetection]) -> None:
+    def __init__(self, path: str, status: PathScanStatus, results: List[PersonalDataDetection] = []) -> None:
         self.path = path
+        self.status = status
         self.results = results
 
 
 class PresidioScanResult:
-    def __init__(
-        self,
-    ) -> None:
-        self.valid_path_scans: List[PathScanResult] = []
-        self.invalid_path_scans: List[PathScanResult] = []
+    def __init__(self, results: List[PathScanResult] = []) -> None:
+        self.paths_without_personal_data: List[PathScanResult] = []
+        self.paths_containing_personal_data: List[PathScanResult] = []
+        self.paths_skipped: List[PathScanResult] = []
+        self.paths_excluded: List[PathScanResult] = []
+        self.add_path_scan_results(results)
 
-    def add_scan_result(self, scan_result: PathScanResult):
-        if not scan_result.results or len(scan_result.results) == 0:
-            self.valid_path_scans.append(scan_result)
-        else:
-            self.invalid_path_scans.append(scan_result)
+    def add_path_scan_results(self, scan_results: List[PathScanResult]):
+        for scan_result in scan_results:
+            self.add_path_scan_result(scan_result)
+
+    def add_path_scan_result(self, scan_result: PathScanResult):
+        if scan_result.status == PathScanStatus.EXCLUDED:
+            self.paths_excluded.append(scan_result)
+
+        if scan_result.status == PathScanStatus.FAILED:
+            self.paths_containing_personal_data.append(scan_result)
+
+        if scan_result.status == PathScanStatus.PASSED:
+            self.paths_without_personal_data.append(scan_result)
+
+        if scan_result.status == PathScanStatus.SKIPPED:
+            self.paths_skipped.append(scan_result)
 
     def __str__(self) -> str:
         with StringIO() as output_buffer:
             output_buffer.write("--------PERSONAL DATA SCAN SUMMARY--------")
-            if self.valid_path_scans:
+            if self.paths_excluded:
+                output_buffer.write("\n\nFILES EXCLUDED\n")
+                excluded_paths_table = PrettyTable(["Path"])
+                for excluded_path in self.paths_excluded:
+                    excluded_paths_table.add_row([excluded_path.path])
+                output_buffer.write(str(excluded_paths_table))
+
+            if self.paths_skipped:
+                output_buffer.write("\n\nFILES SKIPPED\n")
+                skipped_paths_table = PrettyTable(["Path"])
+                for skipped_path in self.paths_skipped:
+                    skipped_paths_table.add_row([skipped_path.path])
+                output_buffer.write(str(skipped_paths_table))
+
+            if self.paths_without_personal_data:
                 output_buffer.write("\n\nFILES WITHOUT PERSONAL DATA\n")
                 paths_without_issues_table = PrettyTable(["Path"])
-                for valid_path in self.valid_path_scans:
+                for valid_path in self.paths_without_personal_data:
                     paths_without_issues_table.add_row([valid_path.path])
                 output_buffer.write(str(paths_without_issues_table))
 
-            if self.invalid_path_scans:
+            if self.paths_containing_personal_data:
                 output_buffer.write("\n\nFILES CONTAINING PERSONAL DATA\n")
 
-                for invalid_path_scan in self.invalid_path_scans:
+                for invalid_path_scan in self.paths_containing_personal_data:
                     output_buffer.write(f"\n{invalid_path_scan.path}\n")
                     table = PrettyTable(["Type", "Value", "Score"])
                     for invalid_path in invalid_path_scan.results:
@@ -117,11 +148,14 @@ class PresidioScanner:
         return [PersonalDataDetection(result, content[result.start : result.end]) for result in results]
 
     async def _scan_path(
-        self,
-        analyzer: AnalyzerEngine,
-        entities: List[str],
-        file_path: str,
+        self, analyzer: AnalyzerEngine, entities: List[str], file_path: str, exclusions: List[re.Pattern[str]]
     ) -> PathScanResult:
+        sources = PathFilter()
+
+        invalid_check_result = await sources._check_is_path_invalid(file_path, exclusions)
+        if invalid_check_result is not None:
+            return PathScanResult(file_path, invalid_check_result)
+
         file_extension = Path(file_path).suffix.lower()
         async with await open_file(file_path, "r", encoding="utf-8") as fs:
             results: List[PersonalDataDetection] = []
@@ -133,23 +167,30 @@ class PresidioScanner:
                 contents = await fs.read()
                 logger.debug("Scanning file %s by reading all contents", file_path)
                 results.extend(self._scan_content(analyzer, entities, contents))
+
             return PathScanResult(
                 file_path,
+                status=PathScanStatus.PASSED if len(results) == 0 else PathScanStatus.FAILED,
                 results=results,
             )
 
     async def scan(
         self,
-        github_action: bool = False,
     ) -> PresidioScanResult:
-        sources = PathFilter(self.verbose)
+        sources = PathFilter()
 
         analyzer = self._get_analyzer()
         entities = analyzer.get_supported_entities()
 
-        scan_result = PresidioScanResult()
+        exclusions = await sources._get_exclusions(exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH)
+        logger.debug("Personal data exclusions file loaded with exclusions %s", exclusions)
 
-        async for path in sources.get_paths_to_scan(self.paths, github_action):
-            path_scan_result = await self._scan_path(analyzer, entities, path)
-            scan_result.add_scan_result(path_scan_result)
+        tasks: list[asyncio.Task] = []
+        async with asyncio.TaskGroup() as tg:
+            for path in self.paths:
+                tasks.append(
+                    tg.create_task(self._scan_path(analyzer, entities, path, exclusions)),
+                )
+        scan_result = PresidioScanResult(results=[task.result() for task in tasks])
+
         return scan_result

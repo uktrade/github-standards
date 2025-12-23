@@ -77,7 +77,7 @@ class TrufflehogScanner:
             trufflehog_cmd_args.append("--since-commit=main")
 
         if await Path(TRUFFLEHOG_EXCLUSIONS_FILE_PATH).exists():
-            logger.debug("This repo has an exclusions file, adding this file to the trufflehog runner")
+            logger.debug("Security scanner exclusions file loaded")
             trufflehog_cmd_args.append(f"--exclude-paths={TRUFFLEHOG_EXCLUSIONS_FILE_PATH}")
 
         trufflehog_detectors = ",".join(allowed_vendor_codes)

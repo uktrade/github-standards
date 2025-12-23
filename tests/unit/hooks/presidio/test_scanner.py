@@ -4,11 +4,21 @@ import pytest
 import tempfile
 
 
+from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanner, PathScanResult
-from unittest.mock import ANY, AsyncMock, MagicMock, call, patch
+from unittest.mock import ANY, MagicMock, call, patch
 
 
 class TestPresidioScanner:
+    async def test_scan_path_returns_when_invalid_path(self):
+        with (
+            patch.object(PathFilter, "_check_is_path_invalid") as mock_check_is_path_invalid,
+        ):
+            mock_check_is_path_invalid.return_value = PathScanStatus.EXCLUDED
+            result = await PresidioScanner()._scan_path(MagicMock(), [], "a", [])
+
+            assert result.status == PathScanStatus.EXCLUDED
+
     @pytest.mark.parametrize("file_extension", [".csv"])
     async def test_scan_path_scans_line_by_line_for_file_extensions_with_expected_results(self, file_extension):
         with (
@@ -21,14 +31,14 @@ class TestPresidioScanner:
             found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
             found_phone = PersonalDataDetection(RecognizerResult("PHONE", 0, 10, 1), text_value="B")
 
-            expected_scan_result = PathScanResult(tf.name, [found_email, found_phone])
+            expected_scan_result = PathScanResult(tf.name, PathScanStatus.FAILED, [found_email, found_phone])
             mock_scan_content.side_effect = [
                 [found_email],
                 [],
                 [found_phone],
             ]
 
-            result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name)
+            result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
             mock_scan_content.assert_has_calls(
                 [
                     call(ANY, ANY, "Has Email"),
@@ -51,10 +61,10 @@ class TestPresidioScanner:
 
             found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
 
-            expected_scan_result = PathScanResult(tf.name, [found_email])
+            expected_scan_result = PathScanResult(tf.name, PathScanStatus.FAILED, [found_email])
             mock_scan_content.return_value = [found_email]
 
-            result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name)
+            result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
 
             mock_scan_content.assert_called_once_with(ANY, ANY, contents)
             assert pickle.dumps(result) == pickle.dumps(expected_scan_result)
@@ -85,24 +95,22 @@ class TestPresidioScanner:
 
         assert pickle.dumps(detections) == pickle.dumps(expected_scan_results)
 
-    async def test_scan_with_no_paths_returns_empty_detections_list(self):
-        with patch("src.hooks.presidio.scanner.PathFilter") as mock_path_filter:
-            mock_path_filter.return_value.get_paths_to_scan.return_value = AsyncMock(return_value=[])
+    async def test_scan_with_no_paths_returns_result_with_empty_paths(self):
+        with patch.object(PathFilter, "_get_exclusions") as mock_path_filter:
+            mock_path_filter.return_value = []
 
             result = await PresidioScanner().scan()
-            assert result.invalid_path_scans == []
-            assert result.valid_path_scans == []
+            assert result.paths_containing_personal_data == []
+            assert result.paths_without_personal_data == []
 
-    async def test_scan_calls_scan_path_for_every_path_returned_from_get_paths_to_scan(self):
+    async def test_scan_calls_scan_path_for_every_path(self):
         with (
-            patch("src.hooks.presidio.scanner.PathFilter") as mock_path_filter,
+            patch.object(PathFilter, "_get_exclusions") as mock_path_filter,
             patch.object(PresidioScanner, "_scan_path") as mock_scan_path,
         ):
-            mock_path_filter.return_value.get_paths_to_scan.return_value.__aiter__.return_value = ["file1.txt", "file3.csv"]
-            mock_scan_path.side_effect = [PathScanResult("file1.txt", results=[]), PathScanResult("file3.csv", results=[])]
+            mock_path_filter.return_value = []
+            test_paths = ["a.txt", "b.yml", "c.py"]
 
-            result = await PresidioScanner(paths=["file1.txt", "file2.txt", "file3.csv"]).scan()
-            assert len(result.invalid_path_scans) == 0
-            assert len(result.valid_path_scans) == 2
+            await PresidioScanner(paths=test_paths).scan()
 
-            mock_scan_path.assert_has_calls([call(ANY, ANY, "file1.txt"), call(ANY, ANY, "file3.csv")], any_order=True)
+            mock_scan_path.assert_has_calls([call(ANY, ANY, path, []) for path in test_paths])
