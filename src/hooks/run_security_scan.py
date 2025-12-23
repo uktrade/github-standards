@@ -1,8 +1,10 @@
 import asyncio
 import aiohttp
+import git
 
 from pathlib import Path
 from typing import List
+
 
 from src.hooks.config import (
     LOGGER,
@@ -34,7 +36,10 @@ class RunSecurityScanResult(HookRunResult):
             if self.trufflehog_scan_result.detected_keys is not None:
                 is_success = False
         if self.presidio_scan_result:
-            if self.presidio_scan_result.invalid_path_scans and len(self.presidio_scan_result.invalid_path_scans) > 0:
+            if (
+                self.presidio_scan_result.paths_containing_personal_data
+                and len(self.presidio_scan_result.paths_containing_personal_data) > 0
+            ):
                 is_success = False
         return is_success
 
@@ -135,14 +140,16 @@ class RunSecurityScan(Hook):
         )
 
     async def run_personal_scan(self) -> PresidioScanResult:
+        paths_to_scan = self.paths
+        if self.github_action:
+            repo = git.Repo(self.paths[0])
+            logger.debug("Scanning files in git repository %s", repo)
+            paths_to_scan = [entry.abspath for entry in repo.tree().traverse()]
+
         return await PresidioScanner(
             self.verbose,
-            self.paths,
-        ).scan(self.github_action)
-
-        # TODO
-        # File skipped due to file extension
-        # File excluded from scan
+            paths_to_scan,
+        ).scan()
 
     async def run(self) -> RunSecurityScanResult:
         security_scan_task = None
@@ -150,11 +157,13 @@ class RunSecurityScan(Hook):
 
         async with asyncio.TaskGroup() as tg:
             if SECURITY_SCAN not in self.excluded_scans:
+                logger.debug("Running security scan")
                 security_scan_task = tg.create_task(self.run_security_scan())
             else:
                 logger.debug("Security scan is excluded")
 
             if PERSONAL_DATA_SCAN not in self.excluded_scans:
+                logger.debug("Running personal data scan")
                 personal_data_scan_task = tg.create_task(self.run_personal_scan())
             else:
                 logger.debug("Personal data scan is excluded")
@@ -163,5 +172,6 @@ class RunSecurityScan(Hook):
         personal_data_scan_result = personal_data_scan_task.result() if personal_data_scan_task else None
 
         return RunSecurityScanResult(
-            trufflehog_scan_result=security_scan_result, presidio_scan_result=personal_data_scan_result
+            trufflehog_scan_result=security_scan_result,
+            presidio_scan_result=personal_data_scan_result,
         )
