@@ -1,28 +1,27 @@
-import git
 import re
 
 from anyio import open_file, Path
-
+from enum import Enum
 from typing import List
 
 
 from src.hooks.config import (
     DEFAULT_FILE_TYPES,
     LOGGER,
-    PRESIDIO_EXCLUSIONS_FILE_PATH,
 )
 
 logger = LOGGER
 
 
+class PathScanStatus(Enum):
+    SKIPPED = 1
+    EXCLUDED = 2
+    PASSED = 3
+    FAILED = 4
+
+
 class PathFilter:
     LINE_BY_LINE_FILE_EXTENSIONS = [".csv"]
-
-    def __init__(
-        self,
-        verbose: bool = False,
-    ) -> None:
-        self.verbose = verbose
 
     def _is_path_excluded(self, path: str, exclusions: List[re.Pattern[str]]):
         for exclusion in exclusions:
@@ -34,17 +33,17 @@ class PathFilter:
         logger.debug("The path %s was not found in any exclusion regexes", path)
         return False
 
-    async def _should_scan_path(self, path: str, exclusions: List[re.Pattern[str]]):
+    async def _check_is_path_invalid(self, path: str, exclusions: List[re.Pattern[str]]):
         if self._is_path_excluded(path, exclusions):
-            return False
+            return PathScanStatus.EXCLUDED
 
         if not await Path(path).exists():
             logger.debug("Path %s does not exist", path)
-            return False
+            return PathScanStatus.SKIPPED
 
         if not await Path(path).is_file():
             logger.debug("Path %s is a directory, presidio can only scan files", path)
-            return False
+            return PathScanStatus.SKIPPED
 
         file_extension = Path(path).suffix
         if file_extension not in DEFAULT_FILE_TYPES:
@@ -53,15 +52,15 @@ class PathFilter:
                 path,
                 DEFAULT_FILE_TYPES,
             )
-            return False
+            return PathScanStatus.SKIPPED
 
         logger.debug(
             "Path %s is valid and should be scanned",
             path,
         )
-        return True
+        return None
 
-    async def _get_exclusions(self, exclusions_file: str):
+    async def _get_exclusions(self, exclusions_file: str) -> List[re.Pattern[str]]:
         exclusions = []
 
         if not await Path(exclusions_file).exists():
@@ -80,20 +79,3 @@ class PathFilter:
                     )
                     raise
         return exclusions
-
-    async def get_paths_to_scan(
-        self,
-        paths: List[str],
-        github_action: bool = False,
-    ):
-        if github_action:
-            repo = git.Repo(paths[0])
-            logger.debug("Scanning files in git repository %s", repo)
-            paths = [entry.abspath for entry in repo.tree().traverse()]
-
-        exclusions = await self._get_exclusions(exclusions_file=PRESIDIO_EXCLUSIONS_FILE_PATH)
-        logger.debug("Exclusions file loaded with exclusions %s", exclusions)
-
-        for path in paths:
-            if await self._should_scan_path(path, exclusions):
-                yield path
