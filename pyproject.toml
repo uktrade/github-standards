@@ -5,6 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "github-standards"
 description = "Hooks for use in a DBT development environment"
+version = "v1.2.1"
 readme = "README.md"
 keywords = ["pre-commit", "dbt", "hooks", "security"]
 requires-python = ">=3.13"
@@ -20,7 +21,7 @@ dependencies = [
     "anyio>=4.12.0",
     "aiohttp>=3.13.2",
 ]
-version = "v1.2.1"
+
 
 [project.scripts]
 hooks-cli = "src.hooks.cli:main"
