@@ -10,13 +10,14 @@ from aiohttp.pytest_plugin import AiohttpClient
 from pathlib import Path
 from presidio_analyzer import RecognizerResult
 
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from src.hooks.config import (
     LOGGER,
     PERSONAL_DATA_SCAN,
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
+from src.hooks.presidio.path_filter import PathScanStatus
 from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PathScanResult
 from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.trufflehog.scanner import TrufflehogScanResult
@@ -149,10 +150,34 @@ class TestRunSecurityScan:
             result = await scan.run_security_scan()
             assert result.detected_keys is None
 
+    async def test_run_personal_scan_with_github_action_set_true_calls_scanner_with_all_files_in_git_repo(self):
+        with (
+            patch("src.hooks.run_security_scan.git.Repo") as mock_repo,
+            patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner,
+        ):
+            git_file_1 = MagicMock()
+            git_file_1.abspath = "1.rt"
+
+            mock_repo.return_value.tree.return_value.traverse.return_value = [git_file_1]
+
+            mock_scanner.return_value = AsyncMock()
+            scan = RunSecurityScan(github_action=True, paths=["."])
+            await scan.run_personal_scan()
+            mock_scanner.assert_called_once_with(False, ["1.rt"])
+
+    async def test_run_personal_scan_with_github_action_set_false_calls_scanner_with_files_in_paths(self):
+        with (
+            patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner,
+        ):
+            mock_scanner.return_value = AsyncMock()
+            scan = RunSecurityScan(github_action=False, paths=["1.txt", "2.csv"])
+            await scan.run_personal_scan()
+            mock_scanner.assert_called_once_with(False, ["1.txt", "2.csv"])
+
     async def test_run_personal_scan_with_data_detected_returns_expected_results(self):
         detection = PersonalDataDetection(RecognizerResult("test_recognizer", 1, 2, 1), "found value")
         scan_result = PresidioScanResult()
-        scan_result.add_scan_result(PathScanResult("file.txt", [detection]))
+        scan_result.add_path_scan_result(PathScanResult("file.txt", PathScanStatus.FAILED, [detection]))
         mock_scan_result = AsyncMock()
         mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
@@ -160,12 +185,12 @@ class TestRunSecurityScan:
             scan = RunSecurityScan()
             result = await scan.run_personal_scan()
 
-            assert len(result.invalid_path_scans) == 1
-            assert len(result.valid_path_scans) == 0
+            assert len(result.paths_containing_personal_data) == 1
+            assert len(result.paths_without_personal_data) == 0
 
     async def test_run_personal_scan_without_data_detected_returns_expected_results(self):
         scan_result = PresidioScanResult()
-        scan_result.add_scan_result(PathScanResult("file.txt", []))
+        scan_result.add_path_scan_result(PathScanResult("file.txt", PathScanStatus.PASSED, []))
         mock_scan_result = AsyncMock()
         mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
@@ -173,8 +198,8 @@ class TestRunSecurityScan:
             scan = RunSecurityScan()
             result = await scan.run_personal_scan()
 
-            assert len(result.invalid_path_scans) == 0
-            assert len(result.valid_path_scans) == 1
+            assert len(result.paths_containing_personal_data) == 0
+            assert len(result.paths_without_personal_data) == 1
 
     async def test_run_with_run_security_scan_true_and_run_personal_scan_true_returns_result_for_both(
         self,

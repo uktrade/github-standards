@@ -1,6 +1,7 @@
 import anyio
 import argparse
 import sys
+import time
 
 
 from typing import List, Optional
@@ -71,6 +72,8 @@ def parse_args(argv):
 
 
 async def main_async(argv: Optional[List[str]] = None):
+    hook_run_time = time.time()
+
     args = parse_args(argv)
 
     init_logger(args.verbose)
@@ -95,6 +98,9 @@ async def main_async(argv: Optional[List[str]] = None):
 
     run_result = await hook.run()
     logger.info("%s", run_result.run_summary())
+
+    hook_run_time = time.time() - hook_run_time
+    logger.debug("Hook took %s seconds", hook_run_time)
 
     if not run_result.run_success():
         logger.info("Hook '%s' did not successfully run.", hook)
