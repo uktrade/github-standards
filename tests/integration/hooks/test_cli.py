@@ -1,10 +1,13 @@
+import os
+from random import randint
 import tempfile
+from typing import List
 from anyio import NamedTemporaryFile, TemporaryDirectory
 from unittest.mock import patch
 
 
 from src.hooks.cli import main_async, main
-from src.hooks.config import TRUFFLEHOG_ERROR_CODE
+from src.hooks.config import MAX_FILE_SIZE_BYTES, PERSONAL_DATA_SCAN, TRUFFLEHOG_ERROR_CODE
 
 
 class TestCLI:
@@ -47,8 +50,9 @@ class TestCLI:
                 mock_run_process.return_value.returncode = TRUFFLEHOG_ERROR_CODE
 
                 result = await main_async(["run_scan", "-v", root_td])
-                assert mock_run_process.was_called()
+
                 assert result == 1
+                mock_run_process.assert_called()
 
     async def test_run_scan_with_personal_data(self):
         async with (
@@ -71,7 +75,69 @@ class TestCLI:
                 mock_run_process.return_value.returncode = 0
 
                 result = await main_async(["run_scan", "-v", root_file.name])
-                assert mock_run_process.was_called()
+
+                assert result == 1
+                mock_run_process.assert_called()
+
+    async def test_run_scan_with_large_files(self):
+        async with (
+            TemporaryDirectory() as root_td,
+        ):
+            with patch("src.hooks.trufflehog.scanner.run_process") as mock_run_process:
+                large_files: List[str] = []
+                for _ in range(0, randint(3, 10)):
+                    async with NamedTemporaryFile(
+                        dir=root_td,
+                        mode="wb",
+                        prefix="large_file_",
+                        suffix=".txt",
+                        delete=False,  # Delete handled by the directory being deleted
+                    ) as ntf:
+                        await ntf.write(os.urandom(randint(MAX_FILE_SIZE_BYTES, MAX_FILE_SIZE_BYTES * 2)))
+                        large_files.append(ntf.name)
+
+                small_files: List[str] = []
+                for _ in range(0, randint(8, 15)):
+                    async with NamedTemporaryFile(
+                        dir=root_td,
+                        mode="wb",
+                        prefix="small_file_",
+                        suffix=".txt",
+                        delete=False,  # Delete handled by the directory being deleted
+                    ) as ntf:
+                        await ntf.write(os.urandom(randint(10, MAX_FILE_SIZE_BYTES - 1)))
+                        small_files.append(ntf.name)
+
+                # trufflehog needs to be installed, mock the subprocess.run call to avoid calling directly
+                mock_run_process.return_value.stdout = "".encode()
+                mock_run_process.return_value.returncode = 0
+
+                result = await main_async(["run_scan", "-v", "-x", PERSONAL_DATA_SCAN] + large_files + small_files)
+
+                mock_run_process.assert_called()
+                assert result == 1
+
+    async def test_run_scan_with_blocked_files(self):
+        async with (
+            TemporaryDirectory() as root_td,
+        ):
+            with patch("src.hooks.trufflehog.scanner.run_process") as mock_run_process:
+                blocked_files: List[str] = []
+                for file_extension in [".pdf", ".xlsx", ".bak", ".pem"]:
+                    async with NamedTemporaryFile(
+                        dir=root_td,
+                        mode="wb",
+                        suffix=file_extension,
+                        delete=False,  # Delete handled by the directory being deleted
+                    ) as ntf:
+                        blocked_files.append(ntf.name)
+
+                mock_run_process.return_value.stdout = "".encode()
+                mock_run_process.return_value.returncode = 0
+
+                result = await main_async(["run_scan", "-v"] + blocked_files)
+
+                mock_run_process.assert_called()
                 assert result == 1
 
     async def test_run_scan_with_no_failures(self):
@@ -93,5 +159,6 @@ class TestCLI:
                 mock_run_process.return_value.returncode = 0
 
                 result = await main_async(["run_scan", "-v", root_file.name, dir_file2.name])
+
+                mock_run_process.assert_called()
                 assert result == 0
-                assert mock_run_process.was_called()
