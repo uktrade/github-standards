@@ -17,6 +17,7 @@ from src.hooks.config import (
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
+from src.hooks.file_verification.scanner import FileVerificationScanResult
 from src.hooks.presidio.path_filter import PathScanStatus
 from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PathScanResult
 from src.hooks.run_security_scan import RunSecurityScan
@@ -201,22 +202,39 @@ class TestRunSecurityScan:
             assert len(result.paths_containing_personal_data) == 0
             assert len(result.paths_without_personal_data) == 1
 
+    async def test_run_file_verification_with_github_action_true_returns_none(self):
+        scan_result = FileVerificationScanResult()
+
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value = scan_result
+
+        with patch("src.hooks.run_security_scan.FileVerificationScanner") as mock_scanner:
+            mock_scanner().scan = mock_scan_result
+
+            scan = RunSecurityScan(github_action=True)
+
+            assert await scan.run_file_verification_scan() is None
+
     async def test_run_with_run_security_scan_true_and_run_personal_scan_true_returns_result_for_both(
         self,
     ):
         with (
             patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
             patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
+            patch.object(RunSecurityScan, "run_file_verification_scan") as mock_run_file_verification_scan,
         ):
             mock_run_security_scan.return_value = TrufflehogScanResult()
             mock_run_personal_scan.return_value = PresidioScanResult()
+            mock_run_file_verification_scan.return_value = FileVerificationScanResult()
 
             result = await RunSecurityScan().run()
             assert result.trufflehog_scan_result is not None
             assert result.presidio_scan_result is not None
+            assert result.trufflehog_scan_result is not None
 
             mock_run_personal_scan.assert_called_once()
             mock_run_security_scan.assert_called_once()
+            mock_run_file_verification_scan.assert_called_once()
 
     async def test_run_with_run_security_scan_excluded_does_not_run_a_security_scan(
         self,
