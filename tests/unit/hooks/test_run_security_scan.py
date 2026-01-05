@@ -69,7 +69,7 @@ class TestRunSecurityScan:
             patch.object(RunSecurityScan, "_get_client_session", return_value=aio_client_with_app),
             pytest.raises(ClientResponseError),
         ):
-            assert await RunSecurityScan()._get_version_from_remote() is False
+            await RunSecurityScan()._get_version_from_remote()
 
     @pytest.mark.asyncio
     async def test_get_version_from_remote_returns_expected_json(self, aio_client_with_app):

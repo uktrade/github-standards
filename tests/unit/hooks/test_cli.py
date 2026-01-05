@@ -105,7 +105,7 @@ class TestCLI:
                 assert result.verbose is False
 
     class TestMain:
-        async def test_no_arguments_provided_returns_expected_error(self):
+        def test_no_arguments_provided_returns_expected_error(self):
             testargs = []
             with mock.patch.object(sys, "argv", testargs):
                 assert main_function(testargs) == 1

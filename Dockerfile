@@ -6,7 +6,10 @@ FROM ghcr.io/astral-sh/uv:0.9.17-python3.13-bookworm-slim AS uv_builder
 
 # This ARG needs to be duplicated here, as the FROM statement above clears the value
 ARG TRUFFLEHOG_VERSION
-RUN if [ -z "$TRUFFLEHOG_VERSION" ]; then echo 'Environment variable TRUFFLEHOG_VERSION must be specified. Exiting.'; exit 1; fi
+RUN if [ -z "$TRUFFLEHOG_VERSION" ] ; \
+    then echo 'Environment variable TRUFFLEHOG_VERSION must be specified. Exiting.'; \
+    exit 1; \
+    fi
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
