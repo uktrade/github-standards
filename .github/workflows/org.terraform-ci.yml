@@ -33,17 +33,74 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+      - name: Determine Terraform Version
+        id: tf-version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          VERSION=""
+
+          # Check for .terraform-version file
+          if [[ -f ".terraform-version" ]]; then
+            VERSION=$(sed -E 's/#.*//; s/[[:space:]]+//g' .terraform-version)
+            if [[ -n "$VERSION" ]]; then
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "Terraform version resolved from .terraform-version: $VERSION"
+              exit 0
+            fi
+          fi
+          RV=$(grep -Rho 'required_version *= *"= *[0-9]+\.[0-9]+\.[0-9]+"' . || true)
+          if [[ -n "$RV" ]]; then
+            VERSION=$(echo "$RV" | sed -E 's/.*"= *([0-9]+\.[0-9]+\.[0-9]+)".*/\1/' | head -n1)
+            if [[ -n "$VERSION" ]]; then
+              echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+              echo "Terraform version resolved from required_version: $VERSION"
+              exit 0
+            fi
+          fi
+          VERSION="latest"
+          echo "version=latest" >> "$GITHUB_OUTPUT"
+          echo "Terraform version resolved to fallback: $VERSION"
 
       - name: Setup Terraform
         id: setup-tf
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
+        with:
+          terraform_version: ${{ steps.tf-version.outputs.version }}
+          terraform_wrapper: false
 
       # fmt is local-only
       - name: FMT (repo-wide)
         env:
           TF_PLUGIN_CACHE_DIR: ""
         run: terraform fmt -recursive -check
+
+      # GitHub App token for cloning private module repos
+      - name: Verify GitHub App secrets present
+        env:
+          APP_ID: ${{ secrets.TERRAFORM_MODULE_ACCESS_APP_ID }}
+          APP_PRIVATE_KEY: ${{ secrets.TERRAFORM_MODULE_ACCESS_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          [ -n "${APP_ID:-}" ] || { echo "Missing secret APP_ID"; exit 1; }
+          [ -n "${APP_PRIVATE_KEY:-}" ] || { echo "Missing secret APP_PRIVATE_KEY"; exit 1; }
+
+      - name: Get GitHub App token for modules
+        id: app-token
+        uses: actions/create-github-app-token@7e473efe3cb98aa54f8d4bac15400b15fad77d94
+        with:
+          owner: uktrade
+          app-id: ${{ secrets.TERRAFORM_MODULE_ACCESS_APP_ID }}
+          private-key: ${{ secrets.TERRAFORM_MODULE_ACCESS_PRIVATE_KEY }}
+
+      - name: Configure git auth for private module clones
+        env:
+          TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
+          git config --global --get-regexp '^url\..*\.insteadOf$' || true
 
       # ---- Provider cache (used by init/validate) ----
       - name: Prepare Terraform provider cache dir
@@ -61,6 +118,9 @@ jobs:
           restore-keys: |
             tf-plugins-${{ runner.os }}-tf${{ steps.setup-tf.outputs.terraform_version }}-
             tf-plugins-${{ runner.os }}-
+      - name: Clear per-directory .terraform providers
+        run: |
+          find . -type d -name ".terraform" -exec rm -rf {} +
 
       # ---- Discover roots (skip examples entirely)
       - name: Discover Terraform dirs (skip examples)
@@ -126,7 +186,7 @@ jobs:
             echo "==> terraform init:   $d"
             echo "=============================="
             lockflag=()
-            [[ -f "$d/.terraform.lock.hcl" ]] && lockflag=(-lockfile=readonly)
+            [[ -f "$d/.terraform.lock.hcl" ]] && lockflag=(-lockfile=update)
 
             # INIT — SOFT-SKIP on auth/path/download issues
             log="$(mktemp)"
