@@ -11,8 +11,8 @@ on:
     branches: [main, master, dev]
 
 jobs:
-  security-vulnerability-scan:
-    # Bandit has it's own github action, however it always installs the latest version and doesn't allow version pinning
+  security-scan:
+    # Bandit has its own GitHub Action; however, it always installs the latest version and does not allow version pinning.
     env:
       python-version: "3.13.9"
       bandit-version: "1.9.1"
@@ -23,8 +23,10 @@ jobs:
       actions: read
       contents: read
     steps:
+      ############# Bandit ##################
+      # TODO: Create an ad-hoc DBT Bandit Action
       - name: Set up Python
-        uses: actions/setup-python@e797f83bcb11b83ae66e0230d6156d7c80228e7c
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
         with:
           python-version: ${{env.python-version}}
 
@@ -33,7 +35,7 @@ jobs:
         run: pip install 'bandit[sarif,toml]==${{env.bandit-version}}'
 
       - name: Checkout repository
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Run Bandit
         shell: bash
@@ -50,6 +52,48 @@ jobs:
 
       - name: Upload SARIF file
         if: ${{steps.check-failures.outputs.has_errors == 'true'}}
-        uses: github/codeql-action/upload-sarif@4e94bd11f71e507f7f87df81788dff88d1dacbfb
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
         with:
           sarif_file: ${{env.results-file}}
+
+  vulnerability-scan:
+    # Checking for public, skipping private and internal
+    if: ${{ github.event.repository.visibility == 'public' }}
+    env:
+      audit-dir: "audit-reports"
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Git clone the repository"
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+
+      - name: "Git clone the standards repository"
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          repository: "uktrade/github-standards"
+          path: github-standards
+          sparse-checkout: .github/actions # This appears misleading, it always checks out the entire repo contents
+
+      - name: "Create audit directory"
+        shell: bash
+        run: mkdir -p "${{ env.audit-dir }}"
+        continue-on-error: true
+
+      - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
+        uses: ./github-standards/.github/actions/vulnerability-scan/python
+        continue-on-error: true
+        with:
+          python-version: ${{ vars.PYTHON_VERSION }}
+          audit-dir: ${{ env.audit-dir }}
+
+      - name: Notify PR creator
+        # TODO: Ensure only a single comment is created per PR, updated on each run
+        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        uses: ./github-standards/.github/actions/notify/vulnerability
+        continue-on-error: true
+        with:
+          token: ${{ github.token }}
+          audit-dir: ${{ env.audit-dir }}

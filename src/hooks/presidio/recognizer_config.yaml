@@ -8,7 +8,6 @@ recognizers:
     type: predefined
     enabled: false # Too many false positives for now
     supported_entities:
-      - PERSON
       - LOCATION
 
   - name: EmailRecognizer
@@ -18,6 +17,7 @@ recognizers:
     type: predefined
     supported_regions:
       - GB
+    leniency: 2
   
   - name: "UKPostcodeRecognizer"
     supported_language: "en"

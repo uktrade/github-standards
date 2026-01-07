@@ -1,0 +1,23 @@
+name: "Organisation ruleset test: Common CI"
+
+on:
+  push:
+    branches-ignore:
+      - main
+    paths:
+      - .github/workflows/org.common-ci.test.yml
+  pull_request:
+  merge_group:
+  branch_protection_rule:
+    types: [edited]
+
+jobs:
+  pre-commit-check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout current repo
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}

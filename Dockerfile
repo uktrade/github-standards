@@ -2,7 +2,7 @@
 # Using a multi-stage image to create a final image without uv.
 # First, build the application in the `/app` directory.
 ARG TRUFFLEHOG_VERSION='USE_BUILD_ARG'
-FROM ghcr.io/astral-sh/uv:python3.13-bookworm-slim AS uv_builder
+FROM ghcr.io/astral-sh/uv:0.9.17-python3.13-bookworm-slim AS uv_builder
 
 # This ARG needs to be duplicated here, as the FROM statement above clears the value
 ARG TRUFFLEHOG_VERSION

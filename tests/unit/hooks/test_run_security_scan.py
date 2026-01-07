@@ -1,18 +1,34 @@
+import json
+import pytest
+import requests
+
+import pytest_asyncio
+
+from aiohttp import ClientResponseError, web
+from aiohttp.pytest_plugin import AiohttpClient
+
 from pathlib import Path
 from presidio_analyzer import RecognizerResult
-import requests
-import requests_mock
-import tempfile
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 from src.hooks.config import (
+    LOGGER,
     PERSONAL_DATA_SCAN,
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
-from src.hooks.hooks_base import HookRunResult
-from src.hooks.presidio.scanner import PersonalDataDetection, ScanResult
+from src.hooks.presidio.path_filter import PathScanStatus
+from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PathScanResult
 from src.hooks.run_security_scan import RunSecurityScan
+from src.hooks.trufflehog.scanner import TrufflehogScanResult
+
+
+@pytest_asyncio.fixture
+async def aio_client_with_app(aiohttp_client: AiohttpClient):
+    web_app = web.Application()
+    client = await aiohttp_client(web_app)
+    client.app.router._frozen = False  # Allows setting fake requests inside a unit test
+    return client
 
 
 class TestRunSecurityScan:
@@ -42,170 +58,186 @@ class TestRunSecurityScan:
             mock_is_dir.return_value = True
             assert RunSecurityScan(paths=["/a/b/c"], github_action=True).validate_args() is True
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(self):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-        """
-
+    @pytest.mark.asyncio
+    async def test_get_version_from_remote_raises_exception_for_http_errors(self, aio_client_with_app):
+        aio_client_with_app.app.router.add_route(
+            "GET",
+            RELEASE_CHECK_URL,
+            lambda _: web.Response(status=404),
+        )
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
+            patch.object(RunSecurityScan, "_get_client_session", return_value=aio_client_with_app),
+            pytest.raises(ClientResponseError),
         ):
-            tf.write(yaml)
-            tf.seek(0)
+            assert await RunSecurityScan()._get_version_from_remote() is False
 
-            assert RunSecurityScan().validate_hook_settings() is False
+    @pytest.mark.asyncio
+    async def test_get_version_from_remote_returns_expected_json(self, aio_client_with_app):
+        aio_client_with_app.app.router.add_route(
+            "GET",
+            RELEASE_CHECK_URL,
+            lambda _: web.Response(status=200, content_type="application/json", text=json.dumps({"tag_name": "v1122"})),
+        )
+        with (
+            patch.object(RunSecurityScan, "_get_client_session", return_value=aio_client_with_app),
+        ):
+            assert await RunSecurityScan()._get_version_from_remote() == "v1122"
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_false(
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(
         self,
     ):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v1
-        """
-
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
-            patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v2"),
         ):
-            tf.write(yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards"}
 
-            assert RunSecurityScan().validate_hook_settings() is False
+            assert await RunSecurityScan()._validate_hook_settings(repo) is False
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_when_remote_version_http_error_returns_true(
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_true_but_logs_error(
+        self,
+        caplog,
+    ):
+        with (
+            patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
+            patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v5"),
+        ):
+            logger = LOGGER
+            logger.propagate = True  # Enable propagation for this logger
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v3"}
+
+            assert await RunSecurityScan()._validate_hook_settings(repo) is True
+            assert caplog.records[1].levelname == "ERROR"
+
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_when_remote_version_http_error_returns_true(
         self,
     ):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v1
-        """
-
+        mock_get_version_from_remote = AsyncMock()
+        mock_get_version_from_remote.side_effect = requests.exceptions.HTTPError
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
-            requests_mock.Mocker() as m,
+            patch.object(RunSecurityScan, "_get_version_from_remote", mock_get_version_from_remote),
         ):
-            m.get(RELEASE_CHECK_URL, exc=requests.exceptions.HTTPError)
-            tf.write(yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v1"}
 
-            assert RunSecurityScan().validate_hook_settings() is True
+            assert await RunSecurityScan()._validate_hook_settings(repo) is True
 
-    def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_matching_remote_version_returns_true(
+    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_matching_remote_version_returns_true(
         self,
     ):
-        yaml = b"""
-        repos:
-            - repo: https://github.com/uktrade/github-standards
-              rev: v1
-        """
-
         with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
             patch.object(RunSecurityScan, "_enforce_settings_checks", return_value=True),
-            requests_mock.Mocker() as m,
+            patch.object(RunSecurityScan, "_get_version_from_remote", return_value="v1"),
         ):
-            m.get(RELEASE_CHECK_URL, json={"tag_name": "v1"})
-            tf.write(yaml)
-            tf.seek(0)
+            repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v1"}
 
-            assert RunSecurityScan().validate_hook_settings() is True
+            assert await RunSecurityScan()._validate_hook_settings(repo) is True
 
-    def test_run_security_scan_with_error_returns_false(self):
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = "An error"
+    async def test_run_security_scan_with_detected_keys_returns_keys(self):
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value.detected_keys = "Keys found"
         with patch("src.hooks.run_security_scan.TrufflehogScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            assert scan.run_security_scan().success is False
+            result = await scan.run_security_scan()
+            assert result.detected_keys == "Keys found"
 
-    def test_run_security_scan_without_error_returns_true(self):
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = None
+    async def test_run_security_scan_without_detected_keys_returns_nothing(self):
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value.detected_keys = None
         with patch("src.hooks.run_security_scan.TrufflehogScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            assert scan.run_security_scan().success is True
+            result = await scan.run_security_scan()
+            assert result.detected_keys is None
 
-    def test_run_personal_scan_with_data_detected_returns_false(self):
+    async def test_run_personal_scan_with_github_action_set_true_calls_scanner_with_all_files_in_git_repo(self):
+        with (
+            patch("src.hooks.run_security_scan.git.Repo") as mock_repo,
+            patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner,
+        ):
+            git_file_1 = MagicMock()
+            git_file_1.abspath = "1.rt"
+
+            mock_repo.return_value.tree.return_value.traverse.return_value = [git_file_1]
+
+            mock_scanner.return_value = AsyncMock()
+            scan = RunSecurityScan(github_action=True, paths=["."])
+            await scan.run_personal_scan()
+            mock_scanner.assert_called_once_with(False, ["1.rt"])
+
+    async def test_run_personal_scan_with_github_action_set_false_calls_scanner_with_files_in_paths(self):
+        with (
+            patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner,
+        ):
+            mock_scanner.return_value = AsyncMock()
+            scan = RunSecurityScan(github_action=False, paths=["1.txt", "2.csv"])
+            await scan.run_personal_scan()
+            mock_scanner.assert_called_once_with(False, ["1.txt", "2.csv"])
+
+    async def test_run_personal_scan_with_data_detected_returns_expected_results(self):
         detection = PersonalDataDetection(RecognizerResult("test_recognizer", 1, 2, 1), "found value")
-        scan_result = ScanResult("", [detection])
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = [scan_result]
+        scan_result = PresidioScanResult()
+        scan_result.add_path_scan_result(PathScanResult("file.txt", PathScanStatus.FAILED, [detection]))
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            result = scan.run_personal_scan()
+            result = await scan.run_personal_scan()
 
-            assert result.success is False
-            assert result.message == "1 files had personal data detected"
+            assert len(result.paths_containing_personal_data) == 1
+            assert len(result.paths_without_personal_data) == 0
 
-    def test_run_personal_scan_without_error_returns_true(self):
-        mock_scan_result = MagicMock()
-        mock_scan_result.return_value = []
+    async def test_run_personal_scan_without_data_detected_returns_expected_results(self):
+        scan_result = PresidioScanResult()
+        scan_result.add_path_scan_result(PathScanResult("file.txt", PathScanStatus.PASSED, []))
+        mock_scan_result = AsyncMock()
+        mock_scan_result.return_value = scan_result
         with patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner:
             mock_scanner().scan = mock_scan_result
             scan = RunSecurityScan()
-            assert scan.run_personal_scan().success is True
+            result = await scan.run_personal_scan()
 
-    def test_run_with_run_security_scan_error_returns_false(
-        self,
-    ):
-        with (
-            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
-        ):
-            mock_run_security_scan.return_value = HookRunResult(False)
+            assert len(result.paths_containing_personal_data) == 0
+            assert len(result.paths_without_personal_data) == 1
 
-            assert RunSecurityScan().run().success is False
-
-    def test_run_with_run_personal_scan_error_returns_false(
+    async def test_run_with_run_security_scan_true_and_run_personal_scan_true_returns_result_for_both(
         self,
     ):
         with (
             patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
             patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
         ):
-            mock_run_security_scan.return_value = HookRunResult(True)
-            mock_run_personal_scan.return_value = HookRunResult(False)
+            mock_run_security_scan.return_value = TrufflehogScanResult()
+            mock_run_personal_scan.return_value = PresidioScanResult()
 
-            assert RunSecurityScan().run().success is False
+            result = await RunSecurityScan().run()
+            assert result.trufflehog_scan_result is not None
+            assert result.presidio_scan_result is not None
 
-    def test_with_run_security_scan_true_and_run_personal_scan_true_returns_true(
+            mock_run_personal_scan.assert_called_once()
+            mock_run_security_scan.assert_called_once()
+
+    async def test_run_with_run_security_scan_excluded_does_not_run_a_security_scan(
         self,
     ):
         with (
             patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
             patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
         ):
-            mock_run_security_scan.return_value = HookRunResult(True)
-            mock_run_personal_scan.return_value = HookRunResult(True)
+            await RunSecurityScan(excluded_scans=[SECURITY_SCAN]).run()
 
-            assert RunSecurityScan().run().success is True
-
-    def test_run_with_run_security_scan_excluded_does_not_run_a_security_scan(
-        self,
-    ):
-        with (
-            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
-        ):
-            RunSecurityScan(excluded_scans=[SECURITY_SCAN]).run()
+            mock_run_personal_scan.assert_called_once()
             mock_run_security_scan.assert_not_called()
 
-    def test_run_with_run_personal_data_scan_excluded_does_not_run_a_security_scan(
+    async def test_run_with_run_personal_data_scan_excluded_does_not_run_a_security_scan(
         self,
     ):
         with (
-            patch.object(RunSecurityScan, "run_security_scan"),
+            patch.object(RunSecurityScan, "run_security_scan") as mock_run_security_scan,
             patch.object(RunSecurityScan, "run_personal_scan") as mock_run_personal_scan,
         ):
-            RunSecurityScan(excluded_scans=[PERSONAL_DATA_SCAN]).run()
+            await RunSecurityScan(excluded_scans=[PERSONAL_DATA_SCAN]).run()
+
             mock_run_personal_scan.assert_not_called()
+            mock_run_security_scan.assert_called_once()

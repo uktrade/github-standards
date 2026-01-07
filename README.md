@@ -12,8 +12,8 @@
     - [Testing commit-msg hooks](#testing-commit-msg-hooks)
 - [Releasing](#releasing)
 - [Usage](#usage)
-    - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
-    - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
+  - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
+  - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
   - [Post installation setup](#post-installation-setup)
   - [Optional hooks](#optional-hooks)
 - [Trufflehog](#trufflehog)
@@ -52,7 +52,7 @@ While developing hooks, there are multiple ways of verifying these on your local
 
 ### Running the hook command using python
 
-As the hooks are written using python, it is possible to call the python file contain the hook directly passing the same arguments the pre-commit library would pass. There is a make command `validate-hook-python` that will run this in verbose mode and write debug messages to the terminal.
+As the hooks are written using python, it is possible to call the python file containing the hook directly, passing the same arguments the pre-commit library would pass. There is a make command `validate-hook-python` that will run this in verbose mode and write debug messages to the terminal.
 
 For the run-security-scan hook, the command would look like this, where `--files` can be one or more filenames to scan: `python3 -m src.hooks.cli run_scan --verbose --files Dockerfile`
 
@@ -60,8 +60,8 @@ For the run-security-scan hook, the command would look like this, where `--files
 
 As the hooks are run using a docker image within other repositories, it is a good idea to test your changes by building and running them using a local docker image.
 There is a make command for each of the hooks, that will build and run that hook for you with the correct arguments.
-For the run hook it is `run-hook-docker`.
-For the validate hook it is `validate-hook-docker`.
+For the run hook it is `make run-hook-docker`.
+For the validate hook it is `make validate-hook-docker`.
 
 ## Testing hooks from an external repository
 
@@ -82,9 +82,8 @@ The commit-msg hook stage is passes a single parameter, which is the name of the
 There is a github workflow that will automatically create a new docker tag, and a github release when a change to the `version` tag inside the `pyproject.toml` file is detected. When a new version needs to be released:
 
 1. Open the `pyproject.toml` file, and update the `version` tag to a new value. We use semantic versioning, see [this article](https://www.geeksforgeeks.org/software-engineering/introduction-semantic-versioning/) for help determining what the new version value should be
-2. Make sure the `entry` tag for each of the hooks in the `.pre-commit-hooks.yaml` match this new version. There is an automated test that fails a PR if these values don't match
-3. Run `uv sync` to ensure the package is set to the correct version
-4. Open a PR into main. Once approved, merging will trigger a new release
+2. Run `uv sync` to ensure the package is set to the correct version
+3. Open a PR into main. Once approved, merging will trigger a new release
 
 You will now have:
 
@@ -174,7 +173,7 @@ This repository contains GitHub actions that are triggered by a set of GitHub Ru
 
 As this github-standards repository uses the GitHub Custom properties, during a PR for this repository the workflows that are run are the version in the main branch. This makes it difficult to test changes to the workflows, as although the files exist in this repo, any changes to them will not take effect until the PR is merged into main. At that point, any issues with the workflow will be present in all repositories using the GitHub Custom properties.
 
-As these workflow runs aren't visible on the PR screen, you need to use view the GitHub actions filter found [here](https://github.com/uktrade/github-standards/actions?query=event%3Apush)
+As these workflow runs aren't visible on the PR screen, you need to use view the GitHub actions filter found [here](https://github.com/uktrade/github-standards/.github/actions?query=event%3Apush)
 To solve this, an additional GitHub action on_push trigger has been added to each of the org wide workflows. This trigger will fire on any push event where an org wide workflow yaml file has changed. When raising a PR, the same GitHub workflow will now appear multiple times when a change to a workflow yaml file is made. Once which is the required status enforced by the GitHub Ruleset and is using the workflow version in the main branch, and a second run which is the workflow version in the branch raising the PR.
 
 # FAQ

@@ -8,6 +8,3 @@ repos:
       - id: run-security-scan
         verbose: true
         args: [--verbose]
-      - id: run-personal-data-scan
-        verbose: true
-        args: [--verbose]

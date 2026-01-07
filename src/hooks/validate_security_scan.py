@@ -7,6 +7,18 @@ from src.hooks.hooks_base import Hook, HookRunResult
 logger = LOGGER
 
 
+class ValidateSecurityScanResult(HookRunResult):
+    def __init__(self, success: bool, message: str | None = None):
+        self.success = success
+        self.message = message
+
+    def run_success(self) -> bool:
+        return self.success
+
+    def run_summary(self) -> str | None:
+        return self.message
+
+
 class ValidateSecurityScan(Hook):
     def validate_args(self) -> bool:
         if self.paths is None or len(self.paths) == 0:
@@ -20,7 +32,7 @@ class ValidateSecurityScan(Hook):
 
         return True
 
-    def _validate_hook_settings(self, dbt_repo_config) -> bool:
+    async def _validate_hook_settings(self, dbt_repo_config) -> bool:
         if "hooks" not in dbt_repo_config:
             logger.info(
                 "File %s contains the github standards hooks repo, but is missing the hooks child element", PRE_COMMIT_FILE
@@ -39,7 +51,7 @@ class ValidateSecurityScan(Hook):
 
         return True
 
-    def run(self) -> HookRunResult:
+    async def run(self) -> ValidateSecurityScanResult:
         commit_msg_file = self.paths[0]  # type: ignore
         logger.debug("Reading contents from %s", commit_msg_file)
         with io.open(commit_msg_file, "r+", encoding="utf-8") as fd:
@@ -48,7 +60,7 @@ class ValidateSecurityScan(Hook):
             logger.debug("Commit message for %s is %s", commit_msg_file, "".join(contents))
             if not contents:
                 logger.debug("No commit message provided")
-                return HookRunResult(False, "No commit message provided")
+                return ValidateSecurityScanResult(False, "No commit message provided")
 
             regex = re.compile(r"Signed-off-by", flags=re.DOTALL)
             filtered_contents = [i for i in contents if not regex.match(i)]
@@ -60,4 +72,4 @@ class ValidateSecurityScan(Hook):
             fd.truncate()
             logger.info("Commit message updated")
 
-            return HookRunResult(True)
+            return ValidateSecurityScanResult(True)

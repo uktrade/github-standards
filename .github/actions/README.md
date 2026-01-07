@@ -8,8 +8,8 @@ Here’s a sample configuration for the `vulnerability-checks.yml` workflow with
 
 | Action | Description |
 |--------|-------------|
-| `github-standards/actions/vulnerability-scan/python@latest` | Runs a Python vulnerability audit using the specified customizable version |
-| `github-standards/actions/vulnerability-scan/upload-to-s3@latest` | Uploads generated audit reports to a secure S3 bucket |
+| `github-standards/.github/actions/vulnerability-scan/python@latest` | Runs a Python vulnerability audit using the specified customizable version |
+| `github-standards/.github/actions/vulnerability-scan/upload-to-s3@latest` | Uploads generated audit reports to a secure S3 bucket |
 
 ```yaml
 on:
@@ -41,16 +41,16 @@ jobs:
         run: mkdir -p "${{ env.audit-dir }}"
         continue-on-error: true
 
-      - name: "Run Python audit (v${{ vars.PY_VERSION }})"
-        uses: github-standards/actions/vulnerability-scan/python@latest
+      - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
+        uses: github-standards/.github/actions/vulnerability-scan/python@latest
         continue-on-error: true
         with:
           audit-dir: ${{ env.audit-dir }}
-          python-version: ${{ vars.PY_VERSION }}
+          python-version: ${{ vars.PYTHON_VERSION }}
 
       - name: Notify PR creator
         if: github.event_name == 'pull_request'
-        uses: github-standards/actions/notify/vulnerability@latest
+        uses: github-standards/.github/actions/notify/vulnerability@latest
         continue-on-error: true
         with:
           token: ${{ github.token }}
@@ -59,7 +59,7 @@ jobs:
       - name: "Upload audit reports to S3"
         # Triggered by a merge into main or by the scheduled cron job
         if: github.event_name == 'schedule' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
-        uses: github-standards/actions/vulnerability-scan/upload-to-s3@latest
+        uses: github-standards/.github/actions/vulnerability-scan/upload-to-s3@latest
         continue-on-error: true
         with:
           audit-dir: ${{ env.audit-dir }}
@@ -91,7 +91,7 @@ Audit reports are saved in the directory specified by the `AUDIT_DIR` environmen
 
 - GitHub Actions runner with access to AWS via OIDC
 - IAM role with `sts:AssumeRole` and only S3 put permissions
-- Project version specified (e.g. `PY_VERSION` in python env) and must be supported by the audit tool
+- Project version specified (e.g. `PYTHON_VERSION` in python env) and must be supported by the audit tool
 
 ### Audit Flow
 
