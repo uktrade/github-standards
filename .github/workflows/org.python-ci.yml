@@ -77,12 +77,21 @@ jobs:
           path: github-standards
           sparse-checkout: .github/actions # This appears misleading, it always checks out the entire repo contents
 
+      - name: Python Runtime End of Life check
+        if: github.event_name == 'pull_request'
+        uses: ./github-standards/.github/actions/runtime-eol/python
+        continue-on-error: true
+        with:
+          python-version: ${{ vars.PYTHON_VERSION }}
+
       - name: "Create audit directory"
+        if: env.PYTHON_TOO_OLD != 'true'
         shell: bash
         run: mkdir -p "${{ env.audit-dir }}"
         continue-on-error: true
 
       - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
+        if: env.PYTHON_TOO_OLD != 'true'
         uses: ./github-standards/.github/actions/vulnerability-scan/python
         continue-on-error: true
         with:
@@ -91,7 +100,7 @@ jobs:
 
       - name: Notify PR creator
         # TODO: Ensure only a single comment is created per PR, updated on each run
-        if: github.event_name == 'pull_request' && github.event.action == 'opened'
+        if: env.PYTHON_TOO_OLD != 'true' && github.event_name == 'pull_request' && github.event.action == 'opened'
         uses: ./github-standards/.github/actions/notify/vulnerability
         continue-on-error: true
         with:

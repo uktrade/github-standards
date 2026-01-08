@@ -1,0 +1,57 @@
+name: Python runtime-eol check
+description: Python Runtime End of Life check
+
+inputs:
+  python-version:
+    description: Python version to use
+    required: true
+  min-version:
+    description: "Minimum supported Python version"
+    required: false
+    default: "3.10"
+
+
+runs:
+  using: "composite"
+  steps:
+    - name: "Set up Python"
+      uses: actions/setup-python@v5
+      with:
+        python-version: "${{ inputs.python-version }}"
+
+    - name: "Check Python version"
+      shell: bash
+      env:
+        MIN_VERSION: ${{ inputs.min-version }}
+      run: |
+        # Default state
+        echo "PYTHON_TOO_OLD=false" >> $GITHUB_ENV
+
+        PY_VERSION="$(python - <<EOF
+        import sys
+        print(f"{sys.version_info.major}.{sys.version_info.minor}")
+        EOF
+        )"
+        echo "Detected Python: $PY_VERSION"
+        echo "PY_VERSION=$PY_VERSION" >> $GITHUB_ENV
+
+        # Version comparison helper
+        version_lt() {
+          [ "$(printf '%s\n' "$1" "$2" | sort -V | head -n1)" != "$2" ]
+        }
+
+        # Compare detected version with MIN_VERSION
+        if version_lt "$PY_VERSION" "$MIN_VERSION"; then
+          echo "::warning::Python version $PY_VERSION is below minimum supported $MIN_VERSION"
+          echo "PYTHON_TOO_OLD=true" >> $GITHUB_ENV
+        fi
+
+    - name: Notify if Python too old
+      if: env.PYTHON_TOO_OLD == 'true'
+      uses: ./github-standards/.github/actions/notify/runtime-eol
+      with:
+        token: ${{ github.token }}
+        runtime: "Python"
+        detected-version: ${{ env.PY_VERSION }}
+        min-version: ${{ inputs.min-version }}
+        docs-url: "https://devguide.python.org/versions/"
