@@ -26,7 +26,7 @@ runs:
   using: "composite"
   steps:
     - name: Post runtime EOL comment
-      uses: actions/github-script@v8
+      uses: actions/github-script@450193c5abd4cdb17ba9f3ffcfe8f635c4bb6c2a
       env:
         RUNTIME: ${{ inputs.runtime }}
         DETECTED_VERSION: ${{ inputs['detected-version'] }}
