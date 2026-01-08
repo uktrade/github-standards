@@ -1,0 +1,73 @@
+name: "Runtime EOL Notification"
+description: "Posts a PR comment when a runtime is below the minimum supported version."
+
+inputs:
+  runtime:
+    description: "Runtime name (e.g., python, nodejs)"
+    required: true
+
+  detected-version:
+    description: "Detected runtime version"
+    required: true
+
+  min-version:
+    description: "Minimum supported version"
+    required: true
+
+  docs-url:
+    description: "Link to official lifecycle/EOL documentation"
+    required: true
+
+  token:
+    description: "GitHub token or PAT"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Post runtime EOL comment
+      uses: actions/github-script@450193c5abd4cdb17ba9f3ffcfe8f635c4bb6c2a
+      env:
+        RUNTIME: ${{ inputs.runtime }}
+        DETECTED_VERSION: ${{ inputs['detected-version'] }}
+        MIN_VERSION: ${{ inputs['min-version'] }}
+        DOCS_URL: ${{ inputs['docs-url'] }}
+      with:
+        github-token: ${{ inputs.token }}
+        script: |
+          const runtime = process.env.RUNTIME;
+          const detected = process.env.DETECTED_VERSION;
+          const min = process.env.MIN_VERSION;
+          const docs = process.env.DOCS_URL;
+
+          const body = `
+          🚨 **${runtime} Version End-of-Life Detected**
+
+          Your workflow is running on a ${runtime} version that is **no longer supported**.
+
+          ### What this means
+          - Security fixes are **no longer provided**
+          - The version may contain **unpatched vulnerabilities**
+          - Tooling and libraries may **drop support at any time**
+          - CI/CD reliability and security risk increases
+
+          ### Version Status
+
+          | Category | Value |
+          |---------|--------|
+          | **Detected version** | ${detected} |
+          | **Minimum supported version** | ${min} |
+
+          ### Next steps
+
+          Please upgrade to a supported ${runtime} version as soon as possible.  
+          You can review the official lifecycle and EOL schedule here:  
+          ${docs}
+          `;
+
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body
+          });
