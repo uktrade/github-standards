@@ -22,8 +22,8 @@ class HookRunResult(ABC):
 
 
 class Hook(ABC):
-    def __init__(self, paths: List[str] = [], verbose: bool = False):
-        self.paths = paths
+    def __init__(self, paths: List[str] | None = None, verbose: bool = False):
+        self.paths = paths if paths else []
         self.verbose = verbose
 
     @abstractmethod

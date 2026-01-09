@@ -1,8 +1,8 @@
 import pickle
-from presidio_analyzer import RecognizerResult
 import pytest
-import tempfile
 
+from anyio import NamedTemporaryFile
+from presidio_analyzer import RecognizerResult
 
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanner, PathScanResult
@@ -21,53 +21,49 @@ class TestPresidioScanner:
 
     @pytest.mark.parametrize("file_extension", [".csv"])
     async def test_scan_path_scans_line_by_line_for_file_extensions_with_expected_results(self, file_extension):
-        with (
-            patch.object(PresidioScanner, "_scan_content") as mock_scan_content,
-            tempfile.NamedTemporaryFile(suffix=f"file1{file_extension}", mode="w+t") as tf,
-        ):
-            tf.write("Has Email\nNo data\nHas phone")
-            tf.seek(0)
+        async with NamedTemporaryFile(suffix=f"file1{file_extension}", mode="w+t") as tf:
+            with patch.object(PresidioScanner, "_scan_content") as mock_scan_content:
+                await tf.write("Has Email\nNo data\nHas phone")
+                await tf.seek(0)
 
-            found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
-            found_phone = PersonalDataDetection(RecognizerResult("PHONE", 0, 10, 1), text_value="B")
+                found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
+                found_phone = PersonalDataDetection(RecognizerResult("PHONE", 0, 10, 1), text_value="B")
 
-            expected_scan_result = PathScanResult(tf.name, PathScanStatus.FAILED, [found_email, found_phone])
-            mock_scan_content.side_effect = [
-                [found_email],
-                [],
-                [found_phone],
-            ]
+                expected_scan_result = PathScanResult(tf.name, PathScanStatus.FAILED, [found_email, found_phone])
+                mock_scan_content.side_effect = [
+                    [found_email],
+                    [],
+                    [found_phone],
+                ]
 
-            result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
-            mock_scan_content.assert_has_calls(
-                [
-                    call(ANY, ANY, "Has Email"),
-                    call(ANY, ANY, "No data"),
-                    call(ANY, ANY, "Has phone"),
-                ],
-                any_order=True,
-            )
-            assert pickle.dumps(result) == pickle.dumps(expected_scan_result)
+                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
+                mock_scan_content.assert_has_calls(
+                    [
+                        call(ANY, ANY, "Has Email"),
+                        call(ANY, ANY, "No data"),
+                        call(ANY, ANY, "Has phone"),
+                    ],
+                    any_order=True,
+                )
+                assert pickle.dumps(result) == pickle.dumps(expected_scan_result)
 
     @pytest.mark.parametrize("file_extension", [".txt", ".yaml"])
     async def test_scan_path_scans_file_contents_for_file_extensions_with_expected_results(self, file_extension):
-        with (
-            patch.object(PresidioScanner, "_scan_content") as mock_scan_content,
-            tempfile.NamedTemporaryFile(suffix=f"file1{file_extension}", mode="w+t") as tf,
-        ):
-            contents = "Has Email\nNo data"
-            tf.write(contents)
-            tf.seek(0)
+        async with NamedTemporaryFile(suffix=f"file1{file_extension}", mode="w+t") as tf:
+            with patch.object(PresidioScanner, "_scan_content") as mock_scan_content:
+                contents = "Has Email\nNo data"
+                await tf.write(contents)
+                await tf.seek(0)
 
-            found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
+                found_email = PersonalDataDetection(RecognizerResult("EMAIL", 0, 10, 1), text_value="A")
 
-            expected_scan_result = PathScanResult(tf.name, PathScanStatus.FAILED, [found_email])
-            mock_scan_content.return_value = [found_email]
+                expected_scan_result = PathScanResult(tf.name, PathScanStatus.FAILED, [found_email])
+                mock_scan_content.return_value = [found_email]
 
-            result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
+                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
 
-            mock_scan_content.assert_called_once_with(ANY, ANY, contents)
-            assert pickle.dumps(result) == pickle.dumps(expected_scan_result)
+                mock_scan_content.assert_called_once_with(ANY, ANY, contents)
+                assert pickle.dumps(result) == pickle.dumps(expected_scan_result)
 
     def test_scan_content_returns_detections_list_when_path_has_personal_data(self):
         contents = "I have personal data"

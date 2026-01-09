@@ -34,10 +34,15 @@ class PersonalDataDetection:
 
 
 class PathScanResult:
-    def __init__(self, path: str, status: PathScanStatus, results: List[PersonalDataDetection] = []) -> None:
+    def __init__(
+        self,
+        path: str,
+        status: PathScanStatus,
+        results: List[PersonalDataDetection] | None = None,
+    ) -> None:
         self.path = path
         self.status = status
-        self.results = results
+        self.results = results if results else []
 
 
 class PresidioScanResult:
@@ -117,10 +122,10 @@ class PresidioScanner:
     def __init__(
         self,
         verbose: bool = False,
-        paths: List[str] = [],
+        paths: List[str] | None = None,
     ) -> None:
         self.verbose = verbose
-        self.paths = paths
+        self.paths = paths if paths else []
 
     def _get_analyzer(self) -> AnalyzerEngine:
         # Set up the engine, loads the NLP module (spaCy model by default)
