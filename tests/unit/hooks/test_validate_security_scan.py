@@ -1,4 +1,4 @@
-import tempfile
+from anyio import NamedTemporaryFile
 import src.hooks.config
 
 from unittest.mock import patch
@@ -60,59 +60,55 @@ class TestValidateSecurityScan:
             assert await ValidateSecurityScan()._validate_hook_settings(repo) is True
 
     async def test_run_when_validate_hook_settings_fails_returns_error_code(self):
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=False),
-        ):
-            result = await ValidateSecurityScan(paths=[tf.name]).run()
-            assert result.success is False
+        async with NamedTemporaryFile() as tf:
+            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=False):
+                result = await ValidateSecurityScan(paths=[tf.name]).run()
+                assert result.success is False
 
     async def test_run_with_file_with_no_contents_returns_error_code(self):
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
-        ):
-            result = await ValidateSecurityScan(paths=[tf.name]).run()
-            assert result.success is False
+        async with NamedTemporaryFile() as tf:
+            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True):
+                result = await ValidateSecurityScan(paths=[tf.name]).run()
+                assert result.success is False
 
     async def test_run_with_file_with_message_has_signed_off_by_trailer_added(self):
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
-        ):
-            tf.write(b"A helpful commit message")
-            tf.seek(0)
+        async with NamedTemporaryFile() as tf:
+            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True):
+                await tf.write(b"A helpful commit message")
+                await tf.seek(0)
 
-            result = await ValidateSecurityScan(paths=[tf.name]).run()
+                result = await ValidateSecurityScan(paths=[tf.name]).run()
 
-            assert result.success is True
+                assert result.success is True
 
-            assert tf.read().decode("UTF-8") == f"A helpful commit message\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
+                assert (await tf.read()).decode(
+                    "UTF-8"
+                ) == f"A helpful commit message\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
     async def test_run_with_file_with_multiline_message_has_signed_off_by_trailer_added(self):
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
-        ):
-            tf.writelines(line + b"\n" for line in [b"A", b"helpful", b"commit", b" message"])
-            tf.seek(0)
+        async with NamedTemporaryFile() as tf:
+            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True):
+                await tf.writelines(line + b"\n" for line in [b"A", b"helpful", b"commit", b" message"])
+                await tf.seek(0)
 
-            result = await ValidateSecurityScan(paths=[tf.name]).run()
+                result = await ValidateSecurityScan(paths=[tf.name]).run()
 
-            assert result.success is True
+                assert result.success is True
 
-            assert tf.read().decode("UTF-8") == f"A\nhelpful\ncommit\n message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
+                assert (await tf.read()).decode(
+                    "UTF-8"
+                ) == f"A\nhelpful\ncommit\n message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
 
     async def test_run_with_file_with_existing_signed_off_header_is_replaced(self):
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True),
-        ):
-            tf.write(b"A helpful commit message\nSigned-off-by: SOMETHING ELSE")
-            tf.seek(0)
+        async with NamedTemporaryFile() as tf:
+            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True):
+                await tf.write(b"A helpful commit message\nSigned-off-by: SOMETHING ELSE")
+                await tf.seek(0)
 
-            result = await ValidateSecurityScan(paths=[tf.name]).run()
+                result = await ValidateSecurityScan(paths=[tf.name]).run()
 
-            assert result.success is True
+                assert result.success is True
 
-            assert tf.read().decode("UTF-8") == f"A helpful commit message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
+                assert (await tf.read()).decode(
+                    "UTF-8"
+                ) == f"A helpful commit message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"

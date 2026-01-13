@@ -42,10 +42,10 @@ class TrufflehogScanner:
     def __init__(
         self,
         verbose: bool = False,
-        paths: List[str] = [],
+        paths: List[str] | None = None,
     ) -> None:
         self.verbose = verbose
-        self.paths = paths
+        self.paths = paths if paths else []
 
     async def _get_args(
         self,

@@ -3,7 +3,7 @@ import pytest
 import re
 import tempfile
 
-from anyio import Path
+from anyio import NamedTemporaryFile, Path
 
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 from unittest.mock import patch
@@ -67,15 +67,16 @@ class TestPathFilter:
         assert await PathFilter()._get_exclusions("not_present_file.txt") == []
 
     async def test_get_exclusions_throws_error_when_regex_does_not_compile(self):
-        with tempfile.NamedTemporaryFile("w+t") as exclusions_file, pytest.raises(re.error):
-            exclusions_file.write("folder/**")
-            exclusions_file.seek(0)
-            await PathFilter()._get_exclusions(exclusions_file.name)
+        async with NamedTemporaryFile("w+t") as exclusions_file:
+            await exclusions_file.write("folder/**")
+            await exclusions_file.seek(0)
+            with pytest.raises(re.error):
+                await PathFilter()._get_exclusions(exclusions_file.name)
 
     async def test_get_exclusions_returns_all_regexes_in_exclusions_file(self):
-        with tempfile.NamedTemporaryFile("w+t") as exclusions_file:
-            exclusions_file.writelines(["folder1/*", os.linesep, "folder2/*"])
-            exclusions_file.seek(0)
+        async with NamedTemporaryFile("w+t") as exclusions_file:
+            await exclusions_file.writelines(["folder1/*", os.linesep, "folder2/*"])
+            await exclusions_file.seek(0)
             assert await PathFilter()._get_exclusions(exclusions_file.name) == [
                 re.compile("folder1/*"),
                 re.compile("folder2/*"),

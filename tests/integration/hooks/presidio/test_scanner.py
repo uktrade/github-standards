@@ -171,12 +171,8 @@ class TestPresidioScanner:
             with patch.object(scanner, "PRESIDIO_EXCLUSIONS_FILE_PATH", exclude_file.name):
                 paths = [file.name for file in all_files]
                 scan_result = await PresidioScanner(verbose=True, paths=paths).scan()
-                assert set([result.path for result in scan_result.paths_excluded]) == set(
-                    [file.name for file in files_to_exclude]
-                )
-                assert set([result.path for result in scan_result.paths_skipped]) == set(
-                    [file.name for file in files_to_skip]
-                )
-                assert set([result.path for result in scan_result.paths_without_personal_data]) == set(
-                    [file.name for file in files_to_with_no_personal_data]
-                )
+                assert {result.path for result in scan_result.paths_excluded} == {file.name for file in files_to_exclude}
+                assert {result.path for result in scan_result.paths_skipped} == {file.name for file in files_to_skip}
+                assert {result.path for result in scan_result.paths_without_personal_data} == {
+                    file.name for file in files_to_with_no_personal_data
+                }

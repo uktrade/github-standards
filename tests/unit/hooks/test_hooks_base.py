@@ -1,7 +1,7 @@
-import tempfile
-
 from pathlib import Path
 from unittest.mock import patch
+
+from anyio import NamedTemporaryFile
 from src.hooks.hooks_base import Hook, HookRunResult
 
 
@@ -17,6 +17,12 @@ class HooksBaseTestImplementation(Hook):
 
 
 class TestHooksBase:
+    def test_init_assigns_paths_as_empty_list_when_paths_is_none(self):
+        assert HooksBaseTestImplementation().paths == []
+
+    def test_init_assigns_paths_as_same_list_when_paths_is_list_of_strings(self):
+        assert HooksBaseTestImplementation(paths=["a", "b"]).paths == ["a", "b"]
+
     @patch("src.hooks.hooks_base.FORCE_HOOK_CHECKS", "0")
     async def test_validate_hook_settings_when_force_hook_checks_false_returns_true(self):
         assert await HooksBaseTestImplementation().validate_hook_settings() is True
@@ -34,15 +40,15 @@ class TestHooksBase:
             assert await HooksBaseTestImplementation().validate_hook_settings() is False
 
     async def test_validate_hook_settings_with_invalid_content_in_pre_commit_file_returns_false(self):
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
-        ):
-            tf.write(b"Not valid yaml")
-            tf.seek(0)
+        async with NamedTemporaryFile() as tf:
+            with (
+                patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
+                patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
+            ):
+                await tf.write(b"Not valid yaml")
+                await tf.seek(0)
 
-            assert await HooksBaseTestImplementation().validate_hook_settings() is False
+                assert await HooksBaseTestImplementation().validate_hook_settings() is False
 
     async def test_validate_hook_settings_with_dbt_hooks_repo_missing_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
@@ -52,15 +58,15 @@ class TestHooksBase:
               hooks:
               - id: no-commit-to-branch
         """
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
-        ):
-            tf.write(valid_yaml)
-            tf.seek(0)
+        async with NamedTemporaryFile() as tf:
+            with (
+                patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
+                patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
+            ):
+                await tf.write(valid_yaml)
+                await tf.seek(0)
 
-            assert await HooksBaseTestImplementation().validate_hook_settings() is False
+                assert await HooksBaseTestImplementation().validate_hook_settings() is False
 
     async def test_validate_hook_settings_with_dbt_hooks_repo_present_multiple_times_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
@@ -81,12 +87,12 @@ class TestHooksBase:
                 - id: validate-security-scan
                 - id: run-security-scan
         """
-        with (
-            tempfile.NamedTemporaryFile() as tf,
-            patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
-            patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
-        ):
-            tf.write(valid_yaml)
-            tf.seek(0)
+        async with NamedTemporaryFile() as tf:
+            with (
+                patch("src.hooks.hooks_base.PRE_COMMIT_FILE", tf.name),
+                patch.object(HooksBaseTestImplementation, "_enforce_settings_checks", return_value=True),
+            ):
+                await tf.write(valid_yaml)
+                await tf.seek(0)
 
-            assert await HooksBaseTestImplementation().validate_hook_settings() is False
+                assert await HooksBaseTestImplementation().validate_hook_settings() is False
