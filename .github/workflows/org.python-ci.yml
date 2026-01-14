@@ -57,52 +57,79 @@ jobs:
           sarif_file: ${{env.results-file}}
 
   vulnerability-scan:
-    # Checking for public, skipping private and internal
-    if: ${{ github.event.repository.visibility == 'public' }}
-    env:
-      audit-dir: "audit-reports"
-    permissions:
-      contents: read
-      issues: write
-      pull-requests: write
     runs-on: ubuntu-latest
+    permissions:
+      contents: read # Required to checkout and read repo files
+      security-events: write # Required to upload SARIF files to Security tab
     steps:
-      - name: "Git clone the repository"
+      - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      - name: "Git clone the standards repository"
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+      - name: Run Trivy vulnerability scanner
+        env:
+          TRIVY_DEBUG: true
+        uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
         with:
-          repository: "uktrade/github-standards"
-          path: github-standards
-          sparse-checkout: .github/actions # This appears misleading, it always checks out the entire repo contents
+          scan-type: "fs"
+          ignore-unfixed: true
+          format: "sarif"
+          output: "trivy-results.sarif"
+          severity: "HIGH,CRITICAL"
+          version: v0.68.2
+          scanners: "vuln"
+          limit-severities-for-sarif: true
 
-      - name: Python Runtime End of Life check
-        if: github.event_name == 'pull_request'
-        uses: ./github-standards/.github/actions/runtime-eol/python
-        continue-on-error: true
+      - name: Upload Trivy scan results to GitHub Security tab
+        uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
+        if: always()
         with:
-          python-version: ${{ vars.PYTHON_VERSION }}
+          sarif_file: "trivy-results.sarif"
+    # # Checking for public, skipping private and internal
+    # if: ${{ github.event.repository.visibility == 'public' }}
+    # env:
+    #   audit-dir: "audit-reports"
+    # permissions:
+    #   contents: read
+    #   issues: write
+    #   pull-requests: write
+    # runs-on: ubuntu-latest
+    # steps:
+    #   - name: "Git clone the repository"
+    #     uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
-      - name: "Create audit directory"
-        if: env.PYTHON_TOO_OLD != 'true'
-        shell: bash
-        run: mkdir -p "${{ env.audit-dir }}"
-        continue-on-error: true
+    #   - name: "Git clone the standards repository"
+    #     uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+    #     with:
+    #       repository: "uktrade/github-standards"
+    #       path: github-standards
+    #       sparse-checkout: .github/actions # This appears misleading, it always checks out the entire repo contents
 
-      - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
-        if: env.PYTHON_TOO_OLD != 'true'
-        uses: ./github-standards/.github/actions/vulnerability-scan/python
-        continue-on-error: true
-        with:
-          python-version: ${{ vars.PYTHON_VERSION }}
-          audit-dir: ${{ env.audit-dir }}
+    #   - name: Python Runtime End of Life check
+    #     if: github.event_name == 'pull_request'
+    #     uses: ./github-standards/.github/actions/runtime-eol/python
+    #     continue-on-error: true
+    #     with:
+    #       python-version: ${{ vars.PYTHON_VERSION }}
 
-      - name: Notify PR creator
-        # TODO: Ensure only a single comment is created per PR, updated on each run
-        if: env.PYTHON_TOO_OLD != 'true' && github.event_name == 'pull_request' && github.event.action == 'opened'
-        uses: ./github-standards/.github/actions/notify/vulnerability
-        continue-on-error: true
-        with:
-          token: ${{ github.token }}
-          audit-dir: ${{ env.audit-dir }}
+    #   - name: "Create audit directory"
+    #     if: env.PYTHON_TOO_OLD != 'true'
+    #     shell: bash
+    #     run: mkdir -p "${{ env.audit-dir }}"
+    #     continue-on-error: true
+
+    #   - name: "Run Python audit (v${{ vars.PYTHON_VERSION }})"
+    #     if: env.PYTHON_TOO_OLD != 'true'
+    #     uses: ./github-standards/.github/actions/vulnerability-scan/python
+    #     continue-on-error: true
+    #     with:
+    #       python-version: ${{ vars.PYTHON_VERSION }}
+    #       audit-dir: ${{ env.audit-dir }}
+
+    #   - name: Notify PR creator
+    #     # TODO: Ensure only a single comment is created per PR, updated on each run
+    #     if: env.PYTHON_TOO_OLD != 'true' && github.event_name == 'pull_request' && github.event.action == 'opened'
+    #     uses: ./github-standards/.github/actions/notify/vulnerability
+    #     continue-on-error: true
+    #     with:
+    #       token: ${{ github.token }}
+    #       audit-dir: ${{ env.audit-dir }}
