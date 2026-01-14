@@ -21,10 +21,12 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Run Trivy vulnerability scanner
+        id: scan
         env:
           TRIVY_DEBUG: true
         uses: aquasecurity/trivy-action@b6643a29fecd7f34b3597bc6acb0a98b03d33ff8
         with:
+          exit-code: 1
           scan-type: "fs"
           ignore-unfixed: true
           format: "json"
@@ -42,6 +44,19 @@ jobs:
         uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
         with:
           sarif_file: "trivy-common-results.sarif"
+
+      - name: Report vulnerabilities in PR
+        if: failure() && steps.scan.outcome == 'failure'
+        shell: bash
+        run: |
+          echo -n "{\"body\":\"### Trivy fs scan - Vulnerabilities detected\nThe following vulnerabilities of HIGH or CRITICAL severity has been detected in the code. Please resolve these before merging the pull request.\n\n" > trivy-common-results.json
+          cat trivy.json | sort | uniq | tr -d '\n' >> result.json
+          echo "\"}" >> result.json
+          curl -X POST -H "Accept: application/vnd.github+json" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            ${{ github.event.pull_request.comments_url }} \
+            -d @trivy-common-results.json
 
   pre-commit-check:
     if: ${{ github.actor != 'dependabot[bot]' }}
