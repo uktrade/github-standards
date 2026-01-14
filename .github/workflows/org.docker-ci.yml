@@ -30,7 +30,7 @@ jobs:
           scan-type: "fs"
           ignore-unfixed: true
           format: "sarif"
-          output: "trivy-results.sarif"
+          output: "trivy-docker-results.sarif"
           severity: "HIGH,CRITICAL"
           version: v0.68.2
           scanners: "misconfig"
@@ -40,4 +40,4 @@ jobs:
         uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
         if: always()
         with:
-          sarif_file: "trivy-results.sarif"
+          sarif_file: "trivy-docker-results.sarif"
