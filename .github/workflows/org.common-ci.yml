@@ -27,12 +27,16 @@ jobs:
         with:
           scan-type: "fs"
           ignore-unfixed: true
-          format: "sarif"
-          output: "trivy-common-results.sarif"
+          format: "json"
+          output: "trivy-common-results.json"
           # severity: "UNKNOWN,HIGH,CRITICAL"
           version: v0.68.2
           scanners: "vuln,misconfig"
           # limit-severities-for-sarif: true
+
+      - name: Create sarif file
+        run: |
+          trivy convert --format sarif --output trivy-common-results.sarif trivy-common-results.json
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
