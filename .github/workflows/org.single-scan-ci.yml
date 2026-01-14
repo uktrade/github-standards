@@ -10,6 +10,7 @@ jobs:
     permissions:
       contents: read # Required to checkout and read repo files
       security-events: write # Required to upload SARIF files to Security tab
+      pull-requests: write # Add comments to PR
     steps:
       - name: Checkout repository
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
@@ -48,8 +49,9 @@ jobs:
           echo -n "{\"body\":\"### Trivy fs scan - Vulnerabilities detected\nThe following vulnerabilities of HIGH or CRITICAL severity has been detected in the code. Please resolve these before merging the pull request.\n\n" > summary.json
           cat trivy-common-results.json | sort | uniq | tr -d '\n' >> summary.json
           echo "\"}" >> summary.json
-          curl -X POST -H "Accept: application/vnd.github+json" \
-            -H "X-GitHub-Api-Version: 2022-11-28" \
+          curl -X POST \
+            -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments \
             -d @summary.json
