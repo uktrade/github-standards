@@ -37,6 +37,7 @@ jobs:
           # limit-severities-for-sarif: true
 
       - name: Create sarif file
+        if: failure() && steps.scan.outcome == 'failure'
         run: |
           trivy convert --format sarif --output trivy-common-results.sarif trivy-common-results.json
 
@@ -50,6 +51,7 @@ jobs:
         if: failure() && steps.scan.outcome == 'failure'
         shell: bash
         run: |
+          echo "${{ toJson(github) }}"
           echo -n "{\"body\":\"### Trivy fs scan - Vulnerabilities detected\nThe following vulnerabilities of HIGH or CRITICAL severity has been detected in the code. Please resolve these before merging the pull request.\n\n" > summary.json
           cat trivy-common-results.json | sort | uniq | tr -d '\n' >> summary.json
           echo "\"}" >> result.json
