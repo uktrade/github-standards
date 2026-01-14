@@ -29,14 +29,13 @@ jobs:
           ignore-unfixed: true
           format: "sarif"
           output: "trivy-common-results.sarif"
-          severity: "UNKNOWN,HIGH,CRITICAL"
+          # severity: "UNKNOWN,HIGH,CRITICAL"
           version: v0.68.2
           scanners: "vuln,misconfig"
-          limit-severities-for-sarif: true
+          # limit-severities-for-sarif: true
 
       - name: Upload Trivy scan results to GitHub Security tab
         uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
-        if: always()
         with:
           sarif_file: "trivy-common-results.sarif"
 
