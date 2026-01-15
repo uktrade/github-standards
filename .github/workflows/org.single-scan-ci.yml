@@ -62,3 +62,9 @@ jobs:
         uses: github/codeql-action/upload-sarif@5d4e8d1aca955e8d8589aabd499c5cae939e33c7
         with:
           sarif_file: "trivy-common-results.sarif"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        with:
+          name: scan-results
+          path: "trivy-common-results.sarif"
