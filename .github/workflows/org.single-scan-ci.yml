@@ -24,13 +24,13 @@ jobs:
         with:
           exit-code: 1
           scan-type: "fs"
-          ignore-unfixed: true
+          # ignore-unfixed: true
           format: "json"
           output: "trivy-common-results.json"
           severity: "UNKNOWN,HIGH,CRITICAL"
           version: v0.68.2
           scanners: "vuln,misconfig"
-          limit-severities-for-sarif: true
+          # limit-severities-for-sarif: true
 
       - name: Create template file
         if: failure() && steps.scan.outcome == 'failure'
