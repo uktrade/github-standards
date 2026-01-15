@@ -1,5 +1,5 @@
 {{- range .}}
 {{- range .Vulnerabilities}}
-\n#### Severity:{{ .Severity | html }}\n{{ .VulnerabilityID | html }} {{ .Title | html }}\n{{ .Description | html }}\n
+\n#### Severity: {{ .Severity | html }}\n{{ .VulnerabilityID | html }} {{ .Title | html }}\n{{ .Description | html }}\n
 {{ end }}
 {{- end }}

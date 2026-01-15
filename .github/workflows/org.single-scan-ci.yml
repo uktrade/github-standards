@@ -41,7 +41,7 @@ jobs:
         if: failure() && steps.scan.outcome == 'failure'
         shell: bash
         run: |
-          echo -n "{\"body\":\"### Trivy fs scan - Vulnerabilities detected\nThe following vulnerabilities of HIGH or CRITICAL severity has been detected in the code. Please resolve these before merging the pull request.\n\n" > summary.json
+          echo -n "{\"body\":\"### Trivy fs scan - Vulnerabilities detected\nThe following vulnerabilities of HIGH or CRITICAL severity have been detected in the code. Please resolve these before merging the pull request.\n\n" > summary.json
           cat formatted.json | sort | uniq | tr -d '\n' >> summary.json
           echo "\"}" >> summary.json
           echo "$(cat summary.json)"
