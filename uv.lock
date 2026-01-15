@@ -509,7 +509,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
-    { name = "aiohttp", specifier = ">=3.13.2" },
+    { name = "aiohttp", specifier = ">=3.7.0" },
     { name = "anyio", specifier = ">=4.12.0" },
     { name = "asyncio", specifier = ">=4.0.0" },
     { name = "en-core-web-sm", url = "https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl" },
