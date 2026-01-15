@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           echo -n "{\"body\":\"### Trivy fs scan - Vulnerabilities detected\nThe following vulnerabilities of HIGH or CRITICAL severity have been detected in the code. Please resolve these before merging the pull request.\n\n" > summary.json
-          cat formatted.json | sort | uniq | tr -d '\n' >> summary.json
+          cat formatted.json | tr -d '\n' >> summary.json
           echo "\"}" >> summary.json
           echo "$(cat summary.json)"
           curl -X POST \

@@ -1,5 +1,6 @@
 {{- range .}}
-{{ .Type }} - {{ .Target }}
+Type: {{ .Type | html }}\n
+Target: {{ .Target | html }}\n
 {{- range .Vulnerabilities}}
 \n#### Severity: {{ .Severity | html }}\n{{ .VulnerabilityID | html }} {{ .Title | html }}\n{{ .Description | html }}\n
 {{ end }}
