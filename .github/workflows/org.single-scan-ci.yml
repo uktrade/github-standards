@@ -35,7 +35,7 @@ jobs:
       - name: Create template file
         if: failure() && steps.scan.outcome == 'failure'
         run: |
-          trivy convert --format template --template "@$HOME/.local/bin/trivy-bin/contrib/html.tpl" --output formatted.json trivy-common-results.json
+          trivy convert --format template --template "@.github/workflows/trivy-pr-comment.tpl" --output formatted.json trivy-common-results.json
 
       - name: Report vulnerabilities in PR
         if: failure() && steps.scan.outcome == 'failure'
