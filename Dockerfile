@@ -69,10 +69,7 @@ ENV DEFAULT_PROXY_DIRECTORY="/.proxy_py"
 
 # Create a custom user to run the hooks with. This is needed as pre-commit mounts a volume from the machine running
 # this docker image. Without a custom user, the proxy library fails as it creates local cache inside the volume
-RUN groupadd app_group && \
-    useradd -G app_group -m app_user
 
-USER app_user
 
 WORKDIR /app
 
