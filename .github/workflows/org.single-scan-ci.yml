@@ -71,17 +71,20 @@ jobs:
           path: "trivy-common-results.sarif"
 
       - name: Create SBOM file
+        if: always()
         run: |
           trivy fs --format cyclonedx --output fs_sbom.json .
           trivy image --format cyclonedx --output image_sbom.json sha256:0020c41dc16f86dba48fcaafe03111c669fb5534bb9fb3a29c1f4308c3ea5b57
 
       - name: Upload FS SBOM
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: FS SBOM
           path: "fs_sbom.json"
 
       - name: Upload Image SBOM
+        if: always()
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
           name: Image SBOM
