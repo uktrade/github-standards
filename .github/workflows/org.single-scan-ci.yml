@@ -74,7 +74,7 @@ jobs:
         if: always()
         run: |
           trivy fs --format cyclonedx --output fs_sbom.json .
-          trivy image --format cyclonedx --output image_sbom.json sha256:0020c41dc16f86dba48fcaafe03111c669fb5534bb9fb3a29c1f4308c3ea5b57
+          trivy image --format cyclonedx --output image_sbom.json ghcr.io/uktrade/github-standards:latest
 
       - name: Upload FS SBOM
         if: always()
