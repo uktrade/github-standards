@@ -65,6 +65,17 @@ class TestPresidioScanner:
                 mock_scan_content.assert_called_once_with(ANY, ANY, contents)
                 assert pickle.dumps(result) == pickle.dumps(expected_scan_result)
 
+    async def test_scan_path_handles_exception(self):
+        async with NamedTemporaryFile(suffix="file1.csv", mode="w+t") as tf:
+            with patch.object(PresidioScanner, "_scan_content") as mock_scan_content:
+                mock_scan_content.side_effect = Exception()
+                contents = "Error reading this file"
+                await tf.write(contents)
+                await tf.seek(0)
+
+                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
+                assert result.status == PathScanStatus.ERRORED
+
     def test_scan_content_returns_detections_list_when_path_has_personal_data(self):
         contents = "I have personal data"
 
