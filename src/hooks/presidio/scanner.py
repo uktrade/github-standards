@@ -51,6 +51,7 @@ class PresidioScanResult:
         self.paths_containing_personal_data: List[PathScanResult] = []
         self.paths_skipped: List[PathScanResult] = []
         self.paths_excluded: List[PathScanResult] = []
+        self.paths_errored: List[PathScanResult] = []
         self.add_path_scan_results(results)
 
     def add_path_scan_results(self, scan_results: List[PathScanResult]):
@@ -69,6 +70,9 @@ class PresidioScanResult:
 
         if scan_result.status == PathScanStatus.SKIPPED:
             self.paths_skipped.append(scan_result)
+
+        if scan_result.status == PathScanStatus.ERRORED:
+            self.paths_errored.append(scan_result)
 
     def __str__(self) -> str:
         with StringIO() as output_buffer:
@@ -93,6 +97,13 @@ class PresidioScanResult:
                 for valid_path in self.paths_without_personal_data:
                     paths_without_issues_table.add_row([valid_path.path])
                 output_buffer.write(str(paths_without_issues_table))
+
+            if self.paths_errored:
+                output_buffer.write("\n\nFILES ERRORED\n")
+                errored_paths_table = PrettyTable(["Path"])
+                for errored_path in self.paths_errored:
+                    errored_paths_table.add_row([errored_path.path])
+                output_buffer.write(str(errored_paths_table))
 
             if self.paths_containing_personal_data:
                 output_buffer.write("\n\nFILES CONTAINING PERSONAL DATA\n")
@@ -155,29 +166,33 @@ class PresidioScanner:
     async def _scan_path(
         self, analyzer: AnalyzerEngine, entities: List[str], file_path: str, exclusions: List[re.Pattern[str]]
     ) -> PathScanResult:
-        sources = PathFilter()
+        try:
+            sources = PathFilter()
 
-        invalid_check_result = await sources._check_is_path_invalid(file_path, exclusions)
-        if invalid_check_result is not None:
-            return PathScanResult(file_path, invalid_check_result)
+            invalid_check_result = await sources._check_is_path_invalid(file_path, exclusions)
+            if invalid_check_result is not None:
+                return PathScanResult(file_path, invalid_check_result)
 
-        file_extension = Path(file_path).suffix.lower()
-        async with await open_file(file_path, "r", encoding="utf-8") as fs:
-            results: List[PersonalDataDetection] = []
-            if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
-                logger.debug("Scanning file %s line by line", file_path)
-                async for line in fs:
-                    results.extend(self._scan_content(analyzer, entities, line.rstrip()))
-            else:
-                contents = await fs.read()
-                logger.debug("Scanning file %s by reading all contents", file_path)
-                results.extend(self._scan_content(analyzer, entities, contents))
+            file_extension = Path(file_path).suffix.lower()
+            async with await open_file(file_path, "r", encoding="utf-8") as fs:
+                results: List[PersonalDataDetection] = []
+                if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
+                    logger.debug("Scanning file %s line by line", file_path)
+                    async for line in fs:
+                        results.extend(self._scan_content(analyzer, entities, line.rstrip()))
+                else:
+                    contents = await fs.read()
+                    logger.debug("Scanning file %s by reading all contents", file_path)
+                    results.extend(self._scan_content(analyzer, entities, contents))
 
-            return PathScanResult(
-                file_path,
-                status=PathScanStatus.PASSED if len(results) == 0 else PathScanStatus.FAILED,
-                results=results,
-            )
+                return PathScanResult(
+                    file_path,
+                    status=PathScanStatus.PASSED if len(results) == 0 else PathScanStatus.FAILED,
+                    results=results,
+                )
+        except Exception:
+            logger.exception("The file scanner failed to read file %s", file_path, stack_info=True)
+            return PathScanResult(file_path, status=PathScanStatus.ERRORED)
 
     async def scan(
         self,

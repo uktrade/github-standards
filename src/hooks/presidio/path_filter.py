@@ -18,6 +18,7 @@ class PathScanStatus(Enum):
     EXCLUDED = 2
     PASSED = 3
     FAILED = 4
+    ERRORED = 5
 
 
 class PathFilter:
