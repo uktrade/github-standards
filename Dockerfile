@@ -76,6 +76,7 @@ USER app_user
 
 WORKDIR /app
 
+
 ENTRYPOINT ["hooks-cli"]
 
 FROM base AS testing
