@@ -30,6 +30,17 @@ jobs:
       - name: Check if pre-commit hook ran before push
         id: pre-commit-check
         run: |
+          # If this commit belongs to a github PR, it will not have the git trailer that is set by 
+          # the pre-commit hook. If the response is NOT an empty array, that means the commit was from
+          # a PR and we can skip the git trailer checks
+
+          is_pr_commit=$(gh pr list --search ${{ github.event.pull_request.head.sha }} --state merged --json id | jq '. != []')
+
+          if [ "$is_pr_commit" == true ]; then
+            echo "This commit came from a PR, it will not have the trailer from a pre-commit hook"
+            exit 0
+          fi
+          echo "We need to check this for the trailers"
           git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
         continue-on-error: true # This is only here while we are testing, it should be removed during the go live process so PRs cannot be merged
 
