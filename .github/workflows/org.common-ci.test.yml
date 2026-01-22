@@ -25,6 +25,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       - name: Check if pre-commit hook ran before push 1
+        env:
+          SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
         run: |
           # If this commit belongs to a github PR, it will not have the git trailer that is set by 
           # the pre-commit hook. If the response is NOT an empty array, that means the commit was from
@@ -37,3 +39,4 @@ jobs:
             exit 0
           fi
           echo "We need to check this for the trailers"
+          git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
