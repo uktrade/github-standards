@@ -30,8 +30,8 @@ jobs:
       - name: Check if pre-commit hook ran before push
         id: pre-commit-check
         run: |
-          echo 'git log ${{ github.event.pull_request.head.sha }} --format=%B -1'
-          echo 'git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse'
+          is_pr_commit=$("gh pr list --search '${{ github.event.pull_request.head.sha }}' --state merged --json id | jq -e '. == []'")
+          echo $is_pr_commit
           git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
         continue-on-error: true # This is only here while we are testing, it should be removed during the go live process so PRs cannot be merged
 
