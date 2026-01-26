@@ -238,7 +238,7 @@ jobs:
       # ---- TFLint (ALWAYS run)-
       - name: Setup TFLint
         if: ${{ always() }}
-        uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6
+        uses: terraform-linters/setup-tflint@4cb9feea73331a35b422df102992a03a44a3bb33
 
       - name: TFLint (all discovered roots)
         if: ${{ always() }}
