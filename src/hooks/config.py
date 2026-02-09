@@ -40,4 +40,5 @@ EXCLUDED_PERSONAL_DATA_FILE_TYPES = [
     ".bmp",
     ".svg",
 ]
+DEFAULT_FILE_TYPES = [".txt", ".yml", ".yaml", ".csv", ".py"]
 PRESIDIO_EXCLUSIONS_FILE_PATH = "personal-data-exclusions.txt"
