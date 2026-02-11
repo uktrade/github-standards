@@ -1,11 +1,11 @@
+---
 name: "Organisation ruleset: Terraform CI"
-
+permissions:
+  contents: read
 on:
   push:
-    branches-ignore:
-      - main
-    paths:
-      - .github/workflows/org.terraform-ci.yml
+    branches-ignore: [main]
+    paths: [.github/workflows/org.terraform-ci.yml]
   workflow_call:
     inputs:
       run_tflint:
@@ -18,11 +18,9 @@ on:
         required: false
         type: string
         default: ""
-
   pull_request:
     types: [opened, edited, reopened, synchronize]
     branches: [main, master, dev]
-
 jobs:
   terraform-ci:
     runs-on: ubuntu-latest
@@ -30,7 +28,6 @@ jobs:
       contents: read
     env:
       TF_IN_AUTOMATION: "true"
-
     steps:
       - name: Checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8
@@ -39,7 +36,6 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-
           VERSION=""
 
           # Check for .terraform-version file
@@ -63,7 +59,6 @@ jobs:
           VERSION="latest"
           echo "version=latest" >> "$GITHUB_OUTPUT"
           echo "Terraform version resolved to fallback: $VERSION"
-
       - name: Setup Terraform
         id: setup-tf
         uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd
@@ -86,7 +81,6 @@ jobs:
           set -euo pipefail
           [ -n "${APP_ID:-}" ] || { echo "Missing secret APP_ID"; exit 1; }
           [ -n "${APP_PRIVATE_KEY:-}" ] || { echo "Missing secret APP_PRIVATE_KEY"; exit 1; }
-
       - name: Get GitHub App token for modules
         id: app-token
         uses: actions/create-github-app-token@7e473efe3cb98aa54f8d4bac15400b15fad77d94
@@ -94,13 +88,17 @@ jobs:
           owner: uktrade
           app-id: ${{ secrets.TERRAFORM_MODULE_ACCESS_APP_ID }}
           private-key: ${{ secrets.TERRAFORM_MODULE_ACCESS_PRIVATE_KEY }}
-
       - name: Configure git auth for private module clones
         env:
           TOKEN: ${{ steps.app-token.outputs.token }}
         run: |
           git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
           git config --global --get-regexp '^url\..*\.insteadOf$' || true
+      - name: Add SSH Key
+        id: ssh-agent
+        uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd  # v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.TERRAFORM_DEPLOY_KEY }}
 
       # ---- Provider cache (used by init/validate) ----
       - name: Prepare Terraform provider cache dir
@@ -109,12 +107,12 @@ jobs:
           set -euo pipefail
           mkdir -p "${{ github.workspace }}/.terraform.d/plugin-cache"
           echo "TF_PLUGIN_CACHE_DIR=${{ github.workspace }}/.terraform.d/plugin-cache" >> "$GITHUB_ENV"
-
       - name: Cache Terraform provider plugins
         uses: actions/cache@0057852bfaa89a56745cba8c7296529d2fc39830
         with:
           path: ${{ github.workspace }}/.terraform.d/plugin-cache
-          key: tf-plugins-${{ runner.os }}-tf${{ steps.setup-tf.outputs.terraform_version }}-${{ hashFiles('**/.terraform.lock.hcl') }}
+          key: tf-plugins-${{ runner.os }}-tf${{ steps.setup-tf.outputs.terraform_version
+            }}-${{ hashFiles('**/.terraform.lock.hcl') }}
           restore-keys: |
             tf-plugins-${{ runner.os }}-tf${{ steps.setup-tf.outputs.terraform_version }}-
             tf-plugins-${{ runner.os }}-
@@ -132,13 +130,11 @@ jobs:
 
           # Skip noise + examples entirely
           skip_regex='(^|/)(\.terraform|\.github|\.git|node_modules|vendor|docs|examples)(/|$)'
-
           EXTRA_SKIP="${{ inputs.extra_skip_globs }}"
           if [[ -n "$EXTRA_SKIP" ]]; then
             extra_regex="$(printf '%s\n' "$EXTRA_SKIP" | sed -E 's/[.[\]{}()+*^$\\|]/\\&/g; s,/,\\/,g' | paste -sd'|' -)"
             skip_regex="(${skip_regex}|${extra_regex})"
           fi
-
           declare -a ROOTS=()
           for d in "${CANDIDATES[@]}"; do
             [[ "$d" =~ $skip_regex ]] && continue
@@ -148,7 +144,6 @@ jobs:
             [[ ${#tf[@]} -eq 0 ]] && continue
             ROOTS+=("$d")
           done
-
           { printf 'roots<<EOF\n'; printf '%s\n' "${ROOTS[@]}"; printf 'EOF\n'; } >> "$GITHUB_OUTPUT"
           echo "Discovered roots (examples skipped): ${#ROOTS[@]}"
 
@@ -160,13 +155,10 @@ jobs:
         run: |
           set -euo pipefail
           mapfile -t DIRS < <(printf "%s\n" "${{ steps.discover.outputs.roots }}")
-
           echo "Validating roots:"
           printf ' - %s\n' "${DIRS[@]}"
-
           hard_fail=()
           soft_skipped=()
-
           for d in "${DIRS[@]}"; do
             # Skip empty/template-only dirs
             if ! find "$d" -maxdepth 1 -type f \( -name "*.tf" -o -name "*.tf.json" \) | grep -q .; then
@@ -181,7 +173,6 @@ jobs:
               soft_skipped+=("$d (module dir)")
               continue
             fi
-
             echo; echo "=============================="
             echo "==> terraform init:   $d"
             echo "=============================="
@@ -204,7 +195,6 @@ jobs:
               fi
             fi
             rm -f "$log" || true
-
             echo; echo "=============================="
             echo "==> terraform validate: $d"
             echo "=============================="
@@ -213,7 +203,6 @@ jobs:
             terraform -chdir="$d" validate -no-color 2>&1 | tee "$vlog"
             ec=${PIPESTATUS[0]}
             set -o pipefail
-
             if (( ec != 0 )); then
               if grep -Eq 'Provider configuration not present|its original provider configuration at provider\[.*\] is required|has been removed\. This occurs when a provider configuration is removed|No value for required variable|Missing required argument|Module source cannot be determined' "$vlog"; then
                 echo "::notice file=$d::Module-only or caller-dependent; skipping validate for this dir."
@@ -239,11 +228,10 @@ jobs:
       - name: Setup TFLint
         if: ${{ always() }}
         uses: terraform-linters/setup-tflint@90f302c255ef959cbfb4bd10581afecdb7ece3e6
-
       - name: TFLint (all discovered roots)
         if: ${{ always() }}
         shell: bash
-        run: |
+        run: |-
           set -euo pipefail
           if [[ -z "${{ steps.discover.outputs.roots }}" ]]; then
             echo "::notice::No Terraform roots discovered; skipping tflint."
