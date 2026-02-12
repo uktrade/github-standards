@@ -102,7 +102,7 @@ jobs:
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
     
-          echo "${{ TERRAFORM_CLOUDFRONT_CI_SSH }}" > ~/.ssh/TERRAFORM_CLOUDFRONT_CI_SSH
+          echo "${{ secrets.TERRAFORM_CLOUDFRONT_CI_SSH }}" > ~/.ssh/TERRAFORM_CLOUDFRONT_CI_SSH
           echo "${{ secrets.TERRAFORM_DATADOG_CI_SSH }}" > ~/.ssh/TERRAFORM_DATADOG_CI_SSH
           echo "${{ secrets.TERRAFORM_PLATFORM_LOGGING_CI_SSH }}" > ~/.ssh/TERRAFORM_PLATFORM_LOGGING_CI_SSH
     
