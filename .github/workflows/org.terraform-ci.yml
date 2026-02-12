@@ -94,25 +94,14 @@ jobs:
         run: |
           git config --global url."https://x-access-token:${TOKEN}@github.com/".insteadOf "https://github.com/"
           git config --global --get-regexp '^url\..*\.insteadOf$' || true
-      - name: Start SSH agent
-        run: |
-          eval "$(ssh-agent -s)"
-          echo "SSH_AUTH_SOCK=$SSH_AUTH_SOCK" >> $GITHUB_ENV
-          echo "SSH_AGENT_PID=$SSH_AGENT_PID" >> $GITHUB_ENV
-      - name: Add SSH keys
-        run: |
-          mkdir -p ~/.ssh
-          chmod 700 ~/.ssh
-    
-          echo "${{ secrets.TERRAFORM_CLOUDFRONT_CI_SSH }}" > ~/.ssh/TERRAFORM_CLOUDFRONT_CI_SSH
-          echo "${{ secrets.TERRAFORM_DATADOG_CI_SSH }}" > ~/.ssh/TERRAFORM_DATADOG_CI_SSH
-          echo "${{ secrets.TERRAFORM_PLATFORM_LOGGING_CI_SSH }}" > ~/.ssh/TERRAFORM_PLATFORM_LOGGING_CI_SSH
-    
-          chmod 600 ~/.ssh/TERRAFORM_CLOUDFRONT_CI_SSH ~/.ssh/TERRAFORM_DATADOG_CI_SSH ~/.ssh/TERRAFORM_PLATFORM_LOGGING_CI_SSH
-    
-          ssh-add ~/.ssh/TERRAFORM_CLOUDFRONT_CI_SSH
-          ssh-add ~/.ssh/TERRAFORM_DATADOG_CI_SSH
-          ssh-add ~/.ssh/TERRAFORM_PLATFORM_LOGGING_CI_SSH
+      - name: Add SSH Key
+        id: ssh-agent
+        uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd  # v0.9.1
+        with:
+          ssh-private-key: |
+            ${{ secrets.TERRAFORM_CLOUDFRONT_CI_SSH }}
+            ${{ secrets.TERRAFORM_DATADOG_CI_SSH }}
+            ${{ secrets.TERRAFORM_PLATFORM_LOGGING_CI_SSH }}
 
       # ---- Provider cache (used by init/validate) ----
       - name: Prepare Terraform provider cache dir
