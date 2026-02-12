@@ -99,6 +99,7 @@ jobs:
         uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd  # v0.9.1
         with:
           ssh-private-key: |
+            ${{ secrets.TERRAFORM_CI_DUMMY_SSH }}
             ${{ secrets.TERRAFORM_CLOUDFRONT_CI_SSH }}
             ${{ secrets.TERRAFORM_DATADOG_CI_SSH }}
             ${{ secrets.TERRAFORM_PLATFORM_LOGGING_CI_SSH }}
