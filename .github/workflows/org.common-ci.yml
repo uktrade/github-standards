@@ -96,23 +96,10 @@ jobs:
           --github-action \
           /src
 
-      - name: Get latest release
-        if: ${{ github.event_name == 'pull_request' }}
-        id: get-version
-        run: |
-          current_release=$(curl ${{env.RELEASE_URL}} | jq .name)
-          echo "current_release=$current_release" >> $GITHUB_OUTPUT
-        continue-on-error: true # if the call to get the latest release fails, continue with this job but fall back to using the :latest docker image tag
-
       - name: Security scanning using the latest released docker image
-        if: steps.get-version.outcome == 'success'
+        if: ${{ github.event_name == 'pull_request' }}
         run: |
-          tag=${{steps.get-version.outputs.current_release}}
-          # if the release tag is missing from the previous step, use latest instead
-          if [[ -z $tag ]]; then
-            tag='latest'
-          fi
-          echo $tag
+          tag='latest'
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
           ${{ env.DOCKER_IMAGE }}:$tag \
           run_scan \
