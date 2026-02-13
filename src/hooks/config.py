@@ -31,5 +31,5 @@ DEFAULT_LANGUAGE_CODE = "en"
 ENGINE_CONFIG_FILE = "engine_config.yaml"
 NLP_CONFIG_FILE = "nlp_config.yaml"
 RECOGNIZER_CONFIG_FILE = "recognizer_config.yaml"
-DEFAULT_FILE_TYPES = [".txt", ".yml", ".yaml", ".csv"]
+DEFAULT_FILE_TYPES = [".txt", ".yml", ".yaml", ".csv", ".py"]
 PRESIDIO_EXCLUSIONS_FILE_PATH = "personal-data-exclusions.txt"
