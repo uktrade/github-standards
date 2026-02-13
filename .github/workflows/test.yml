@@ -4,7 +4,8 @@ on:
     branches: ["main"]
   pull_request:
     branches: ["main"]
-
+env:
+  DOCKER_LABEL: "github-standards-hooks:testing"
 jobs:
   project-tests:
     runs-on: ubuntu-latest
@@ -44,19 +45,19 @@ jobs:
 
       - name: Build docker image
         id: build
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8
         with:
           push: false
           build-args: TRUFFLEHOG_VERSION=${{ vars.TRUFFLEHOG_VERSION }}
-          tags: github-standards-hooks:docker-tests
+          tags: ${{env.DOCKER_LABEL}}
           target: testing
-          outputs: type=docker,dest=${{ runner.temp }}/myimage.tar
+          outputs: type=docker,dest=${{ runner.temp }}/docker_image.tar
 
       - name: Upload artifact
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
         with:
-          name: myimage
-          path: ${{ runner.temp }}/myimage.tar
+          name: docker_image
+          path: ${{ runner.temp }}/docker_image.tar
           retention-days: 1
 
   docker-tests:
@@ -71,19 +72,20 @@ jobs:
           fetch-depth: 0
 
       - name: Download artifact
+        id: download
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: myimage
-          path: ${{ runner.temp }}
+          name: docker_image
 
       - name: Load image
         run: |
-          docker load --input ${{ runner.temp }}/myimage.tar
+          docker load --input ${{ steps.download.outputs.download-path }}/docker_image.tar
+          docker images --digests
 
       - name: Test run security scan
         run: |
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
-          ${{ needs.build-docker-image.outputs.image }} \
+          ${{env.DOCKER_LABEL}} \
           run_scan \
           --verbose \
           /src
@@ -91,7 +93,7 @@ jobs:
       - name: Test run security scan in github action mode
         run: |
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
-          ${{ needs.build-docker-image.outputs.image }} \
+          ${{env.DOCKER_LABEL}} \
           run_scan \
           --verbose \
           --github-action \
@@ -101,7 +103,7 @@ jobs:
         run: |
           echo 'Test commit message' >> COMMIT.txt
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
-          ${{ needs.build-docker-image.outputs.image }} \
+          ${{env.DOCKER_LABEL}} \
           validate_scan \
           --verbose \
           COMMIT.txt
@@ -116,14 +118,15 @@ jobs:
         uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
 
       - name: Download artifact
+        id: download
         uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
         with:
-          name: myimage
-          path: ${{ runner.temp }}
+          name: docker_image
 
       - name: Load image
         run: |
-          docker load --input ${{ runner.temp }}/myimage.tar
+          docker load --input ${{ steps.download.outputs.download-path }}/docker_image.tar
+          docker images --digests
 
       - name: Create pre_commit.yaml file
         run: |
@@ -134,15 +137,15 @@ jobs:
                 - id: run-security-scan
                   name: run-security-scan
                   language: docker_image
-                  entry: ${{ needs.build-docker-image.outputs.image }} run_scan --verbose
+                  entry: ${{env.DOCKER_LABEL}} run_scan --verbose
                   stages: [pre-commit]
                   verbose: true
-                  require_serial: true                
+                  require_serial: true
 
                 - id: validate-security-scan
                   name: validate-security-scan
                   language: docker_image
-                  entry: ${{ needs.build-docker-image.outputs.image }} validate_scan --verbose
+                  entry: ${{env.DOCKER_LABEL}} validate_scan --verbose
                   stages: [commit-msg]
                   verbose: true
           EOF
