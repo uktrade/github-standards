@@ -2,14 +2,22 @@
 # Using a multi-stage image to create a final image without uv.
 # First, build the application in the `/app` directory.
 ARG TRUFFLEHOG_VERSION='USE_BUILD_ARG'
-FROM ghcr.io/astral-sh/uv:0.9.17-python3.13-bookworm-slim AS uv_builder
+ARG UV_VERSION=0.9.17
 
-# This ARG needs to be duplicated here, as the FROM statement above clears the value
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_builder
+
+FROM python:3.13 AS builder
+
+# These ARGs needs to be duplicated here, as the FROM statement above clears the value
+ARG UV_VERSION
 ARG TRUFFLEHOG_VERSION
+
 RUN if [ -z "$TRUFFLEHOG_VERSION" ] ; \
     then echo 'Environment variable TRUFFLEHOG_VERSION must be specified. Exiting.'; \
     exit 1; \
     fi
+
+COPY --from=uv_builder /uv /uvx /bin/
 
 # Enable bytecode compilation
 ENV UV_COMPILE_BYTECODE=1
@@ -29,11 +37,7 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Then, add the rest of the project source code and install it
 # Installing separately from its dependencies allows optimal layer caching
-COPY .pre-commit-hooks.yaml /app
-COPY pyproject.toml /app
-COPY .python-version /app
-COPY uv.lock /app
-COPY src /app/src
+COPY . /app
 
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev --no-editable
@@ -59,7 +63,7 @@ RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,sharing=locked,t
     apt-get update && apt-get --no-install-recommends install -y git
 
 # Copy the application from the builder
-COPY --from=uv_builder /app/.venv /app/.venv
+COPY --from=builder /app/.venv /app/.venv
 # Copy the trufflehog runner from the builder
 COPY --from=trufflehog_builder /usr/bin/trufflehog /usr/bin/trufflehog
 
