@@ -7,8 +7,6 @@ recognizers:
   - name: SpacyRecognizer
     type: predefined
     enabled: false # Too many false positives for now
-    supported_entities:
-      - LOCATION
 
   - name: EmailRecognizer
     type: predefined

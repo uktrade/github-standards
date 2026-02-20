@@ -18,7 +18,6 @@ from src.hooks.config import (
     PRESIDIO_EXCLUSIONS_FILE_PATH,
     RECOGNIZER_CONFIG_FILE,
 )
-from src.hooks.presidio.spacy_post_processing_recognizer import SpacyPostProcessingRecognizer
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 
 logger = LOGGER
@@ -149,7 +148,6 @@ class PresidioScanner:
             recognizer_registry_conf_file=Path.joinpath(base_path, RECOGNIZER_CONFIG_FILE),
         )
         analyzer = provider.create_engine()
-        analyzer.registry.add_recognizer(SpacyPostProcessingRecognizer())
 
         return analyzer
 
