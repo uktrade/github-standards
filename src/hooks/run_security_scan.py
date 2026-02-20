@@ -13,6 +13,7 @@ from src.hooks.config import (
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
+from src.hooks.file_verification.scanner import FileVerificationScanResult, FileVerificationScanner
 from src.hooks.hooks_base import Hook, HookRunResult
 from src.hooks.presidio.scanner import PresidioScanResult, PresidioScanner
 from src.hooks.trufflehog.scanner import TrufflehogScanResult, TrufflehogScanner
@@ -24,11 +25,13 @@ logger = LOGGER
 class RunSecurityScanResult(HookRunResult):
     def __init__(
         self,
-        trufflehog_scan_result: TrufflehogScanResult,
-        presidio_scan_result: PresidioScanResult,
+        trufflehog_scan_result: TrufflehogScanResult | None,
+        presidio_scan_result: PresidioScanResult | None,
+        file_verification_task_result: FileVerificationScanResult | None,
     ):
         self.trufflehog_scan_result = trufflehog_scan_result
         self.presidio_scan_result = presidio_scan_result
+        self.file_verification_task_result = file_verification_task_result
 
     def run_success(self) -> bool:
         is_success = True
@@ -41,18 +44,29 @@ class RunSecurityScanResult(HookRunResult):
                 and len(self.presidio_scan_result.paths_containing_personal_data) > 0
             ):
                 is_success = False
+        if self.file_verification_task_result:
+            if (
+                self.file_verification_task_result.exceeds_file_size
+                and len(self.file_verification_task_result.exceeds_file_size) > 0
+            ) or (self.file_verification_task_result.forbidden and len(self.file_verification_task_result.forbidden) > 0):
+                is_success = False
         return is_success
 
     def run_summary(self) -> str | None:
         trufflehog_summary = ""
         presidio_summary = ""
+        file_verification_summary = ""
+
         if self.trufflehog_scan_result:
             trufflehog_summary = str(self.trufflehog_scan_result)
 
         if self.presidio_scan_result:
             presidio_summary = str(self.presidio_scan_result)
 
-        return "".join(["\n", trufflehog_summary, "\n", "\n", presidio_summary])
+        if self.file_verification_task_result:
+            file_verification_summary = str(self.file_verification_task_result)
+
+        return "".join(["\n", trufflehog_summary, "\n", "\n", presidio_summary, "\n", "\n", file_verification_summary])
 
 
 class RunSecurityScan(Hook):
@@ -151,9 +165,16 @@ class RunSecurityScan(Hook):
             paths_to_scan,
         ).scan()
 
+    async def run_file_verification_scan(self):
+        if self.github_action:  # only scan new files
+            return None
+
+        return await FileVerificationScanner(self.verbose, self.paths).scan()
+
     async def run(self) -> RunSecurityScanResult:
         security_scan_task = None
         personal_data_scan_task = None
+        file_verification_task = None
 
         async with asyncio.TaskGroup() as tg:
             if SECURITY_SCAN not in self.excluded_scans:
@@ -168,10 +189,14 @@ class RunSecurityScan(Hook):
             else:
                 logger.debug("Personal data scan is excluded")
 
+            file_verification_task = tg.create_task(self.run_file_verification_scan())
+
         security_scan_result = security_scan_task.result() if security_scan_task else None
         personal_data_scan_result = personal_data_scan_task.result() if personal_data_scan_task else None
+        file_verification_task_result = file_verification_task.result() if file_verification_task else None
 
         return RunSecurityScanResult(
             trufflehog_scan_result=security_scan_result,
             presidio_scan_result=personal_data_scan_result,
+            file_verification_task_result=file_verification_task_result,
         )

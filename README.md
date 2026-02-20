@@ -24,6 +24,8 @@
   - [Excluding false positives](#excluding-false-positives-1)
 - [Bandit](#bandit)
   - [Upgrading bandit](#upgrading-bandit)
+- [File verification](#file-verification)
+  - [Excluding false positives](#excluding-false-positives-2)
 - [GitHub actions](#github-actions)
   - [Testing changes](#testing-changes)
 - [FAQ](#faq)
@@ -164,6 +166,20 @@ Bandit is used for scanning python repositories to find common security issues. 
 Although bandit provides a [github action](https://github.com/PyCQA/bandit-action) that can run scans during a PR being raised, this action always installs the latest version. As part of a cyber condition for using bandit, we are required to use a pinned version so a custom bandit job has been added to the `org.python-ci.yml` file in this repo.
 
 There is a `bandit-version` `env` variable in this job, that is used to install a specific bandit version. This variable must match a github [release version](https://github.com/PyCQA/bandit/releases)
+
+# File verification
+
+Files being committed to GitHub are scanned to ensure they:
+
+1. Do not have a file extension that is forbidden
+2. Do not have a filesize above the GitHub recommended limit of 1MB
+
+## Excluding false positives
+
+If the file verification scan has detected a file that you know is a false positive, you can exclude this from future file verification scans. To exclude a file:
+
+- If this file doesn't already exist, create a file at the root of the repository called `file-verifications-exclusions.txt`
+- This file contains list of regexes to exclude, separated by a newline. Add the filename in your repository you want to exclude as a new entry in this file
 
 # GitHub actions
 
