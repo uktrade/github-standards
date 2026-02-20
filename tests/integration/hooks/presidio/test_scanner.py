@@ -11,22 +11,19 @@ from src.hooks.presidio.path_filter import PathFilter
 from src.hooks.presidio.scanner import PresidioScanner
 from presidio_analyzer.predefined_recognizers.generic import PhoneRecognizer, EmailRecognizer
 
-from src.hooks.presidio.spacy_post_processing_recognizer import SpacyPostProcessingRecognizer
-
 
 class TestPresidioScanner:
     def test_get_analyzer_returns_expected_recognizers(self):
         scanner = PresidioScanner()
         recognizers = scanner._get_analyzer().get_recognizers()
 
-        assert len(recognizers) == 4
+        assert len(recognizers) == 3
         recognizers.sort(key=lambda x: x.name)
 
         assert recognizers[0].to_dict() == EmailRecognizer().to_dict()
         assert recognizers[1].to_dict() == PhoneRecognizer(supported_regions=["GB"]).to_dict()
-        assert recognizers[2].to_dict() == SpacyPostProcessingRecognizer(supported_entities=["PERSON", "LOCATION"]).to_dict()
         assert (
-            recognizers[3].to_dict()
+            recognizers[2].to_dict()
             == PatternRecognizer(
                 name="UKPostcodeRecognizer",
                 supported_entity="UK_POSTCODE",
@@ -97,20 +94,6 @@ class TestPresidioScanner:
 
             assert len(results.paths_containing_personal_data) == 0
             assert len(results.paths_without_personal_data) == 1
-
-    async def test_scan_returns_matches_for_location(self):
-        async with NamedTemporaryFile(
-            mode="w+t",
-            suffix=".txt",
-        ) as tf:
-            contents = "I live at 10 Downing Street, London"
-            await tf.write(contents)
-            await tf.seek(0)
-
-            results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
-
-            assert len(results.paths_containing_personal_data) == 1
-            assert len(results.paths_without_personal_data) == 0
 
     @pytest.mark.parametrize(
         "file",
