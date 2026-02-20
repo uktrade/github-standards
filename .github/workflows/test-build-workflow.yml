@@ -1,0 +1,99 @@
+name: Test Automated Release to ECR
+
+on:
+  workflow_dispatch:
+  push:
+    branches-ignore:
+      - main
+
+env:
+  REGISTRY: github-standards-hooks
+
+jobs:
+  verify-release-version:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+
+    outputs:
+      tag: ${{ steps.version.outputs.tag }}
+      version: ${{ steps.version.outputs.version }}
+      requires_release: ${{ steps.version.outputs.requires_release }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+
+      - name: Set up Python
+        uses: actions/setup-python@83679a892e2d95755f2dac6acb0bfd1e9ac5d548
+        with:
+          python-version-file: ".python-version"
+
+      - name: Extract version
+        id: extract_version
+        shell: python
+        run: |
+          import os
+          import tomllib
+          with open("pyproject.toml", "rb") as f:
+            contents = tomllib.load(f)
+            version = contents["project"]["version"]
+            with open(os.environ['GITHUB_OUTPUT'], 'a') as fh:
+              fh.write(f"version={version}\n")
+
+      - name: Process version and tag
+        id: version
+        shell: bash
+        run: |
+          input_version="${{ steps.extract_version.outputs.version }}"
+          clean_version=${input_version#v}
+
+          # Validate version format
+          if ! echo "$clean_version" | grep -E '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "Error: Version must be in format x.x.x (with or without v prefix)"
+            exit 1
+          fi
+
+          git_tag="v$clean_version"
+          requires_release="true"
+
+          # Check if tag already exists
+          if [ $(git tag -l "$git_tag") ]; then
+            echo "Tag $git_tag already exists"
+            requires_release="false"
+          fi
+
+          echo "version=$clean_version" >> $GITHUB_OUTPUT
+          echo "tag=$git_tag" >> $GITHUB_OUTPUT
+          echo "requires_release=$requires_release" >> $GITHUB_OUTPUT
+          echo "Clean version: $clean_version"
+          echo "Git tag: $git_tag"
+          echo "Requires release: $requires_release"
+
+  # This is a workaround to allow us to pass variables to the push-to-ecr reusable workflow. As that workflow runs in
+  # a separate github runner, the env vars in this file are not available
+  setup:
+    needs: [verify-release-version]
+    if: ${{ needs.verify-release-version.outputs.requires_release == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      REGISTRY: ${{ env.REGISTRY }}
+    steps:
+      - run: echo "All set!"
+
+  build-and-push-latest-image:
+    needs: [setup, verify-release-version]
+    permissions:
+      contents: read
+      id-token: write
+      packages: write
+      attestations: write
+    uses: ./.github/workflows/build-and-push-to-ecr.yml
+    with:
+      image_tags: poc1,poc2
+    secrets: inherit
