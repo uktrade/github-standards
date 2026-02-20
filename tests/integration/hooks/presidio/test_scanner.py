@@ -62,7 +62,16 @@ class TestPresidioScanner:
             assert results.paths_containing_personal_data[0].results[0].result.entity_type == "PHONE_NUMBER"
             assert results.paths_containing_personal_data[0].results[0].text_value == phone_number
 
-    @pytest.mark.parametrize("postcode", (["SW1A 1AA", "CF10 4PD"]))
+    @pytest.mark.parametrize(
+        "postcode",
+        (
+            [
+                "sw1A 1Aa",
+                "Cf10 1eP",
+                "d832fe",
+            ]
+        ),
+    )
     async def test_scan_returns_matches_for_postcode(self, postcode):
         async with NamedTemporaryFile(
             mode="w+t",
@@ -103,6 +112,7 @@ class TestPresidioScanner:
                 "tests/test_data/personal_data.txt",
                 "tests/test_data/personal_data.yaml",
                 "tests/test_data/personal_data.yml",
+                "tests/test_data/personal_data.py",
             ]
         ),
     )
@@ -119,7 +129,7 @@ class TestPresidioScanner:
             files_to_skip = [
                 NamedTemporaryFileSync(
                     dir=td,
-                    suffix=".pdf",
+                    suffix=".jpg",
                     mode="w+t",
                     prefix=f"SKIPPED_FILE_{i}_",
                 )
