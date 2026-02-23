@@ -22,9 +22,10 @@ recognizers:
     patterns:
       -
           name: "postcode (Medium)"
-          regex: "([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})$"
+          regex: "(?:^|\\s|\\'|\"|\\=|\\,)([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})(?:$|\\s|\\'|\"|\\,|\\.)"
           score: 0.5
     context:
       - postcode
       - address
+      - postal code   
     supported_entity: "UK_POSTCODE"
