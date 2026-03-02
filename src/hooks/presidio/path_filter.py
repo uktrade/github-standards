@@ -6,7 +6,7 @@ from typing import List
 
 
 from src.hooks.config import (
-    DEFAULT_FILE_TYPES,
+    EXCLUDED_PERSONAL_DATA_FILE_TYPES,
     LOGGER,
 )
 
@@ -47,11 +47,11 @@ class PathFilter:
             return PathScanStatus.SKIPPED
 
         file_extension = Path(path).suffix
-        if file_extension not in DEFAULT_FILE_TYPES:
+        if file_extension in EXCLUDED_PERSONAL_DATA_FILE_TYPES:
             logger.debug(
                 "Path %s has an extension that is not accepted for scanning. The allowed paths are %s",
                 path,
-                DEFAULT_FILE_TYPES,
+                EXCLUDED_PERSONAL_DATA_FILE_TYPES,
             )
             return PathScanStatus.SKIPPED
 

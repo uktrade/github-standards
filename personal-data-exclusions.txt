@@ -1,4 +1,4 @@
-tests/test_data/*
+tests/*
 .github/workflows/test.yml
 .github/workflows/org.common-ci.yml
 .github/workflows/org.terraform-ci.yml
