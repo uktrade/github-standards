@@ -27,8 +27,14 @@ class TestPresidioScanner:
             == PatternRecognizer(
                 name="UKPostcodeRecognizer",
                 supported_entity="UK_POSTCODE",
-                patterns=[Pattern("postcode (Medium)", r"([A-Z][A-HJ-Y]?\d[A-Z\d]? ?\d[A-Z]{2}|GIR ?0A{2})$", 0.5)],
-                context=["postcode", "address"],
+                patterns=[
+                    Pattern(
+                        "postcode (Medium)",
+                        "(?:^|\\s|\\'|\"|\\=|\\,)([A-Z][A-HJ-Y]?\\d[A-Z\\d]? ?\\d[A-Z]{2}|GIR ?0A{2})(?:$|\\s|\\'|\"|\\,|\\.)",
+                        0.5,
+                    )
+                ],
+                context=["postcode", "address", "postal code"],
             ).to_dict()
         )
 
@@ -62,8 +68,20 @@ class TestPresidioScanner:
             assert results.paths_containing_personal_data[0].results[0].result.entity_type == "PHONE_NUMBER"
             assert results.paths_containing_personal_data[0].results[0].text_value == phone_number
 
-    @pytest.mark.parametrize("postcode", (["SW1A 1AA", "CF10 4PD"]))
-    async def test_scan_returns_matches_for_postcode(self, postcode):
+    @pytest.mark.parametrize(
+        "postcode_str,expected_match",
+        [
+            ("My postcode is sw1A 1Aa", " sw1A 1Aa"),
+            ("My postcode is sw1A 1Aa and my city is London", " sw1A 1Aa "),
+            ("I live at the address Cf10 1eP", " Cf10 1eP"),
+            ("Cf101eP", "Cf101eP"),
+            ("=Cf101eP", "=Cf101eP"),
+            (",Cf101eP", ",Cf101eP"),
+            ("ABC DEF d832fe.", " d832fe."),
+            ("ABC DEF d832fe,", " d832fe,"),
+        ],
+    )
+    async def test_scan_returns_matches_for_postcode(self, postcode_str, expected_match):
         async with NamedTemporaryFile(
             mode="w+t",
             suffix=".txt",
@@ -72,14 +90,13 @@ class TestPresidioScanner:
                 patch.object(PathFilter, "_get_exclusions") as mock_exclusions,
             ):
                 mock_exclusions.return_value = []
-                contents = f"My postcode is {postcode}"
-                await tf.write(contents)
+                await tf.write(postcode_str)
                 await tf.seek(0)
 
                 results = await PresidioScanner(verbose=True, paths=[tf.name]).scan()
 
                 assert results.paths_containing_personal_data[0].results[0].result.entity_type == "UK_POSTCODE"
-                assert results.paths_containing_personal_data[0].results[0].text_value == postcode
+                assert results.paths_containing_personal_data[0].results[0].text_value == expected_match
 
     async def test_scan_returns_no_matches_for_names(self):
         async with NamedTemporaryFile(
