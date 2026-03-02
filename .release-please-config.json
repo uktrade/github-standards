@@ -1,0 +1,25 @@
+{
+  "release-type": "python",
+  "include-v-in-tag": true,
+  "skip-github-release": false,
+  "skip-github-pull-request": false,
+  "packages": {
+    ".": {
+      "release-type": "python",
+      "pull-request-header": ":robot: Next release",
+      "pull-request-footer": " ",
+      "extra-files": [
+        {
+          "path": "uv.lock",
+          "type": "toml",
+          "jsonpath": "$.package[?(@.name.value=='github-standards')].version"
+        },
+        {
+          "path": "pyproject.toml",
+          "type": "toml",
+          "jsonpath": "$.project.version"
+        }
+      ]
+    }
+  }
+}
