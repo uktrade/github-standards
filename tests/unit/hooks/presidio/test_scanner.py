@@ -5,8 +5,32 @@ from anyio import NamedTemporaryFile
 from presidio_analyzer import RecognizerResult
 
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
-from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanner, PathScanResult
+from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PresidioScanner, PathScanResult
 from unittest.mock import ANY, MagicMock, call, patch
+
+
+class TestPresidioScanResult:
+    @pytest.mark.parametrize(
+        "status,attr_name",
+        [
+            (PathScanStatus.EXCLUDED, "paths_excluded"),
+            (PathScanStatus.FAILED, "paths_containing_personal_data"),
+            (PathScanStatus.PASSED, "paths_without_personal_data"),
+            (PathScanStatus.SKIPPED, "paths_skipped"),
+            (PathScanStatus.ERRORED, "paths_errored"),
+        ],
+    )
+    def test_add_path_scan_result_adds_result_to_expected_paths_list(self, status, attr_name):
+        result = PresidioScanResult()
+
+        assert len(getattr(result, attr_name)) == 0
+        result.add_path_scan_result(PathScanResult("a.txt", status))
+        assert len(getattr(result, attr_name)) == 1
+
+    def test_str_output_for_error(self):
+        result = PresidioScanResult()
+        result.add_path_scan_result(PathScanResult("a.txt", PathScanStatus.ERRORED, additional_detail="Additional details"))
+        assert str(result) == ""
 
 
 class TestPresidioScanner:
@@ -68,13 +92,14 @@ class TestPresidioScanner:
     async def test_scan_path_handles_exception(self):
         async with NamedTemporaryFile(suffix="file1.csv", mode="w+t") as tf:
             with patch.object(PresidioScanner, "_scan_content") as mock_scan_content:
-                mock_scan_content.side_effect = Exception()
+                mock_scan_content.side_effect = Exception("An exception message")
                 contents = "Error reading this file"
                 await tf.write(contents)
                 await tf.seek(0)
 
                 result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
                 assert result.status == PathScanStatus.ERRORED
+                assert result.additional_detail == "An exception message"
 
     def test_scan_content_returns_detections_list_when_path_has_personal_data(self):
         contents = "I have personal data"
