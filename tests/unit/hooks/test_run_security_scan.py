@@ -31,6 +31,9 @@ async def aio_client_with_app(aiohttp_client: AiohttpClient):
     return client
 
 
+pytestmark = [pytest.mark.asyncio(loop_scope="class")]
+
+
 class TestRunSecurityScan:
     def test_validate_args_without_path_list_returns_false(self):
         assert RunSecurityScan(paths=None).validate_args() is False
@@ -58,7 +61,6 @@ class TestRunSecurityScan:
             mock_is_dir.return_value = True
             assert RunSecurityScan(paths=["/a/b/c"], github_action=True).validate_args() is True
 
-    @pytest.mark.asyncio
     async def test_get_version_from_remote_raises_exception_for_http_errors(self, aio_client_with_app):
         aio_client_with_app.app.router.add_route(
             "GET",
@@ -71,7 +73,6 @@ class TestRunSecurityScan:
         ):
             await RunSecurityScan()._get_version_from_remote()
 
-    @pytest.mark.asyncio
     async def test_get_version_from_remote_returns_expected_json(self, aio_client_with_app):
         aio_client_with_app.app.router.add_route(
             "GET",
@@ -106,7 +107,7 @@ class TestRunSecurityScan:
             repo = {"repo": "https://github.com/uktrade/github-standards", "rev": "v3"}
 
             assert await RunSecurityScan()._validate_hook_settings(repo) is True
-            assert caplog.records[1].levelname == "ERROR"
+            assert caplog.records[0].levelname == "ERROR"
 
     async def test_validate_hook_settings_with_dbt_hooks_repo_present_when_remote_version_http_error_returns_true(
         self,
