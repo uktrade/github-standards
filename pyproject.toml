@@ -16,7 +16,7 @@ dependencies = [
     "gitpython>=3.1.45",
     "prettytable>=3.17.0",
     "asyncio>=4.0.0",
-    "anyio>=4.12.0",
+    "anyio>=4.13.0",
     "aiohttp>=3.13.2",
 ]
 version = "v1.4.0"
