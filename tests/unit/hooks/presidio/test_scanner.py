@@ -6,7 +6,7 @@ from anyio import NamedTemporaryFile
 from presidio_analyzer import RecognizerResult
 
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
-from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PresidioScanner, PathScanResult
+from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PresidioScanner, PathScanResult, AllowlistFilter
 from unittest.mock import ANY, MagicMock, call, patch
 
 
@@ -161,3 +161,25 @@ class TestPresidioScanner:
             await PresidioScanner(paths=test_paths).scan()
 
             mock_scan_path.assert_has_calls([call(ANY, ANY, path, []) for path in test_paths])
+
+    def make_detection(self, text):
+        return PersonalDataDetection(
+            RecognizerResult("EMAIL", 0, 10, 1.0),
+            text_value = text
+        )
+
+    def test_allowlist_matches_git_address(self):
+        allowlist = AllowlistFilter([r"git@github\.com"])
+        assert allowlist.is_allowed(r"git@github.com") is True
+
+    def test_allowlist_filters_detection(self):
+        allowlist = AllowlistFilter([r"git@github\.com"])
+        detections = [
+            self.make_detection("git@github.com"),
+            self.make_detection("jack.boyer@example.com"),
+        ]
+
+        filtered = allowlist.filter(detections)
+
+        assert len(filtered) == 1
+        assert filtered[0].text_value == "jack@example.com"
