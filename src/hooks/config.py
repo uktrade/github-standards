@@ -49,4 +49,7 @@ EXCLUDED_PERSONAL_DATA_FILE_TYPES = [
     # docs
     ".pdf",
 ]
+EXCLUDED_PERSONAL_DATA_VALUES = [
+    r"git@github\.com"
+]
 PRESIDIO_EXCLUSIONS_FILE_PATH = "personal-data-exclusions.txt"
