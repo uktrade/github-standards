@@ -17,11 +17,28 @@ from src.hooks.config import (
     NLP_CONFIG_FILE,
     PRESIDIO_EXCLUSIONS_FILE_PATH,
     RECOGNIZER_CONFIG_FILE,
+    EXCLUDED_PERSONAL_DATA_FILE_TYPES,
+    EXCLUDED_PERSONAL_DATA_VALUES
 )
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 
 logger = LOGGER
 
+class AllowlistFilter:
+    def __init__(self, patterns: list[str]):
+        self.patterns = [re.compile(p) for p in patterns]
+
+    def is_allowed(self, text:str) -> bool:
+        return any(p.search(text) for p in self.patterns)
+
+    def filter(self, detections: list["PersonalDataDetection"]) -> list["PersonalDataDetection"]:
+        filtered = []
+        for d in detections:
+            text = d.text_value or ""
+            if self.is_allowed(text):
+                continue
+            filtered.append(d)
+        return filtered
 
 class PersonalDataDetection:
     def __init__(self, result: RecognizerResult, text_value: str | None = None) -> None:
@@ -153,6 +170,10 @@ class PresidioScanner:
 
         return analyzer
 
+    def _filter_detections(self, detections: List[str]):
+        allowlist = AllowlistFilter(EXCLUDED_PERSONAL_DATA_VALUES)
+        return allowlist.filter(detections)
+
     def _scan_content(self, analyzer: AnalyzerEngine, entities: List[str], content: str):
         results = analyzer.analyze(
             text=content,
@@ -179,11 +200,11 @@ class PresidioScanner:
                 if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
                     logger.debug("Scanning file %s line by line", file_path)
                     async for line in fs:
-                        results.extend(self._scan_content(analyzer, entities, line.rstrip()))
+                        results.extend(self._filter_detections(self._scan_content(analyzer, entities, line.rstrip())))
                 else:
                     contents = await fs.read()
                     logger.debug("Scanning file %s by reading all contents", file_path)
-                    results.extend(self._scan_content(analyzer, entities, contents))
+                    results.extend(self._filter_detections(self._scan_content(analyzer, entities, contents)))
 
                 return PathScanResult(
                     file_path,
