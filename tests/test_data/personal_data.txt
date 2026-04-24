@@ -8,3 +8,5 @@ SW1A 1AA
 +442920000002
 john.smith2@test.com
 0.9.0.20241207
+jack@example.com
+git@github.com
