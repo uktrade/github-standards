@@ -4,11 +4,11 @@ import src.hooks.presidio.scanner as scanner
 from random import randint
 from anyio import NamedTemporaryFile, TemporaryDirectory
 from tempfile import NamedTemporaryFile as NamedTemporaryFileSync
-from unittest.mock import patch
+from unittest.mock import patch, MagicMock
 
-from presidio_analyzer import Pattern, PatternRecognizer
-from src.hooks.presidio.path_filter import PathFilter
-from src.hooks.presidio.scanner import PresidioScanner
+from presidio_analyzer import Pattern, PatternRecognizer, RecognizerResult
+from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
+from src.hooks.presidio.scanner import PresidioScanner, PersonalDataDetection
 from presidio_analyzer.predefined_recognizers.generic import PhoneRecognizer, EmailRecognizer
 
 
@@ -177,3 +177,21 @@ class TestPresidioScanner:
                 assert {result.path for result in scan_result.paths_without_personal_data} == {
                     file.name for file in files_to_with_no_personal_data
                 }
+    async def test_allowlist_removes_results_in_scan_path(self):
+        scanner = PresidioScanner(paths = [])
+
+        mock_detection = PersonalDataDetection(
+            RecognizerResult("EMAIL", 0, 10, 1),
+            text_value = "git@github.com"
+        )
+        with patch.object(PresidioScanner, "_scan_content") as mock_scan:
+            mock_scan.return_value = [mock_detection]
+
+            async with NamedTemporaryFile(suffix=".txt", mode="w+t") as tf:
+                await tf.write("git@github.com")
+                await tf.seek(0)
+
+                result = await scanner._scan_path(MagicMock(), [], tf.name, [])
+
+                assert result.status == PathScanStatus.PASSED
+                assert result.results == []
