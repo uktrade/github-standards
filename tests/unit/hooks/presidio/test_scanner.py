@@ -176,10 +176,25 @@ class TestPresidioScanner:
         allowlist = AllowlistFilter([r"git@github\.com"])
         detections = [
             self.make_detection("git@github.com"),
-            self.make_detection("jack.boyer@example.com"),
+            self.make_detection("jack@example.com"),
         ]
 
         filtered = allowlist.filter(detections)
 
         assert len(filtered) == 1
         assert filtered[0].text_value == "jack@example.com"
+
+    def test_allowlist_does_not_overmatch(self):
+        allowlist = AllowlistFilter([r"git@github\.com"])
+
+        detections = [
+            PersonalDataDetection(
+                RecognizerResult("EMAIL", 0, 10, 1),
+                text_value="git@github.com.evil.com"
+            ),
+        ]
+        filtered = allowlist.filter(detections)
+        print(filtered)
+
+        assert len(filtered) == 1
+        assert filtered[0].text_value == "git@github.com.evil.com"

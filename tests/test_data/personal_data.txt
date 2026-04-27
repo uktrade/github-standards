@@ -10,3 +10,4 @@ john.smith2@test.com
 0.9.0.20241207
 jack@example.com
 git@github.com
+git@github.com.evil.com

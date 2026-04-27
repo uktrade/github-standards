@@ -29,7 +29,7 @@ class AllowlistFilter:
         self.patterns = [re.compile(p) for p in patterns]
 
     def is_allowed(self, text:str) -> bool:
-        return any(p.search(text) for p in self.patterns)
+        return any(p.fullmatch(text) for p in self.patterns)
 
     def filter(self, detections: list["PersonalDataDetection"]) -> list["PersonalDataDetection"]:
         filtered = []
