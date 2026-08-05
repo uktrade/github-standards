@@ -1,0 +1,101 @@
+name: Datadog SCA (scan)
+
+# Runs in the PR/fork context. This job has NO access to secrets, and that's
+# fine: generating the SBOM needs no Datadog credentials. It scans the checked
+# out code, produces an SBOM, records the git metadata needed for attribution,
+# and hands both to the trusted upload workflow via an artifact.
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  generate-sbom:
+    runs-on: ubuntu-latest
+    name: Generate SBOM
+    steps:
+      - name: Checkout PR head commit
+        uses: actions/checkout@v6
+        with:
+          # Check out the PR head commit itself (not the synthetic merge commit
+          # that pull_request checks out by default) so the SBOM and the git
+          # metadata below both describe the same commit we attribute to.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install datadog-sbom-generator
+        env:
+          SBOMGEN_VERSION: "1.14.0"
+        run: |
+          set -euo pipefail
+          # ubuntu-latest runners are always linux/amd64.
+          filename="datadog-sbom-generator_linux_amd64.zip"
+          base="https://github.com/DataDog/datadog-sbom-generator/releases/download/v${SBOMGEN_VERSION}"
+          curl_args="--fail --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors --retry-max-time 300 --connect-timeout 15 --max-time 120"
+          tmpdir="$(mktemp -d)"
+
+          curl $curl_args -o "$tmpdir/$filename" "$base/$filename"
+          curl $curl_args -o "$tmpdir/SHA256SUMS" "$base/datadog-sbom-generator_SHA256SUMS"
+
+          expected="$(awk -v f="$filename" 'index($0, f){print $1; exit}' "$tmpdir/SHA256SUMS")"
+          actual="$(sha256sum "$tmpdir/$filename" | awk '{print $1}')"
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error title=Checksum verification failed::datadog-sbom-generator checksum mismatch"
+            exit 1
+          fi
+
+          unzip -q "$tmpdir/$filename" -d "$tmpdir/bin"
+          chmod +x "$tmpdir/bin/datadog-sbom-generator"
+          echo "$tmpdir/bin" >> "$GITHUB_PATH"
+
+      - name: Generate SBOM
+        run: |
+          set -euo pipefail
+          # No --reachability: that path can require Datadog config/credentials,
+          # which this untrusted job intentionally does not have.
+          datadog-sbom-generator scan --verbosity info --output=sbom.json .
+
+      - name: Record git metadata for attribution
+        env:
+          # github.repository is always the BASE repo (even for fork PRs), which
+          # is the repo we want findings attributed to.
+          BASE_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          # PR -> tip of the source (fork) branch. Push -> the pushed commit.
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          # Author/committer identity is read from the checked-out HEAD (the PR
+          # head commit). datadog-ci requires these fields. The commit message
+          # is intentionally omitted: it is not required and is the most
+          # attacker-controllable, newline-bearing field.
+          {
+            echo "DD_GIT_REPOSITORY_URL=https://github.com/${BASE_REPO}.git"
+            echo "DD_GIT_COMMIT_SHA=${HEAD_SHA}"
+            echo "DD_GIT_BRANCH=${HEAD_REF}"
+            echo "DD_GIT_COMMIT_AUTHOR_NAME=$(git show -s --format=%an HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_EMAIL=$(git show -s --format=%ae HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_DATE=$(git show -s --format=%aI HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_NAME=$(git show -s --format=%cn HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_EMAIL=$(git show -s --format=%ce HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_DATE=$(git show -s --format=%cI HEAD)"
+            if [ "${EVENT_NAME}" = "pull_request" ]; then
+              echo "DD_PR_NUMBER=${PR_NUMBER}"
+              echo "DD_GIT_PULL_REQUEST_BASE_BRANCH=${BASE_REF}"
+            fi
+          } > dd-git.env
+          echo "Recorded attribution metadata:"
+          cat dd-git.env
+
+      - name: Upload SBOM and metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: datadog-sbom
+          path: |
+            sbom.json
+            dd-git.env
+          retention-days: 1
