@@ -57,6 +57,8 @@ jobs:
           sarif_file: ${{env.results-file}}
 
   dependency-review:
+    # This job will fail on a push as it needs to do a diff as part of a PR
+    if: ${{ github.event_name == 'pull_request' }}
     permissions:
       pull-requests: write
       contents: read
