@@ -1,0 +1,74 @@
+name: Datadog IaC Security
+
+# Runs in the base repo context after the scan workflow completes, so it has
+# access to secrets even for fork PRs. Downloads the SARIF report produced
+# by the untrusted job and uploads it to Datadog. Never checks out fork code.
+#
+# This will not fire until merged to the default branch (workflow_run only
+# runs the copy of this file on the default branch).
+#
+# NOTE: SARIF uploaded this way will not trigger PR comments or PR gate
+# evaluations (that requires the official DataDog GitHub Action). Findings
+# still appear in the Datadog UI.
+on:
+  workflow_run:
+    workflows: ["Datadog IaC Security (scan)"]
+    types: [completed]
+
+# Each workflow_run event maps to one specific commit's scan, and completion
+# order isn't guaranteed, so runs are queued (not cancelled) to guarantee
+# every commit's findings still get uploaded.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  actions: read # required to download the artifact from the triggering run
+
+jobs:
+  upload-sarif:
+    runs-on: ubuntu-latest
+    name: Upload SARIF to Datadog
+    environment: datadog
+    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    steps:
+      - name: Download SARIF report and metadata
+        uses: actions/download-artifact@v4
+        with:
+          name: datadog-iac-sarif
+          run-id: ${{ github.event.workflow_run.id }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install datadog-ci
+        uses: DataDog/install-datadog-ci-github-action@6d7f0c7c5402a4b1912055b76970ca76bef71fe5 # v1.0.4
+        with:
+          version: v5.12.1
+
+      - name: Load attribution metadata
+        run: |
+          set -euo pipefail
+          # SECURITY: dd-git.env carries fork-controlled values. Do NOT
+          # `source` it (a crafted author name could execute code in this
+          # secrets-bearing job). Whitelist DD_* keys and write each line
+          # verbatim to $GITHUB_ENV with no shell evaluation.
+          while IFS= read -r line || [ -n "$line" ]; do
+            case "$line" in
+              DD_GIT_*=*|DD_PR_NUMBER=*) printf '%s\n' "$line" >> "$GITHUB_ENV" ;;
+            esac
+          done < dd-git.env
+
+      - name: Upload SARIF to Datadog
+        env:
+          DD_API_KEY: ${{ secrets.DD_API_KEY }}
+          DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
+          DD_SITE: ${{ vars.DD_SITE || 'datadoghq.com' }}
+        run: |
+          set -euo pipefail
+          # DD_GIT_* / DD_PR_NUMBER (loaded above) override this workflow's
+          # own git context so findings attach to the PR commit/branch
+          # rather than this repo's default branch.
+          echo "Uploading IaC Security SARIF for ${DD_GIT_BRANCH:-?}@${DD_GIT_COMMIT_SHA:-?} (PR #${DD_PR_NUMBER:-n/a})"
+          # --service/--env match what DataDog/datadog-iac-scanner-github-
+          # action passes in its own upload step.
+          datadog-ci sarif upload report.sarif --service datadog-iac-scanner --env ci

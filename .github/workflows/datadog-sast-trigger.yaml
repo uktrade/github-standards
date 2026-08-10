@@ -1,0 +1,95 @@
+name: Datadog SAST (scan)
+
+# Runs in the untrusted PR/fork context with no secrets. Scans the code,
+# produces a SARIF report, and records git metadata for attribution. Hands
+# both to the trusted upload workflow (datadog-sast.yml) via an artifact.
+on:
+  pull_request:
+
+# Serializes runs per branch/PR; safe to cancel a superseded commit's scan.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  generate-sarif:
+    runs-on: ubuntu-latest
+    name: Generate SAST SARIF report
+    steps:
+      - name: Checkout PR head commit
+        uses: actions/checkout@v6
+        with:
+          # Avoids the synthetic merge commit pull_request checks out by
+          # default, so the SARIF and metadata below describe the same commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install datadog-static-analyzer
+        env:
+          ANALYZER_VERSION: "0.8.4"
+        run: |
+          set -euo pipefail
+          filename="datadog-static-analyzer-x86_64-unknown-linux-gnu.zip"
+          url="https://github.com/DataDog/datadog-static-analyzer/releases/download/${ANALYZER_VERSION}/${filename}"
+          curl_args="--fail --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors --retry-max-time 300 --connect-timeout 15 --max-time 120"
+          tmpdir="$(mktemp -d)"
+          # No published checksum manifest for this release asset (unlike
+          # datadog-sbom-generator, used by the SCA pipeline); the version is
+          # pinned above instead, for reproducibility.
+          curl $curl_args -o "$tmpdir/$filename" "$url"
+          unzip -q "$tmpdir/$filename" -d "$tmpdir/bin"
+          chmod +x "$tmpdir/bin/datadog-static-analyzer"
+          echo "$tmpdir/bin" >> "$GITHUB_PATH"
+
+      - name: Run Static Code Analysis
+        run: |
+          set -euo pipefail
+          datadog-static-analyzer \
+            -i . \
+            -o report.sarif \
+            -f sarif \
+            --cpus 2 \
+            --enable-static-analysis true \
+            --enable-secrets false
+
+      - name: Record git metadata for attribution
+        env:
+          # github.repository is always the base repo, even for fork PRs.
+          BASE_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          # Commit message is omitted: not required, and the most
+          # attacker-controllable, newline-bearing field.
+          {
+            echo "DD_GIT_REPOSITORY_URL=https://github.com/${BASE_REPO}.git"
+            echo "DD_GIT_COMMIT_SHA=${HEAD_SHA}"
+            echo "DD_GIT_BRANCH=${HEAD_REF}"
+            echo "DD_GIT_COMMIT_AUTHOR_NAME=$(git show -s --format=%an HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_EMAIL=$(git show -s --format=%ae HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_DATE=$(git show -s --format=%aI HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_NAME=$(git show -s --format=%cn HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_EMAIL=$(git show -s --format=%ce HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_DATE=$(git show -s --format=%cI HEAD)"
+            if [ "${EVENT_NAME}" = "pull_request" ]; then
+              echo "DD_PR_NUMBER=${PR_NUMBER}"
+              echo "DD_GIT_PULL_REQUEST_BASE_BRANCH=${BASE_REF}"
+            fi
+          } > dd-git.env
+          echo "Recorded attribution metadata:"
+          cat dd-git.env
+
+      - name: Upload SARIF report and metadata
+        uses: actions/upload-artifact@v4
+        with:
+          name: datadog-sast-sarif
+          path: |
+            report.sarif
+            dd-git.env
+          retention-days: 1
