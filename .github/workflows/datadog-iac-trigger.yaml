@@ -11,6 +11,7 @@ name: Datadog IaC Security (scan)
 # repo with an `origin` remote configured; actions/checkout sets this up.
 on:
   pull_request:
+    branches: [main]
 
 # Serializes runs per branch/PR; safe to cancel a superseded commit's scan.
 concurrency:
