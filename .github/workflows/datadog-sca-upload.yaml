@@ -1,16 +1,34 @@
 name: Datadog Software Composition Analysis
 
-# Runs in the BASE repo context after the scan workflow completes, so it has
-# access to secrets even for fork PRs. It downloads the SBOM produced by the
-# untrusted job and uploads it to Datadog. It never checks out fork code, so
-# there is no "pwn request" exposure and no untrusted code runs here.
+# Runs in the base repo context after the scan workflow completes, so it has
+# access to secrets even for fork PRs. Downloads the SBOM produced by the
+# untrusted job and uploads it to Datadog. Never checks out fork code.
 #
-# NOTE: workflow_run only ever runs the copy of this file on the default
-# branch. It will not fire until this file is merged to main.
+# This will not fire until merged to the default branch (workflow_run only
+# runs the copy of this file on the default branch).
+#
+# cicd-github-dangerous-triggers: this job never checks out fork/PR code,
+# and the only untrusted input it reads (dd-git.env) is whitelisted
+# line-by-line rather than sourced, so PR-controlled values can't execute
+# in this secrets-bearing context. workflow_run is required here to keep
+# secrets out of the untrusted scan job (see datadog-sca-trigger.yml).
+# dd-iac-scan ignore-line
 on:
   workflow_run:
     workflows: ["Datadog SCA (scan)"]
     types: [completed]
+
+# Each workflow_run event maps to one specific commit's scan, and completion
+# order isn't guaranteed, so runs are queued (not cancelled) to guarantee
+# every commit's findings still get uploaded.
+#
+# cicd-github-concurrency-limits: cancel-in-progress is deliberately false
+# (see above) — cancelling here would drop an in-flight commit's SARIF/SBOM
+# upload to Datadog.
+# dd-iac-scan ignore-line
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -20,11 +38,11 @@ jobs:
   upload-sbom:
     runs-on: ubuntu-latest
     name: Upload SBOM to Datadog
-    # Only upload when the scan workflow succeeded.
+    environment: datadog
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Download SBOM and metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: datadog-sbom
           run-id: ${{ github.event.workflow_run.id }}
@@ -38,10 +56,10 @@ jobs:
       - name: Load attribution metadata
         run: |
           set -euo pipefail
-          # SECURITY: dd-git.env carries fork-controlled values. Do NOT `source`
-          # it (that would let a crafted author name execute code in this
-          # secrets-bearing job). Instead, whitelist DD_* keys and write each
-          # line verbatim to $GITHUB_ENV with no shell evaluation.
+          # SECURITY: dd-git.env carries fork-controlled values. Do NOT
+          # `source` it (a crafted author name could execute code in this
+          # secrets-bearing job). Whitelist DD_* keys and write each line
+          # verbatim to $GITHUB_ENV with no shell evaluation.
           while IFS= read -r line || [ -n "$line" ]; do
             case "$line" in
               DD_GIT_*=*|DD_PR_NUMBER=*) printf '%s\n' "$line" >> "$GITHUB_ENV" ;;
@@ -52,12 +70,12 @@ jobs:
         env:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
-          DD_SITE: datadoghq.com
+          DD_SITE: ${{ vars.DD_SITE || 'datadoghq.com' }}
         run: |
           set -euo pipefail
-          # DD_GIT_* / DD_PR_NUMBER (loaded above) override the wrong git
-          # context of this workflow_run so findings attach to the PR
-          # commit/branch rather than this repo's default branch.
+          # DD_GIT_* / DD_PR_NUMBER (loaded above) override this workflow's
+          # own git context so findings attach to the PR commit/branch
+          # rather than this repo's default branch.
           echo "Uploading SBOM for ${DD_GIT_BRANCH:-?}@${DD_GIT_COMMIT_SHA:-?} (PR #${DD_PR_NUMBER:-n/a})"
           datadog-ci sbom upload \
             --source github-action \
