@@ -1,21 +1,25 @@
-name: Datadog Software Composition Analysis
+name: Datadog Static Code Analysis
 
 # Runs in the base repo context after the scan workflow completes, so it has
-# access to secrets even for fork PRs. Downloads the SBOM produced by the
-# untrusted job and uploads it to Datadog. Never checks out fork code.
+# access to secrets even for fork PRs. Downloads the SARIF report produced
+# by the untrusted job and uploads it to Datadog. Never checks out fork code.
 #
 # This will not fire until merged to the default branch (workflow_run only
 # runs the copy of this file on the default branch).
+#
+# NOTE: SARIF uploaded this way will not trigger PR comments or PR gate
+# evaluations (that requires the official DataDog GitHub Action). Findings
+# still appear in the Datadog UI.
 #
 # cicd-github-dangerous-triggers: this job never checks out fork/PR code,
 # and the only untrusted input it reads (dd-git.env) is whitelisted
 # line-by-line rather than sourced, so PR-controlled values can't execute
 # in this secrets-bearing context. workflow_run is required here to keep
-# secrets out of the untrusted scan job (see datadog-sca-trigger.yml).
+# secrets out of the untrusted scan job (see datadog-sast-trigger.yml).
 # dd-iac-scan ignore-line
 on:
   workflow_run:
-    workflows: ["Datadog SCA (scan)"]
+    workflows: ["Datadog SAST (scan)"]
     types: [completed]
 
 # Each workflow_run event maps to one specific commit's scan, and completion
@@ -35,16 +39,16 @@ permissions:
   actions: read # required to download the artifact from the triggering run
 
 jobs:
-  upload-sbom:
+  upload-sarif:
     runs-on: ubuntu-latest
-    name: Upload SBOM to Datadog
+    name: Upload SARIF to Datadog
     environment: datadog
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
-      - name: Download SBOM and metadata
+      - name: Download SARIF report and metadata
         uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: datadog-sbom
+          name: datadog-sast-sarif
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -66,7 +70,7 @@ jobs:
             esac
           done < dd-git.env
 
-      - name: Upload SBOM to Datadog
+      - name: Upload SARIF to Datadog
         env:
           DD_API_KEY: ${{ secrets.DD_API_KEY }}
           DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
@@ -76,9 +80,5 @@ jobs:
           # DD_GIT_* / DD_PR_NUMBER (loaded above) override this workflow's
           # own git context so findings attach to the PR commit/branch
           # rather than this repo's default branch.
-          echo "Uploading SBOM for ${DD_GIT_BRANCH:-?}@${DD_GIT_COMMIT_SHA:-?} (PR #${DD_PR_NUMBER:-n/a})"
-          datadog-ci sbom upload \
-            --source github-action \
-            --service datadog-sbom-generator \
-            --env ci \
-            sbom.json
+          echo "Uploading SAST SARIF for ${DD_GIT_BRANCH:-?}@${DD_GIT_COMMIT_SHA:-?} (PR #${DD_PR_NUMBER:-n/a})"
+          datadog-ci sarif upload report.sarif
