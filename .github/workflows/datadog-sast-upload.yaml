@@ -1,4 +1,4 @@
-name: Datadog IaC Security
+name: Datadog Static Code Analysis
 
 # Runs in the base repo context after the scan workflow completes, so it has
 # access to secrets even for fork PRs. Downloads the SARIF report produced
@@ -10,14 +10,26 @@ name: Datadog IaC Security
 # NOTE: SARIF uploaded this way will not trigger PR comments or PR gate
 # evaluations (that requires the official DataDog GitHub Action). Findings
 # still appear in the Datadog UI.
+#
+# cicd-github-dangerous-triggers: this job never checks out fork/PR code,
+# and the only untrusted input it reads (dd-git.env) is whitelisted
+# line-by-line rather than sourced, so PR-controlled values can't execute
+# in this secrets-bearing context. workflow_run is required here to keep
+# secrets out of the untrusted scan job (see datadog-sast-trigger.yml).
+# dd-iac-scan ignore-line
 on:
   workflow_run:
-    workflows: ["Datadog IaC Security (scan)"]
+    workflows: ["Datadog SAST (scan)"]
     types: [completed]
 
 # Each workflow_run event maps to one specific commit's scan, and completion
 # order isn't guaranteed, so runs are queued (not cancelled) to guarantee
 # every commit's findings still get uploaded.
+#
+# cicd-github-concurrency-limits: cancel-in-progress is deliberately false
+# (see above) — cancelling here would drop an in-flight commit's SARIF/SBOM
+# upload to Datadog.
+# dd-iac-scan ignore-line
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
   cancel-in-progress: false
@@ -34,9 +46,9 @@ jobs:
     if: ${{ github.event.workflow_run.conclusion == 'success' }}
     steps:
       - name: Download SARIF report and metadata
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
-          name: datadog-iac-sarif
+          name: datadog-sast-sarif
           run-id: ${{ github.event.workflow_run.id }}
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -68,7 +80,5 @@ jobs:
           # DD_GIT_* / DD_PR_NUMBER (loaded above) override this workflow's
           # own git context so findings attach to the PR commit/branch
           # rather than this repo's default branch.
-          echo "Uploading IaC Security SARIF for ${DD_GIT_BRANCH:-?}@${DD_GIT_COMMIT_SHA:-?} (PR #${DD_PR_NUMBER:-n/a})"
-          # --service/--env match what DataDog/datadog-iac-scanner-github-
-          # action passes in its own upload step.
-          datadog-ci sarif upload report.sarif --service datadog-iac-scanner --env ci
+          echo "Uploading SAST SARIF for ${DD_GIT_BRANCH:-?}@${DD_GIT_COMMIT_SHA:-?} (PR #${DD_PR_NUMBER:-n/a})"
+          datadog-ci sarif upload report.sarif

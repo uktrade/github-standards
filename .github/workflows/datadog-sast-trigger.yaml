@@ -3,12 +3,18 @@ name: Datadog SAST (scan)
 # Runs in the untrusted PR/fork context with no secrets. Scans the code,
 # produces a SARIF report, and records git metadata for attribution. Hands
 # both to the trusted upload workflow (datadog-sast.yml) via an artifact.
+#
+# No `push` trigger: a push event on this repo can only come from someone
+# with write access, never an external fork (forks pushing to their own
+# remote never fire an event here). Datadog-hosted scanning covers internal
+# work (every commit, every branch); this pipeline exists specifically for
+# the fork-PR case hosted scanning can't safely run with secrets.
 on:
   pull_request:
 
-# Serializes runs per branch/PR; safe to cancel a superseded commit's scan.
+# Serialises runs per PR; safe to cancel a superseded commit's scan.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
   cancel-in-progress: true
 
 permissions:
@@ -18,9 +24,12 @@ jobs:
   generate-sarif:
     runs-on: ubuntu-latest
     name: Generate SAST SARIF report
+    # Only run for PRs from external forks — internal PRs (same-repo
+    # branches) are already covered by Datadog-hosted scanning.
+    if: github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Checkout PR head commit
-        uses: actions/checkout@v6
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
         with:
           # Avoids the synthetic merge commit pull_request checks out by
           # default, so the SARIF and metadata below describe the same commit.
@@ -86,7 +95,7 @@ jobs:
           cat dd-git.env
 
       - name: Upload SARIF report and metadata
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: datadog-sast-sarif
           path: |
