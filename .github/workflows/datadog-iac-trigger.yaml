@@ -1,0 +1,136 @@
+name: Datadog IaC Security (scan)
+
+# Runs in the untrusted PR/fork context with no secrets. Scans the code for
+# Infrastructure-as-Code misconfigurations, produces a SARIF report, and
+# records git metadata for attribution. Hands both to the trusted upload
+# workflow (datadog-iac.yml) via an artifact.
+#
+# datadog-iac-scanner runs without DD_API_KEY/DD_APP_KEY, falling back to its
+# bundled default ruleset (org-specific custom rules require credentials and
+# will not apply here). It also requires the scanned directory to be a git
+# repo with an `origin` remote configured; actions/checkout sets this up.
+#
+# No `push` trigger: a push event on this repo can only come from someone
+# with write access, never an external fork (forks pushing to their own
+# remote never fire an event here). Datadog-hosted scanning covers internal
+# work (every commit, every branch); this pipeline exists specifically for
+# the fork-PR case hosted scanning can't safely run with secrets.
+on:
+  pull_request:
+
+# Serialises runs per PR; safe to cancel a superseded commit's scan.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  generate-sarif:
+    runs-on: ubuntu-latest
+    name: Generate IaC Security SARIF report
+    # Only run for PRs from external forks — internal PRs (same-repo
+    # branches) are already covered by Datadog-hosted scanning.
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    steps:
+      - name: Checkout PR head commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          # Avoids the synthetic merge commit pull_request checks out by
+          # default, so the SARIF and metadata below describe the same commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install datadog-iac-scanner
+        env:
+          IAC_SCANNER_VERSION: "v1.9.0"
+        run: |
+          set -euo pipefail
+          filename="datadog-iac-scanner_linux_amd64.tar.gz"
+          url="https://github.com/DataDog/datadog-iac-scanner/releases/download/${IAC_SCANNER_VERSION}/${filename}"
+          curl_args="--fail --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors --retry-max-time 300 --connect-timeout 15 --max-time 120"
+          tmpdir="$(mktemp -d)"
+          # No published checksum manifest for this release asset (the
+          # official DataDog GitHub Action for this scanner doesn't verify
+          # one either); the version is pinned above instead, for
+          # reproducibility.
+          curl $curl_args -o "$tmpdir/$filename" "$url"
+          mkdir -p "$tmpdir/bin"
+          tar -xzf "$tmpdir/$filename" -C "$tmpdir/bin"
+          chmod +x "$tmpdir/bin/datadog-iac-scanner"
+          echo "$tmpdir/bin" >> "$GITHUB_PATH"
+
+      - name: Run IaC Security scan
+        run: |
+          set -uo pipefail
+          # GitHub Actions runs `run:` steps with errexit already enabled, and
+          # `set -uo pipefail` above does not unset it. Without `|| exit_code=$?`,
+          # errexit would abort the script the instant the scanner exits
+          # non-zero (which it always does when it finds violations), before
+          # the 20-60 range check below ever runs.
+          output_dir="$(mktemp -d)"
+          datadog-iac-scanner scan \
+            --path . \
+            --output-path "$output_dir" \
+            --output-name report.sarif || exit_code=$?
+          exit_code="${exit_code:-0}"
+
+          # Exit code 0 means the scanner ran and found zero violations.
+          # Exit codes 20-60 mean the scanner ran and reported findings, not
+          # that it failed. Anything else is a real error.
+          if [ "$exit_code" -ne 0 ] && { [ "$exit_code" -lt 20 ] || [ "$exit_code" -gt 60 ]; }; then
+            echo "::error title=Datadog IaC Scanner failure::datadog-iac-scanner exited with code $exit_code"
+            exit "$exit_code"
+          fi
+          mv "$output_dir/report.sarif" report.sarif
+
+          # datadog-ci sarif upload rejects the scanner's own suppressions
+          # objects (kind/status/justification, all spec-compliant SARIF
+          # 2.1.0 fields) as "additional properties" — a schema mismatch
+          # between the two tools. Suppressed findings (e.g. dd-iac-scan
+          # ignore-line) should not appear in Datadog anyway, so drop them
+          # from the report entirely rather than upload them with an
+          # annotation datadog-ci can't parse.
+          jq '.runs[].results |= map(select((.suppressions // []) | map(.status == "accepted") | any | not))' \
+            report.sarif > report.sarif.filtered
+          mv report.sarif.filtered report.sarif
+
+      - name: Record git metadata for attribution
+        env:
+          # github.repository is always the base repo, even for fork PRs.
+          BASE_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          # Commit message is omitted: not required, and the most
+          # attacker-controllable, newline-bearing field.
+          {
+            echo "DD_GIT_REPOSITORY_URL=https://github.com/${BASE_REPO}.git"
+            echo "DD_GIT_COMMIT_SHA=${HEAD_SHA}"
+            echo "DD_GIT_BRANCH=${HEAD_REF}"
+            echo "DD_GIT_COMMIT_AUTHOR_NAME=$(git show -s --format=%an HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_EMAIL=$(git show -s --format=%ae HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_DATE=$(git show -s --format=%aI HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_NAME=$(git show -s --format=%cn HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_EMAIL=$(git show -s --format=%ce HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_DATE=$(git show -s --format=%cI HEAD)"
+            if [ "${EVENT_NAME}" = "pull_request" ]; then
+              echo "DD_PR_NUMBER=${PR_NUMBER}"
+              echo "DD_GIT_PULL_REQUEST_BASE_BRANCH=${BASE_REF}"
+            fi
+          } > dd-git.env
+          echo "Recorded attribution metadata:"
+          cat dd-git.env
+
+      - name: Upload SARIF report and metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: datadog-iac-sarif
+          path: |
+            report.sarif
+            dd-git.env
+          retention-days: 1
