@@ -16,10 +16,10 @@ jobs:
     env:
       SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
       FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer. This is likely due to the pre-commit hook not being configured on your local machine. The usual fix for this issue is to run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, however for more detailed help in setting up the pre-commit hooks, follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md#usage"
-      GH_TOKEN: ${{ github.token }}
-      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
-      CURRENT_BRANCH: ${{ github.head_ref }}
-      HEAD_REF: ${{ github.event.pull_request.head.sha }}
+      GH_TOKEN: '${{ github.token }}'
+      DEFAULT_BRANCH: '${{ github.event.repository.default_branch }}'
+      CURRENT_BRANCH: '${{ github.head_ref }}'
+      HEAD_REF: '${{ github.event.pull_request.head.sha }}'
 
     runs-on: ubuntu-latest
     permissions:
@@ -33,6 +33,8 @@ jobs:
 
       - name: Check if pre-commit hook ran before push
         id: pre-commit-check
+        env:
+          CURRENT_BRANCH: 
         run: |
             git checkout '${{ env.CURRENT_BRANCH }}'
 
