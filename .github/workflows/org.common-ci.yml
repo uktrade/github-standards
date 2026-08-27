@@ -31,7 +31,7 @@ jobs:
       - name: Check if pre-commit hook ran before push
         id: pre-commit-check
         run: |
-            git checkout ${{ github.head_ref }}
+            git checkout ${{ github.event.pull_request.head.ref }}
 
             IS_MERGE_COMMIT=false
             IS_DEFAULT_BRANCH_COMMIT=false
