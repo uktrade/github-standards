@@ -33,11 +33,12 @@ jobs:
         id: pre-commit-check
         run: |
             SHA=$(gh pr view --json headRefOid --jq .headRefOid)
+            git checkout ${{ github.head_ref }}
 
             IS_MERGE_COMMIT=false
             IS_DEFAULT_BRANCH_COMMIT=false
 
-            PARENTS=$(git show --no-patch --format=%P "$SHA")
+            PARENTS=$(git show --no-patch --format=%P "${{ github.event.pull_request.head.sha }}")
             PARENT_COUNT=$(wc -w <<< "$PARENTS")
 
             # Check for merge commit
