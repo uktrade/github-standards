@@ -17,6 +17,7 @@ jobs:
       SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
       FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer. This is likely due to the pre-commit hook not being configured on your local machine. The usual fix for this issue is to run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, however for more detailed help in setting up the pre-commit hooks, follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md#usage"
       GH_TOKEN: ${{ github.token }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
 
     runs-on: ubuntu-latest
     permissions:
@@ -31,8 +32,6 @@ jobs:
       - name: Check if pre-commit hook ran before push
         id: pre-commit-check
         run: |
-
-            DEFAULT_BRANCH=$(gh repo view --json defaultBranchRef --jq '.defaultBranchRef.name')
             SHA=$(gh pr view --json headRefOid --jq .headRefOid)
 
             IS_MERGE_COMMIT=false
@@ -47,7 +46,7 @@ jobs:
 
                 # Check whether one parent comes from the default branch
                 for parent in $PARENTS; do
-                    if git merge-base --is-ancestor "$parent" "origin/$DEFAULT_BRANCH"; then
+                    if git merge-base --is-ancestor "$parent" "origin/${{ env.DEFAULT_BRANCH }}"; then
                         IS_DEFAULT_BRANCH_COMMIT=true
                         break
                     fi
