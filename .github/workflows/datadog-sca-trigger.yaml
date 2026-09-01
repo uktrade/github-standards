@@ -1,84 +1,107 @@
-name: Datadog Software Composition Analysis
+name: Datadog SCA (scan)
 
-# Runs in the base repo context after the scan workflow completes, so it has
-# access to secrets even for fork PRs. Downloads the SBOM produced by the
-# untrusted job and uploads it to Datadog. Never checks out fork code.
+# Runs in the untrusted PR/fork context with no secrets. Scans the code,
+# produces an SBOM, and records git metadata for attribution. Hands both to
+# the trusted upload workflow (datadog-sca.yml) via an artifact.
 #
-# This will not fire until merged to the default branch (workflow_run only
-# runs the copy of this file on the default branch).
-#
-# cicd-github-dangerous-triggers: this job never checks out fork/PR code,
-# and the only untrusted input it reads (dd-git.env) is whitelisted
-# line-by-line rather than sourced, so PR-controlled values can't execute
-# in this secrets-bearing context. workflow_run is required here to keep
-# secrets out of the untrusted scan job (see datadog-sca-trigger.yml).
-# dd-iac-scan ignore-line
+# No `push` trigger: a push event on this repo can only come from someone
+# with write access, never an external fork (forks pushing to their own
+# remote never fire an event here). Datadog-hosted scanning covers internal
+# work (every commit, every branch); this pipeline exists specifically for
+# the fork-PR case hosted scanning can't safely run with secrets.
 on:
-  workflow_run:
-    workflows: ["Datadog SCA (scan)"]
-    types: [completed]
+  pull_request:
 
-# Each workflow_run event maps to one specific commit's scan, and completion
-# order isn't guaranteed, so runs are queued (not cancelled) to guarantee
-# every commit's findings still get uploaded.
-#
-# cicd-github-concurrency-limits: cancel-in-progress is deliberately false
-# (see above) — cancelling here would drop an in-flight commit's SARIF/SBOM
-# upload to Datadog.
-# dd-iac-scan ignore-line
+# Serialises runs per PR; safe to cancel a superseded commit's scan.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.workflow_run.head_repository.full_name }}-${{ github.event.workflow_run.head_branch }}
-  cancel-in-progress: false
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
-  actions: read # required to download the artifact from the triggering run
 
 jobs:
-  upload-sbom:
+  generate-sbom:
     runs-on: ubuntu-latest
-    name: Upload SBOM to Datadog
-    environment: datadog
-    if: ${{ github.event.workflow_run.conclusion == 'success' }}
+    name: Generate SBOM
+    # Only run for PRs from external forks — internal PRs (same-repo
+    # branches) are already covered by Datadog-hosted scanning.
+    if: github.event.pull_request.head.repo.full_name != github.repository
     steps:
-      - name: Download SBOM and metadata
-        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+      - name: Checkout PR head commit
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          # Avoids the synthetic merge commit pull_request checks out by
+          # default, so the SBOM and metadata below describe the same commit.
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+
+      - name: Install datadog-sbom-generator
+        env:
+          SBOMGEN_VERSION: "1.14.0"
+        run: |
+          set -euo pipefail
+          filename="datadog-sbom-generator_linux_amd64.zip"
+          base="https://github.com/DataDog/datadog-sbom-generator/releases/download/v${SBOMGEN_VERSION}"
+          curl_args="--fail --silent --show-error --location --retry 5 --retry-delay 2 --retry-all-errors --retry-max-time 300 --connect-timeout 15 --max-time 120"
+          tmpdir="$(mktemp -d)"
+
+          curl $curl_args -o "$tmpdir/$filename" "$base/$filename"
+          curl $curl_args -o "$tmpdir/SHA256SUMS" "$base/datadog-sbom-generator_SHA256SUMS"
+
+          expected="$(awk -v f="$filename" 'index($0, f){print $1; exit}' "$tmpdir/SHA256SUMS")"
+          actual="$(sha256sum "$tmpdir/$filename" | awk '{print $1}')"
+          if [ -z "$expected" ] || [ "$expected" != "$actual" ]; then
+            echo "::error title=Checksum verification failed::datadog-sbom-generator checksum mismatch"
+            exit 1
+          fi
+
+          unzip -q "$tmpdir/$filename" -d "$tmpdir/bin"
+          chmod +x "$tmpdir/bin/datadog-sbom-generator"
+          echo "$tmpdir/bin" >> "$GITHUB_PATH"
+
+      - name: Generate SBOM
+        run: |
+          set -euo pipefail
+          # No --reachability: that path can require Datadog config/credentials,
+          # which this untrusted job intentionally does not have.
+          datadog-sbom-generator scan --verbosity info --output=sbom.json .
+
+      - name: Record git metadata for attribution
+        env:
+          # github.repository is always the base repo, even for fork PRs.
+          BASE_REPO: ${{ github.repository }}
+          EVENT_NAME: ${{ github.event_name }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+          HEAD_REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+        run: |
+          set -euo pipefail
+          # Commit message is omitted: not required, and the most
+          # attacker-controllable, newline-bearing field.
+          {
+            echo "DD_GIT_REPOSITORY_URL=https://github.com/${BASE_REPO}.git"
+            echo "DD_GIT_COMMIT_SHA=${HEAD_SHA}"
+            echo "DD_GIT_BRANCH=${HEAD_REF}"
+            echo "DD_GIT_COMMIT_AUTHOR_NAME=$(git show -s --format=%an HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_EMAIL=$(git show -s --format=%ae HEAD)"
+            echo "DD_GIT_COMMIT_AUTHOR_DATE=$(git show -s --format=%aI HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_NAME=$(git show -s --format=%cn HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_EMAIL=$(git show -s --format=%ce HEAD)"
+            echo "DD_GIT_COMMIT_COMMITTER_DATE=$(git show -s --format=%cI HEAD)"
+            if [ "${EVENT_NAME}" = "pull_request" ]; then
+              echo "DD_PR_NUMBER=${PR_NUMBER}"
+              echo "DD_GIT_PULL_REQUEST_BASE_BRANCH=${BASE_REF}"
+            fi
+          } > dd-git.env
+          echo "Recorded attribution metadata:"
+          cat dd-git.env
+
+      - name: Upload SBOM and metadata
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: datadog-sbom
-          run-id: ${{ github.event.workflow_run.id }}
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Install datadog-ci
-        uses: DataDog/install-datadog-ci-github-action@6d7f0c7c5402a4b1912055b76970ca76bef71fe5 # v1.0.4
-        with:
-          version: v5.12.1
-
-      - name: Load attribution metadata
-        run: |
-          set -euo pipefail
-          # SECURITY: dd-git.env carries fork-controlled values. Do NOT
-          # `source` it (a crafted author name could execute code in this
-          # secrets-bearing job). Whitelist DD_* keys and write each line
-          # verbatim to $GITHUB_ENV with no shell evaluation.
-          while IFS= read -r line || [ -n "$line" ]; do
-            case "$line" in
-              DD_GIT_*=*|DD_PR_NUMBER=*) printf '%s\n' "$line" >> "$GITHUB_ENV" ;;
-            esac
-          done < dd-git.env
-
-      - name: Upload SBOM to Datadog
-        env:
-          DD_API_KEY: ${{ secrets.DD_API_KEY }}
-          DD_APP_KEY: ${{ secrets.DD_APP_KEY }}
-          DD_SITE: ${{ vars.DD_SITE || 'datadoghq.com' }}
-        run: |
-          set -euo pipefail
-          # DD_GIT_* / DD_PR_NUMBER (loaded above) override this workflow's
-          # own git context so findings attach to the PR commit/branch
-          # rather than this repo's default branch.
-          echo "Uploading SBOM for ${DD_GIT_BRANCH:-?}@${DD_GIT_COMMIT_SHA:-?} (PR #${DD_PR_NUMBER:-n/a})"
-          datadog-ci sbom upload \
-            --source github-action \
-            --service datadog-sbom-generator \
-            --env ci \
+          path: |
             sbom.json
+            dd-git.env
+          retention-days: 1
