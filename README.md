@@ -1,14 +1,9 @@
 # github-standards
 
-Organisation-wide security tooling for `uktrade` repositories. It provides custom
-pre-commit hooks and reusable, organisation-level GitHub Actions that keep secrets and
-personal data out of our codebases, catching problems on the developer's machine before
-they ever reach GitHub.
+Organisation-wide security tooling to support the 
+[Code Security Framework](https://platform.readme.trade.gov.uk/managed/features/code-security-framework/).
 
 ## Table of contents
-- [Overview](#overview)
-- [How this fits into the Code Security Framework](#how-this-fits-into-the-code-security-framework)
-- [Features](#features)
 - [Installing in your repository](#installing-in-your-repository)
   - [Prerequisites](#prerequisites)
   - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
@@ -25,8 +20,7 @@ they ever reach GitHub.
 - [Contributing / developing these hooks](#contributing--developing-these-hooks)
 
 ## Overview
-This repository is the source of the organisation-level security checks, maintained in this
-repository, that run against `uktrade` code. It bundles two things:
+This repository bundles two things:
 
 - **Custom pre-commit hooks** that scan your commits locally, using
   [Trufflehog](https://github.com/trufflesecurity/trufflehog) to detect secrets and tokens
@@ -36,39 +30,17 @@ repository, that run against `uktrade` code. It bundles two things:
   to via GitHub Custom Properties, including a backstop action for the local checks. See
   [GitHub Actions](#github-actions) for detail.
 
-## How this fits into the Code Security Framework
-This repository implements the pre-commit hooks and other repository-level controls
-described in the
-[Code Security Framework](https://platform.readme.trade.gov.uk/managed/features/code-security-framework/).
-The framework explains the policy context — why these controls exist and who is responsible
-for them — while this repository provides the mechanics. Where a section below links to the
-framework, follow it to read the relevant control.
-
-## Features
-- A set of custom pre-commit hooks, built using Python, that run security and personal data
-  checks on git commits. Commits containing secrets, tokens or personal data are blocked at
-  a local level. See the
-  [Code Security Framework](https://platform.readme.trade.gov.uk/managed/features/code-security-framework/)
-  for the pre-commit hooks control.
-- Uses the [pre-commit](https://pre-commit.com/index.html) framework to run scans in
-  response to local git hook events.
-- Reusable, organisation-level GitHub Actions, enabled through GitHub Custom Properties,
-  including a backstop action for the local checks. See
-  [GitHub Actions](#github-actions) for detail.
-- Distributed as a Docker image, hosted in GHCR, so consuming repositories don't install
-  the scanners themselves. Once set up, the hooks are self-validating: they check for new
-  releases each time they run and alert you when you need to upgrade.
-
-## Installing in your repository
+## Installing pre-commit hooks
 This section covers **adopting the hooks in your own repository**. If instead you want to
 set up a local environment to develop the hooks themselves, see
 [CONTRIBUTING.md](./CONTRIBUTING.md).
 
-To use these hooks inside your project, some initial installation needs to be completed.
+The hooks use the [pre-commit](https://pre-commit.com/index.html) framework to run scans in
+response to local git hook events. The hooks are distributed as a Docker image, hosted in GHCR. 
+Once set up, the hooks are self-validating: they check for new
+releases each time they run and alert you when you need to upgrade.
 
-If you are already using the pre-commit framework in your project, then follow these
-instructions. If you are not using the pre-commit framework in your project, then follow
-these instructions instead.
+To use these hooks inside your project, some initial installation needs to be completed.
 
 ### Prerequisites
 A consuming repository needs the following installed for the hooks to run:
@@ -97,11 +69,9 @@ We use git tags for versioning. Once you have copied the yaml into `.pre-commit-
 ### Optional hooks
 There are a large number of pre-commit hooks that can be used to help with code quality and catching linting failures early. This page contains a list of some featured hooks [https://pre-commit.com/hooks.html](https://pre-commit.com/hooks.html)
 
-## Security scans and excluding false positives
+## Security scans
 This section explains what each scanner does and how to exclude a file when it reports a
-false positive. These scans implement the secret and personal-data repository-level controls
-described in the
-[Code Security Framework](https://platform.readme.trade.gov.uk/managed/features/code-security-framework/).
+false positive.
 
 ### Trufflehog
 We use [Trufflehog](https://github.com/trufflesecurity/trufflehog) to detect secrets and
