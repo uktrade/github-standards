@@ -1,6 +1,6 @@
 # github-standards
 
-Organisation-wide security tooling to support the 
+Security tooling to support the 
 [Code Security Framework](https://platform.readme.trade.gov.uk/managed/features/code-security-framework/).
 
 ## Table of contents
@@ -36,9 +36,11 @@ set up a local environment to develop the hooks themselves, see
 [CONTRIBUTING.md](./CONTRIBUTING.md).
 
 The hooks use the [pre-commit](https://pre-commit.com/index.html) framework to run scans in
-response to local git hook events. The hooks are distributed as a Docker image, hosted in GHCR. 
-Once set up, the hooks are self-validating: they check for new
-releases each time they run and alert you when you need to upgrade.
+response to local git hook events. The commit-msg hook also adds a commit trailer that allows 
+CI to verify the security checks were run locally before the commit was created.
+
+The hooks are distributed as a Docker image, hosted in GHCR. Once set up, the hooks are 
+self-validating: they check for new releases each time they run and alert you when you need to upgrade.
 
 To use these hooks inside your project, some initial installation needs to be completed.
 
@@ -52,16 +54,15 @@ A consuming repository needs the following installed for the hooks to run:
   image. Trufflehog and Presidio are bundled inside that image, so you do **not** install
   them separately.
 
-### My project is already using the pre-commit framework
-- Copy the repository entry from [`example.pre-commit-config.yaml`](./example.pre-commit-config.yaml) into `.pre-commit-config.yaml` in your repository
-- Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both entry points for your repository
-
-OR
-
-### My project is not using the pre-commit framework
-- Make sure `pre-commit` is installed (see [Prerequisites](#prerequisites)).
-- Copy the [`example.pre-commit-config.yaml`](./example.pre-commit-config.yaml) file from this repository into the root of your repository, and rename it to `.pre-commit-config.yaml`.
-- Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` to install both entry points for your repository
+### Pre-commit configuration
+- Once you have pre-commit installed, adding pre-commit plugins to your project is done with the 
+  `.pre-commit-config.yaml` [configuration file](https://pre-commit.com/#adding-pre-commit-plugins-to-your-project).
+- If it already exists in your repository, copy over the repository entry from 
+  [`example.pre-commit-config.yaml`](./example.pre-commit-config.yaml)
+- Otherwise, copy the [`example.pre-commit-config.yaml`](./example.pre-commit-config.yaml) file from 
+  this repository into the root of your repository, and rename it to `.pre-commit-config.yaml`.
+- Run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit` 
+  to install both entry points for your repository.
 
 ### Post-installation setup
 We use git tags for versioning. Once you have copied the yaml into `.pre-commit-config.yaml` in your repository, make sure the `rev` property is set to the latest released version (in the example this is set to `main`). You can check the [releases page](https://github.com/uktrade/github-standards/releases) to get the latest tag to use in place of `main`.
@@ -94,7 +95,8 @@ defined at the organisation level. Any repository in the `uktrade` organisation 
 to using these GitHub Actions by adding GitHub Custom Properties to the repository. The set
 of available actions may change over time.
 
-One of these actions acts as a backstop for the pre-commit hooks: it re-runs the Trufflehog
+### Common CI
+This GitHub action acts as a backstop for the pre-commit hooks: it re-runs the Trufflehog
 and Presidio scans and validates a commit trailer or attestation indicating the pre-commit
 hook ran (for example, catching commits made with `--no-verify`). If it finds a secret or
 personal data, or the expected attestation is missing, the check fails and the PR is blocked.
@@ -123,6 +125,6 @@ The reusable Terraform workflow defined in this repository checks Terraform code
 ### I'm seeing pre-commit hooks run multiple times in the logs
 The scans run using the [https://github.com/uktrade/github-standards](https://github.com/uktrade/github-standards) repo are scoped to run across defined git hook stages, controlled via a config file inside this repo. However if you are using other pre-commit hooks, for example the ruff formatter, you may see these scans appear multiple times. Adding a `stages` array to your `.pre-commit-config.yaml` file can solve this, where the value is `[pre-commit]`.
 
-## Contributing / developing these hooks
+## Contributing
 Building, testing, releasing, adding Trufflehog detectors, upgrading the bundled tools and
 testing workflow changes are all covered in [CONTRIBUTING.md](./CONTRIBUTING.md).
