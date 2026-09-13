@@ -12,26 +12,6 @@ ways, so this guide is organised around them:
   reusable, organisation-level GitHub Actions triggered by GitHub Rulesets and Custom
   Properties.
 
-## Table of contents
-
-- [Part A: the pre-commit hooks](#part-a-the-pre-commit-hooks)
-  - [Local development setup](#local-development-setup)
-  - [Testing hooks locally](#testing-hooks-locally)
-    - [Running the hook command using Python](#running-the-hook-command-using-python)
-    - [Running the hooks using Docker](#running-the-hooks-using-docker)
-  - [Testing hooks from an external repository](#testing-hooks-from-an-external-repository)
-    - [Testing pre-commit hooks](#testing-pre-commit-hooks)
-    - [Testing commit-msg hooks](#testing-commit-msg-hooks)
-  - [Maintaining the bundled scanners](#maintaining-the-bundled-scanners)
-    - [Trufflehog](#trufflehog)
-    - [Detectors](#detectors)
-    - [Upgrading Trufflehog](#upgrading-trufflehog)
-  - [Releasing](#releasing)
-- [Part B: the organisation workflows](#part-b-the-organisation-workflows)
-  - [How the workflows are triggered](#how-the-workflows-are-triggered)
-  - [Testing workflow changes](#testing-workflow-changes)
-  - [Bandit (optional)](#bandit-optional)
-
 ## Part A: the pre-commit hooks
 
 ### Local development setup
@@ -186,7 +166,7 @@ changes a workflow yaml file, the same GitHub workflow appears twice:
 
 Always check the branch-triggered run when reviewing workflow changes.
 
-### Bandit (optional)
+### Bandit (opt-in)
 
 **⚠️ TO BE REMOVED — the Bandit scan is optional and interim. Remove this section once it is
 replaced by the Datadog Code Security integration.**
