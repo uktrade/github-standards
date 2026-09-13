@@ -164,13 +164,12 @@ You will now have:
 
 The organisation-level GitHub Actions in this repository are triggered by GitHub Rulesets
 defined at the organisation level, and repositories opt in through GitHub Custom Properties.
-This means workflow changes take effect organisation-wide as soon as they are merged into
-main, so they must be tested on the branch before merge.
+Because this repository also uses those Custom Properties, the workflows that on a PR here 
+are the versions on main, not the versions on your branch.
 
-This makes it difficult to test changes to the workflows: although the files exist in this repo, any
-changes to them do not take effect until the PR is merged into main. At that point, any
-issues with the workflow would already be present in all repositories using the GitHub
-Custom Properties.
+This makes it difficult to test changes to the workflows: your changes do not run until the PR is 
+merged into main, and at that point, any issues with the workflow would already be present in all
+repositories using the GitHub Custom Properties.
 
 ### Testing workflow changes
 
@@ -180,7 +179,7 @@ organisation-wide workflow yaml file has changed. As a result, when you raise a 
 changes a workflow yaml file, the same GitHub workflow appears twice:
 
 - the **ruleset-required run**, which is the status enforced by the GitHub Ruleset and uses
-  the workflow version on the main branch.
+  the workflow version on the main branch. This is shown on the PR screen.
 - the **branch-triggered test run**, which uses the workflow version on the branch raising
   the PR. It is not shown on the PR screen; view it through the GitHub Actions filter found 
   [here](https://github.com/uktrade/github-standards/actions?query=event%3Apush).
