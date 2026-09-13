@@ -167,17 +167,12 @@ defined at the organisation level, and repositories opt in through GitHub Custom
 This means workflow changes take effect organisation-wide as soon as they are merged into
 main, so they must be tested on the branch before merge.
 
-There is no local development setup for the workflows: they can only be exercised by pushing
-to a branch and inspecting the resulting runs, as described below.
-
-### Testing workflow changes
-
-Because this github-standards repository uses GitHub Custom Properties, the workflows that
-run during a PR for this repository are the versions on the main branch. This makes it
-difficult to test changes to the workflows: although the files exist in this repo, any
+This makes it difficult to test changes to the workflows: although the files exist in this repo, any
 changes to them do not take effect until the PR is merged into main. At that point, any
 issues with the workflow would already be present in all repositories using the GitHub
 Custom Properties.
+
+### Testing workflow changes
 
 To make changes testable before merge, an additional `on: push` trigger has been added to
 each of the organisation-wide workflows. This trigger fires on any push event where an
@@ -187,7 +182,7 @@ changes a workflow yaml file, the same GitHub workflow appears twice:
 - the **ruleset-required run**, which is the status enforced by the GitHub Ruleset and uses
   the workflow version on the main branch.
 - the **branch-triggered test run**, which uses the workflow version on the branch raising
-  the PR. Is it not shown on the PR screen; view them through the GitHub Actions filter found 
+  the PR. It is not shown on the PR screen; view it through the GitHub Actions filter found 
   [here](https://github.com/uktrade/github-standards/actions?query=event%3Apush).
 
 Always check the branch-triggered run when reviewing workflow changes.
