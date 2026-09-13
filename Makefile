@@ -1,4 +1,4 @@
-# This value is only used in local dev, see README.md for how to upgrade deployed versions of trufflehog
+# This value is only used in local dev, see CONTRIBUTING.md for how to upgrade deployed versions of trufflehog
 TRUFFLEHOG_VERSION=3.90.12
 
 test: 
