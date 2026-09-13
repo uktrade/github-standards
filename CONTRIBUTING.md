@@ -220,22 +220,3 @@ filter found [here](https://github.com/uktrade/github-standards/.github/actions?
 You are almost certainly looking at the ruleset-required run, which uses the workflow version
 on main. Check the branch-triggered test run instead — see
 [Testing workflow changes](#testing-workflow-changes).
-
-<!-- REVIEW: the three entries below are newly drafted for Part C — please confirm accuracy before merging -->
-
-### My local Docker run is using stale code
-
-The `make *-hook-docker` commands rebuild the image, but Docker layer caching can retain an
-old Trufflehog binary if the `TRUFFLEHOG_VERSION` build arg has changed. Rebuild without
-cache, and remember the Makefile version is for local builds only.
-
-### `pre-commit try-repo` is picking up an old version of the hooks
-
-Run `pre-commit gc` and `pre-commit clean` to clear pre-commit's local cache, then re-run the
-`try-repo` command.
-
-### Merging my PR didn't trigger a release
-
-The release workflow only fires when the version tag in `pyproject.toml` changes. Check that
-you bumped the version and ran `uv sync` so the lockfile matches — see
-[Releasing](#releasing).
