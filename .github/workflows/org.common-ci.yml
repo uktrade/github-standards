@@ -16,6 +16,7 @@ jobs:
     env:
       SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
       FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer. This is likely due to the pre-commit hook not being configured on your local machine. The usual fix for this issue is to run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, however for more detailed help in setting up the pre-commit hooks, follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md#usage"
+      GH_TOKEN: ${{ github.token }}
 
     runs-on: ubuntu-latest
     permissions:
@@ -30,18 +31,33 @@ jobs:
       - name: Check if pre-commit hook ran before push
         id: pre-commit-check
         run: |
-          # If this commit belongs to a github PR, it will not have the git trailer that is set by 
-          # the pre-commit hook. If the response is NOT an empty array, that means the commit was from
-          # a PR and we can skip the git trailer checks
+            git checkout ${{ github.event.pull_request.head.ref }}
 
-          is_pr_commit=$(gh pr list --search ${{ github.event.pull_request.head.sha }} --state merged --json id | jq '. != []')
+            IS_MERGE_COMMIT=false
+            IS_DEFAULT_BRANCH_COMMIT=false
 
-          if [ "$is_pr_commit" == true ]; then
-            echo "This commit came from a PR, it will not have the trailer from a pre-commit hook"
-            exit 0
-          fi
-          echo "We need to check this for the trailers"
-          git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
+            PARENTS=$(git show --no-patch --format=%P "${{ github.event.pull_request.head.sha }}")
+            PARENT_COUNT=$(wc -w <<< "$PARENTS")
+
+            # Check for merge commit
+            if [[ $PARENT_COUNT -gt 1 ]]; then
+                IS_MERGE_COMMIT=true
+
+                # Check whether one parent comes from the default branch
+                for parent in $PARENTS; do
+                    if git merge-base --is-ancestor "$parent" "origin/${{ github.event.repository.default_branch }}"; then
+                        IS_DEFAULT_BRANCH_COMMIT=true
+                        break
+                    fi
+                done
+            fi
+
+            if [[ "$IS_MERGE_COMMIT" == "true" || "$IS_DEFAULT_BRANCH_COMMIT" == "true" ]]; then
+                echo "This commit came from a PR, it will not have the trailer from a pre-commit hook"
+                exit 0
+            fi
+            echo "We need to check this for the trailers"
+            git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep ${{ env.SIGNED_OFF_MESSAGE }}
 
       - name: Find failure comment
         uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad
