@@ -13,7 +13,7 @@ dependencies = [
     "proxy-py>=2.4.10",
     "pyyaml>=6.0.3",
     "en_core_web_sm @ https://github.com/explosion/spacy-models/releases/download/en_core_web_sm-3.8.0/en_core_web_sm-3.8.0-py3-none-any.whl",
-    "gitpython>=3.1.45",
+    "gitpython>=3.1.59",
     "prettytable>=3.17.0",
     "asyncio>=4.0.0",
     "anyio>=4.13.0",
@@ -48,7 +48,7 @@ namespaces = false
 
 [tool.uv]
 package = true
-required-version = "==0.10.9"
+required-version = "==0.12.16"
 
 [tool.ruff]
 line-length = 125
