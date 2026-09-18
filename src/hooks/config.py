@@ -31,6 +31,7 @@ DEFAULT_LANGUAGE_CODE = "en"
 ENGINE_CONFIG_FILE = "engine_config.yaml"
 NLP_CONFIG_FILE = "nlp_config.yaml"
 RECOGNIZER_CONFIG_FILE = "recognizer_config.yaml"
+DEFAULT_FILE_TYPES = [".txt", ".yml", ".yaml", ".csv"]
 EXCLUDED_PERSONAL_DATA_FILE_TYPES = [
     # fonts
     ".otf",

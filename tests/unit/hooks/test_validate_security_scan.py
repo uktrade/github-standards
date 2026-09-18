@@ -1,8 +1,8 @@
-from anyio import NamedTemporaryFile
-import src.hooks.config
-
 from unittest.mock import patch
 
+from anyio import NamedTemporaryFile
+
+import src.hooks.config
 from src.hooks.validate_security_scan import ValidateSecurityScan
 
 
@@ -112,3 +112,50 @@ class TestValidateSecurityScan:
                 assert (await tf.read()).decode(
                     "UTF-8"
                 ) == f"A helpful commit message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
+
+    async def test_run_with_file_with_commit_verbose_set_to_true(self):
+        async with NamedTemporaryFile() as tf:
+            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True):
+                await tf.writelines(
+                    line + b"\n"
+                    for line in [
+                        b"A helpful commit message",
+                        b"# ------------------------ >8 ------------------------",
+                        b"# Do not modify or remove the line above.",
+                        b"# Everything below it will be ignored.",
+                    ]
+                )
+                await tf.seek(0)
+
+                result = await ValidateSecurityScan(paths=[tf.name]).run()
+
+                assert result.success is True
+
+                assert (await tf.read()).decode(
+                    "UTF-8"
+                ) == f"A helpful commit message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
+
+    async def test_run_with_file_with_commit_verbose_set_to_true_with_body(self):
+        async with NamedTemporaryFile() as tf:
+            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True):
+                await tf.writelines(
+                    line + b"\n"
+                    for line in [
+                        b"A",
+                        b"helpful",
+                        b"commit",
+                        b" message",
+                        b"# ------------------------ >8 ------------------------",
+                        b"# Do not modify or remove the line above.",
+                        b"# Everything below it will be ignored.",
+                    ]
+                )
+                await tf.seek(0)
+
+                result = await ValidateSecurityScan(paths=[tf.name]).run()
+
+                assert result.success is True
+
+                assert (await tf.read()).decode(
+                    "UTF-8"
+                ) == f"A\nhelpful\ncommit\n message\n\n{src.hooks.config.SIGNED_OFF_BY_TRAILER}"
