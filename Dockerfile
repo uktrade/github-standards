@@ -2,7 +2,7 @@
 # Using a multi-stage image to create a final image without uv.
 # First, build the application in the `/app` directory.
 ARG TRUFFLEHOG_VERSION='USE_BUILD_ARG'
-ARG UV_VERSION=0.12.16
+ARG UV_VERSION=0.12.15
 
 FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv_builder
 
