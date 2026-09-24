@@ -15,7 +15,14 @@ jobs:
     if: ${{ github.actor != 'dependabot[bot]' }}
     env:
       SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
-      FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer. This is likely due to the pre-commit hook not being configured on your local machine. The usual fix for this issue is to run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, however for more detailed help in setting up the pre-commit hooks, follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md#usage"
+      # Commits made in the GitHub web UI cannot run the pre-commit hook. Commits by this committer whose
+      # message starts with one of these lines are allowed to skip the check. $BASE_REF is the PR's target branch
+      WEB_UI_COMMITTER_EMAIL: "noreply@github.com"
+      WEB_UI_COMMIT_MESSAGES: |
+        Apply suggestion from
+        Apply suggestions from
+        Merge branch '$BASE_REF' into
+      FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer, which is added by the pre-commit hooks. To install them, run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, or follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md#usage. If the commit was made in the GitHub web UI, installing the hooks will not help. Only applying suggested changes and updating the branch are allowed there, so make the change locally instead"
 
     runs-on: ubuntu-latest
     permissions:
@@ -26,22 +33,58 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
 
       - name: Check if pre-commit hook ran before push
         id: pre-commit-check
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_REF: ${{ github.event.pull_request.base.ref }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
         run: |
-          # If this commit belongs to a github PR, it will not have the git trailer that is set by 
-          # the pre-commit hook. If the response is NOT an empty array, that means the commit was from
-          # a PR and we can skip the git trailer checks
+          # Was this commit made in the GitHub web UI by one of the actions we allow to skip the check?
+          is_allowed_web_ui_commit() {
+            local email="$1" message="$2" allowed
+            [ "$email" == "$WEB_UI_COMMITTER_EMAIL" ] || return 1
+            while IFS= read -r allowed; do
+              allowed="${allowed//\$BASE_REF/$BASE_REF}"
+              if [ -n "$allowed" ] && [[ "$message" == "$allowed"* ]]; then
+                return 0
+              fi
+            done <<< "$WEB_UI_COMMIT_MESSAGES"
+            return 1
+          }
 
-          is_pr_commit=$(gh pr list --search ${{ github.event.pull_request.head.sha }} --state merged --json id | jq '. != []')
+          # Find the latest commit in the PR that was not made by one of those allowed web UI actions,
+          # following the PR branch side of any merge commit. That will either be a local commit, which
+          # should have the trailer, or another web UI commit, such as a file edited in the browser, which won't
+          sha=""
+          while read -r commit_sha email message; do
+            if is_allowed_web_ui_commit "$email" "$message"; then
+              echo "Skipping commit $commit_sha, it was made in the GitHub web UI: $message"
+              continue
+            fi
+            sha="$commit_sha"
+            break
+          done < <(git log --first-parent --format='%H %ce %s' "$BASE_SHA..HEAD")
 
-          if [ "$is_pr_commit" == true ]; then
-            echo "This commit came from a PR, it will not have the trailer from a pre-commit hook"
+          if [ -z "$sha" ]; then
+            echo "Every commit in this PR was made in the GitHub web UI by an action that cannot run the pre-commit hook"
             exit 0
           fi
-          echo "We need to check this for the trailers"
-          git log ${{ github.event.pull_request.head.sha }} --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
+
+          # If this commit belongs to a github PR, it will not have the git trailer that is set by
+          # the pre-commit hook. If the response is NOT an empty array, that means the commit was from
+          # a PR and we can skip the git trailer checks
+          is_pr_commit=$(gh pr list --search "$sha" --state merged --json id | jq '. != []')
+
+          if [ "$is_pr_commit" == true ]; then
+            echo "Commit $sha came from a merged PR, it will not have the trailer from a pre-commit hook"
+            exit 0
+          fi
+
+          echo "Checking commit $sha for the trailer"
+          git log "$sha" --format=%B -1 | git interpret-trailers --parse | grep '${{ env.SIGNED_OFF_MESSAGE }}'
 
       - name: Find failure comment
         uses: peter-evans/find-comment@b30e6a3c0ed37e7c023ccd3f1db5c6c0b0c23aad

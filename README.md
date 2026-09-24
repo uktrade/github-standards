@@ -26,6 +26,7 @@
   - [Upgrading bandit](#upgrading-bandit)
 - [GitHub actions](#github-actions)
   - [Testing changes](#testing-changes)
+  - [Signed-off-by trailer check](#signed-off-by-trailer-check)
 - [FAQ](#faq)
   - [My PR is failing due to a github action checking a Signed-off-by trailer](#my-pr-is-failing-due-to-a-github-action-checking-a-signed-off-by-trailer)
   - [I'm receiving errors updating the rev version](#im-receiving-errors-updating-the-rev-version)
@@ -168,6 +169,24 @@ There is a `bandit-version` `env` variable in this job, that is used to install 
 # GitHub Actions
 
 This repository contains GitHub actions that are triggered by a set of GitHub Rulesets defined at the organisation level. Any repository in the uktrade organisation can opt in to using these GitHub actions by adding GitHub Custom properties to the repository.
+
+## Signed-off-by trailer check
+
+The `pre-commit-check` job in `org.common-ci.yml` verifies that commits were made after installing the pre-commit hooks from this repo, since the hooks are what runs the security and personal data scans locally before a commit is allowed. It does this by checking for the `Signed-off-by: DBT pre-commit check` trailer that the commit-msg hook adds to a commit message once the scans pass - a commit without this trailer means the hooks were either not installed, or were bypassed with `--no-verify`.
+
+Not every commit can realistically carry this trailer though. Commits made directly in the GitHub web UI (for example applying a suggested change, or a merge commit created by clicking "Update branch") never run the local hook, so the job needs to tell those apart from a commit that was made locally and skipped the hooks. It does this by walking the PR's commits (following first-parent only, so merged-in history from `main`/`master`/`dev` is ignored) from newest to oldest, skipping over commits that match a known, safe web UI pattern, until it finds the first commit that must be checked. That commit passes if it either came from a PR that was already merged (so it wouldn't have been run through this check locally), or if it contains the trailer. The table below covers every outcome:
+
+| Scenario | Condition | Outcome | Why |
+|---|---|---|---|
+| Every commit in the PR is an allowed web UI commit | All commits have committer email `noreply@github.com` **and** a message matching an allowed prefix (`Apply suggestion from`, `Apply suggestions from`, `Merge branch '$BASE_REF' into`) | ✅ Pass | Nothing to check, the job exits early |
+| Latest non-web-UI commit came from an already-merged PR | `gh pr list --search "$sha" --state merged` returns a non-empty result | ✅ Pass | The commit predates/bypassed the trailer check via a merge, so it's exempted |
+| Latest non-web-UI commit has the trailer | Commit message contains `Signed-off-by: DBT pre-commit check` | ✅ Pass | The pre-commit hook was installed and ran correctly |
+| Latest non-web-UI commit is missing the trailer | Pre-commit hook wasn't installed/run, no trailer in message | ❌ Fail | This is the case the FAQ bullets above address |
+| Web UI commit from `noreply@github.com` with a message that doesn't match any allowed prefix (e.g. a manual file edit made in the browser) | Email matches, but message text doesn't start with an allowed prefix | ❌ Fail (usually) | Not treated as an allowed web UI commit, so it's the commit that gets checked - browser edits don't carry the trailer |
+| Non-web-UI committer email, any message | Committer email isn't `noreply@github.com` | Depends on trailer | This is always the commit that gets checked, since it can never match the allow-list |
+| Merge commit pulled in via a non-first-parent branch | Commit reachable only through the second parent of a merge | *(ignored)* | `--first-parent` means these commits are never examined |
+| PR opened by `dependabot[bot]` | `github.actor == 'dependabot[bot]'` | Skipped entirely | The job doesn't run at all for dependabot PRs |
+
 
 ## Terraform Workflow
 
