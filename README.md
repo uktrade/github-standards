@@ -1,5 +1,7 @@
 # Table of contents
 
+Adding a random suggestion.
+
 - [Table of contents](#table-of-contents)
 - [Features](#features)
 - [Installation](#installation)
