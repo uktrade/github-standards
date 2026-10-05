@@ -1,41 +1,7 @@
 # github-standards
 
-<<<<<<< HEAD
-- [Table of contents](#table-of-contents)
-- [Features](#features)
-- [Installation](#installation)
-- [Testing](#testing)
-  - [Testing hooks locally](#testing-hooks-locally)
-    - [Running the hook command using python](#running-the-hook-command-using-python)
-    - [Running the hooks using docker](#running-the-hooks-using-docker)
-  - [Testing hooks from an external repository](#testing-hooks-from-an-external-repository)
-    - [Testing pre-commit hooks](#testing-pre-commit-hooks)
-    - [Testing commit-msg hooks](#testing-commit-msg-hooks)
-- [Releasing](#releasing)
-- [Usage](#usage)
-  - [My project is already using the pre-commit framework](#my-project-is-already-using-the-pre-commit-framework)
-  - [My project is not using the pre-commit framework](#my-project-is-not-using-the-pre-commit-framework)
-  - [Post installation setup](#post-installation-setup)
-  - [Optional hooks](#optional-hooks)
-- [Trufflehog](#trufflehog)
-  - [Detectors](#detectors)
-  - [Excluding false positives](#excluding-false-positives)
-  - [Upgrading trufflehog](#upgrading-trufflehog)
-- [Presidio](#presidio)
-  - [Excluding false positives](#excluding-false-positives-1)
-- [Bandit](#bandit)
-  - [Upgrading bandit](#upgrading-bandit)
-- [GitHub actions](#github-actions)
-  - [Testing changes](#testing-changes)
-  - [Signed-off-by trailer check](#signed-off-by-trailer-check)
-- [FAQ](#faq)
-  - [My PR is failing due to a github action checking a Signed-off-by trailer](#my-pr-is-failing-due-to-a-github-action-checking-a-signed-off-by-trailer)
-  - [I'm receiving errors updating the rev version](#im-receiving-errors-updating-the-rev-version)
-  - [I'm seeing pre-commit hooks run multiple times in the logs](#im-seeing-pre-commit-hooks-run-multiple-times-in-the-logs)
-=======
 Security tooling to support the 
 [Code Security Framework](https://platform.readme.trade.gov.uk/managed/features/code-security-framework/).
->>>>>>> eae9329 (Add files via upload)
 
 ## Overview
 This repository bundles two things:
@@ -119,19 +85,7 @@ hook ran (for example, catching commits made with `--no-verify`). If it finds a 
 personal data, or the expected attestation is missing, the check fails and a comment is posted.
 The ruleset then ensures the PR is blocked.
 
-> **⚠️ TO BE REMOVED — the Bandit scan and Terraform workflow below are optional and interim.
-> Remove this section once they are replaced by the Datadog Code Security integration.**
-
-<<<<<<< HEAD
-Although bandit provides a [github action](https://github.com/PyCQA/bandit-action) that can run scans during a PR being raised, this action always installs the latest version. As part of a cyber condition for using bandit, we are required to use a pinned version so a custom bandit job has been added to the `org.python-ci.yml` file in this repo.
-
-There is a `bandit-version` `env` variable in this job, that is used to install a specific bandit version. This variable must match a github [release version](https://github.com/PyCQA/bandit/releases)
-
-# GitHub Actions
-
-This repository contains GitHub actions that are triggered by a set of GitHub Rulesets defined at the organisation level. Any repository in the uktrade organisation can opt in to using these GitHub actions by adding GitHub Custom properties to the repository.
-
-## Signed-off-by trailer check
+#### Signed-off-by trailer check
 
 The `pre-commit-check` job in `org.common-ci.yml` verifies that commits were made after installing the pre-commit hooks from this repo, since the hooks are what runs the security and personal data scans locally before a commit is allowed. It does this by checking for the `Signed-off-by: DBT pre-commit check` trailer that the commit-msg hook adds to a commit message once the scans pass - a commit without this trailer means the hooks were either not installed, or were bypassed with `--no-verify`.
 
@@ -148,12 +102,15 @@ Not every commit can realistically carry this trailer though. Commits made direc
 | Merge commit pulled in via a non-first-parent branch | Commit reachable only through the second parent of a merge | *(ignored)* | `--first-parent` means these commits are never examined |
 | PR opened by `dependabot[bot]` | `github.actor == 'dependabot[bot]'` | Skipped entirely | The job doesn't run at all for dependabot PRs |
 
+> **⚠️ TO BE REMOVED — the Bandit scan and Terraform workflow below are optional and interim.
+> Remove this section once they are replaced by the Datadog Code Security integration.**
 
-## Terraform Workflow
-=======
 ### Bandit (opt-in)
 Bandit is used for scanning Python repositories to find common security issues. Bandit scans are performed using an org-level GitHub Action, and focused on finding high severity issues that require immediate developer attention when a PR is raised.
->>>>>>> eae9329 (Add files via upload)
+
+Although bandit provides a [github action](https://github.com/PyCQA/bandit-action) that can run scans during a PR being raised, this action always installs the latest version. As part of a cyber condition for using bandit, we are required to use a pinned version so a custom bandit job has been added to the `org.python-ci.yml` file in this repo.
+
+There is a `bandit-version` `env` variable in this job, that is used to install a specific bandit version. This variable must match a github [release version](https://github.com/PyCQA/bandit/releases)
 
 ### Terraform workflow (opt-in)
 The reusable Terraform workflow defined in this repository checks Terraform code in your repository against a number of standard tools: `terraform fmt`, `terraform validate` and `tflint`. If any of these checks do not exit successfully, the job will fail and you will need to make changes to your code to get it through the CI checks. Because a lot of the Terraform modules we use in our code are hosted in private GitHub repositories, we have had to create a GitHub App to allow them to be pulled into the GitHub Action at runtime. Therefore, there are some pre-requisites you must satisfy before this reusable workflow will work on your repository:
