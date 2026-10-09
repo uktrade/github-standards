@@ -22,7 +22,7 @@ jobs:
         Apply suggestion from
         Apply suggestions from
         Merge branch '$BASE_REF' into
-      FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer, which is added by the pre-commit hooks. To install them, run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, or follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md#usage. If the commit was made in the GitHub web UI, installing the hooks will not help. Only applying suggested changes and updating the branch are allowed there, so make the change locally instead"
+      FAILURE_MESSAGE: "Your PR has commits that are missing the Signed-off-by trailer, which is added by the pre-commit hooks. To install them, run `pre-commit install --install-hooks --overwrite -t commit-msg -t pre-commit`, or follow the instructions at https://github.com/uktrade/github-standards/blob/main/README.md. If the commit was made in the GitHub web UI, installing the hooks will not help. Only applying suggested changes and updating the branch are allowed there, so make the change locally instead"
 
     runs-on: ubuntu-latest
     permissions:
