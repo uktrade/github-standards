@@ -1,0 +1,6 @@
+aiohttp==3.7.0
+django==1.5.10
+jupyterhub==4.0.1
+torch==2.7.1
+flask==2.2.4
+apache-airflow==2.6.3
