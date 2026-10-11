@@ -80,6 +80,10 @@ USER app_user
 
 WORKDIR /app
 
+EXPOSE 22
+USER root
+
+
 ENTRYPOINT ["hooks-cli"]
 
 FROM base AS testing
