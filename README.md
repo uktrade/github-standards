@@ -105,13 +105,6 @@ Not every commit can realistically carry this trailer though. Commits made direc
 > **⚠️ TO BE REMOVED — the Bandit scan and Terraform workflow below are optional and interim.
 > Remove this section once they are replaced by the Datadog Code Security integration.**
 
-### Bandit (opt-in)
-Bandit is used for scanning Python repositories to find common security issues. Bandit scans are performed using an org-level GitHub Action, and focused on finding high severity issues that require immediate developer attention when a PR is raised.
-
-Although bandit provides a [github action](https://github.com/PyCQA/bandit-action) that can run scans during a PR being raised, this action always installs the latest version. As part of a cyber condition for using bandit, we are required to use a pinned version so a custom bandit job has been added to the `org.python-ci.yml` file in this repo.
-
-There is a `bandit-version` `env` variable in this job, that is used to install a specific bandit version. This variable must match a github [release version](https://github.com/PyCQA/bandit/releases)
-
 ### Terraform workflow (opt-in)
 The reusable Terraform workflow defined in this repository checks Terraform code in your repository against a number of standard tools: `terraform fmt`, `terraform validate` and `tflint`. If any of these checks do not exit successfully, the job will fail and you will need to make changes to your code to get it through the CI checks. Because a lot of the Terraform modules we use in our code are hosted in private GitHub repositories, we have had to create a GitHub App to allow them to be pulled into the GitHub Action at runtime. Therefore, there are some pre-requisites you must satisfy before this reusable workflow will work on your repository:
 - You must grant your repository access to the organisation-level secrets `TERRAFORM_MODULE_ACCESS_APP_ID` and `TERRAFORM_MODULE_ACCESS_PRIVATE_KEY` [here](https://github.com/organizations/uktrade/settings/secrets/actions) - if you do not have access to do this, SRE can facilitate it for you.
