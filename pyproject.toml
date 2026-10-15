@@ -20,7 +20,7 @@ dependencies = [
     "aiohttp>=3.13.2",
     "multidict==6.9.1",
 ]
-version = "v1.4.4"
+version = "v1.4.5"
 
 [project.scripts]
 hooks-cli = "src.hooks.cli:main"
