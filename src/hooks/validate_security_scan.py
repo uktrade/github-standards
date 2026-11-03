@@ -63,7 +63,15 @@ class ValidateSecurityScan(Hook):
                 return ValidateSecurityScanResult(False, "No commit message provided")
 
             regex = re.compile(r"Signed-off-by", flags=re.DOTALL)
-            filtered_contents = [i for i in contents if not regex.match(i)]
+
+            filtered_contents = []
+            for i in contents:
+                if i == "# ------------------------ >8 ------------------------\n":
+                    break
+
+                if not regex.match(i):
+                    filtered_contents.append(i)
+
             filtered_contents.append(f"\n{SIGNED_OFF_BY_TRAILER}")
             logger.debug("New commit message is %s", "".join(filtered_contents))
 
