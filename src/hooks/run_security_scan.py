@@ -107,8 +107,8 @@ class RunSecurityScan(Hook):
             await session.close()
             return json_content["tag_name"]
 
-    async def _validate_hook_settings(self, dbt_repo_config):
-        if "rev" not in dbt_repo_config:
+    async def _validate_hook_settings(self, bist_repo_config):
+        if "rev" not in bist_repo_config:
             logger.debug(
                 "File %s contains the github standards hooks repo, but is missing the rev child element", PRE_COMMIT_FILE
             )
@@ -116,7 +116,7 @@ class RunSecurityScan(Hook):
 
         # If the call to get the remote version fails, return True as we don't want this to block a dev from committing in this scenario.
         try:
-            version_in_config = dbt_repo_config["rev"]
+            version_in_config = bist_repo_config["rev"]
             version_in_remote = await self._get_version_from_remote()
 
             if version_in_config != version_in_remote:

@@ -34,7 +34,7 @@ def init_logger(verbose):
 
 
 def parse_args(argv):
-    main_parser = argparse.ArgumentParser(description="DBT pre-commit hooks")
+    main_parser = argparse.ArgumentParser(description="BIST pre-commit hooks")
 
     parent_parser = argparse.ArgumentParser(add_help=False)
     parent_parser.add_argument("paths", nargs="*", help="Paths pre-commit has tracked as being changed.", default=[])

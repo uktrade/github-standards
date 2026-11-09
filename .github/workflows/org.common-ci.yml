@@ -14,7 +14,7 @@ jobs:
   pre-commit-check:
     if: ${{ github.actor != 'dependabot[bot]' }}
     env:
-      SIGNED_OFF_MESSAGE: "Signed-off-by: DBT pre-commit check"
+      SIGNED_OFF_MESSAGE: "Signed-off-by: BIST pre-commit check"
       # Commits made in the GitHub web UI cannot run the pre-commit hook. Commits by this committer whose
       # message starts with one of these lines are allowed to skip the check. $BASE_REF is the PR's target branch
       WEB_UI_COMMITTER_EMAIL: "noreply@github.com"
