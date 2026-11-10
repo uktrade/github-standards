@@ -28,7 +28,7 @@ jobs:
 
     steps:
       - name: Log in to GitHub packages Docker registry
-        uses: docker/login-action@5e57cd118135c172c3672efd75eb46360885c0ef
+        uses: docker/login-action@4907a6ddec9925e35a0a9e82d7399ccc52663121
         with:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
@@ -54,7 +54,7 @@ jobs:
           echo "tags=$TAG_COMMAND" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image to GHCR
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           platforms: ${{ steps.setup.outputs.platforms }}
           push: true

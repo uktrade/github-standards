@@ -100,6 +100,7 @@ class RunSecurityScan(Hook):
         session = self._get_client_session()
         # This is a low timeout, we don't want to block commits or make devs wait for the github api
         timeout = aiohttp.ClientTimeout(total=1)
+
         async with session.get(RELEASE_CHECK_URL, raise_for_status=True, timeout=timeout) as response:
             logger.debug("Received %s response from %s", response.status, response.real_url)
             json_content = await response.json()
