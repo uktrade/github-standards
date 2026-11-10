@@ -54,7 +54,7 @@ jobs:
           echo "tags=$TAG_COMMAND" >> $GITHUB_OUTPUT
 
       - name: Build and push Docker image to GHCR
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           platforms: ${{ steps.setup.outputs.platforms }}
           push: true

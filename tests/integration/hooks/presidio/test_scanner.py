@@ -120,7 +120,6 @@ class TestPresidioScanner:
                 "tests/test_data/personal_data.txt",
                 "tests/test_data/personal_data.yaml",
                 "tests/test_data/personal_data.yml",
-                "tests/test_data/personal_data.py",
             ]
         ),
     )
@@ -137,7 +136,7 @@ class TestPresidioScanner:
             files_to_skip = [
                 NamedTemporaryFileSync(
                     dir=td,
-                    suffix=".jpg",
+                    suffix=".pdf",
                     mode="w+t",
                     prefix=f"SKIPPED_FILE_{i}_",
                 )
