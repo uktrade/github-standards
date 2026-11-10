@@ -1,31 +1,9 @@
+# By default exclude everything
+*
 
-# Byte-compiled / optimized / DLL files
-**/__pycache__/
-
-# Distribution / packaging
-.Python
-env/
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-*.egg-info/
-
-# venv
-venv/**
-
-# keys testing
-test_keys/
-
-#custom
-.DS_Store
-.vscode/
-.github/
-.pre-commit-config.yaml
+# Only include the files needed by the UV installer in the docker image
+!.pre-commit-hooks.yaml
+!pyproject.toml
+!.python-version
+!uv.lock
+!src

@@ -18,7 +18,6 @@ from src.hooks.config import (
     PRESIDIO_EXCLUSIONS_FILE_PATH,
     RECOGNIZER_CONFIG_FILE,
 )
-from src.hooks.presidio.spacy_post_processing_recognizer import SpacyPostProcessingRecognizer
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 
 logger = LOGGER
@@ -39,10 +38,12 @@ class PathScanResult:
         path: str,
         status: PathScanStatus,
         results: List[PersonalDataDetection] | None = None,
+        additional_detail: str | None = None,
     ) -> None:
         self.path = path
         self.status = status
         self.results = results if results else []
+        self.additional_detail = additional_detail
 
 
 class PresidioScanResult:
@@ -100,9 +101,9 @@ class PresidioScanResult:
 
             if self.paths_errored:
                 output_buffer.write("\n\nFILES ERRORED\n")
-                errored_paths_table = PrettyTable(["Path"])
+                errored_paths_table = PrettyTable(["Path", "Reason"])
                 for errored_path in self.paths_errored:
-                    errored_paths_table.add_row([errored_path.path])
+                    errored_paths_table.add_row([errored_path.path, errored_path.additional_detail])
                 output_buffer.write(str(errored_paths_table))
 
             if self.paths_containing_personal_data:
@@ -149,7 +150,6 @@ class PresidioScanner:
             recognizer_registry_conf_file=Path.joinpath(base_path, RECOGNIZER_CONFIG_FILE),
         )
         analyzer = provider.create_engine()
-        analyzer.registry.add_recognizer(SpacyPostProcessingRecognizer())
 
         return analyzer
 
@@ -190,9 +190,9 @@ class PresidioScanner:
                     status=PathScanStatus.PASSED if len(results) == 0 else PathScanStatus.FAILED,
                     results=results,
                 )
-        except Exception:
+        except Exception as exc:
             logger.exception("The file scanner failed to read file %s", file_path, stack_info=True)
-            return PathScanResult(file_path, status=PathScanStatus.ERRORED)
+            return PathScanResult(file_path, status=PathScanStatus.ERRORED, additional_detail=str(exc))
 
     async def scan(
         self,

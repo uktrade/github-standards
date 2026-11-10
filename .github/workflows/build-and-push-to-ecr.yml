@@ -26,7 +26,7 @@ jobs:
 
     steps:
       - name: Configure AWS Credentials
-        uses: aws-actions/configure-aws-credentials@5f81b77081d9eb79d8f9cc6ab6880645209baae7
+        uses: aws-actions/configure-aws-credentials@f487a3d99423b03b33cbe8a0944867cb0f4223f9
         with:
           role-to-assume: ${{ secrets.oidc_iam_role }}
           aws-region: eu-west-2
@@ -65,7 +65,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
 
       - name: Build and push Docker image to Amazon ECR
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83
+        uses: docker/build-push-action@bcafcacb16a39f128d818304e6c9c0c18556b85f
         with:
           platforms: ${{ steps.setup.outputs.platforms }}
           push: true
