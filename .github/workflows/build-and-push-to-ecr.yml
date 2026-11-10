@@ -1,4 +1,5 @@
 name: Docker image build and publish to AWS ECR
+
 on:
   workflow_call:
     inputs:
@@ -48,13 +49,17 @@ jobs:
       - name: Create docker tags
         id: create-docker-tags
         shell: bash
+        env:
+          IMAGE_TAGS: ${{ inputs.image_tags }}
+          ECR_REPOSITORY: ${{ inputs.ecr_repo }}
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
         run: |
           IFS=,
           TAG_COMMAND=""
-          read -ra tags <<<${{ inputs.image_tags }}
+          read -ra tags <<< "$IMAGE_TAGS"
           for tag in "${tags[@]}"
           do
-              TAG_COMMAND="$TAG_COMMAND ${{ steps.login-ecr.outputs.registry }}/${{ inputs.ecr_repo }}:$tag"
+              TAG_COMMAND="$TAG_COMMAND $ECR_REGISTRY/$ECR_REPOSITORY:$tag"
           done
           echo "tags=$TAG_COMMAND" >> $GITHUB_OUTPUT
 
