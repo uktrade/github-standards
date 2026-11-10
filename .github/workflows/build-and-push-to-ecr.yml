@@ -1,5 +1,4 @@
 name: Docker image build and publish to AWS ECR
-
 on:
   workflow_call:
     inputs:
