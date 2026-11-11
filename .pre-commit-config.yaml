@@ -12,6 +12,11 @@ repos:
   - id: check-toml
   - id: no-commit-to-branch
 
+- repo: https://github.com/rhysd/actionlint
+  rev: v1.7.12
+  hooks:
+    - id: actionlint
+
 - repo: local
   hooks:
   -   id: run-security-scan
