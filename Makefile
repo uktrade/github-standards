@@ -36,3 +36,5 @@ run-hook-docker-github-action:
 	make build-docker-testing
 	docker run --rm -u $$(id -u):$$(id -g) -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose --github-action /src
 
+not-actually-a-command
+	make build-docker-testing-blah
