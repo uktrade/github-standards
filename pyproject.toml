@@ -4,9 +4,9 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "github-standards"
-description = "Hooks for use in a DBT development environment"
+description = "Hooks for use in a BIST development environment"
 readme = "README.md"
-keywords = ["pre-commit", "dbt", "hooks", "security"]
+keywords = ["pre-commit", "bist", "hooks", "security"]
 requires-python = ">=3.13"
 dependencies = [
     "presidio-analyzer>=2.2.360",

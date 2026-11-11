@@ -32,20 +32,20 @@ class ValidateSecurityScan(Hook):
 
         return True
 
-    async def _validate_hook_settings(self, dbt_repo_config) -> bool:
-        if "hooks" not in dbt_repo_config:
+    async def _validate_hook_settings(self, bist_repo_config) -> bool:
+        if "hooks" not in bist_repo_config:
             logger.info(
                 "File %s contains the github standards hooks repo, but is missing the hooks child element", PRE_COMMIT_FILE
             )
             return False
 
-        dbt_hook_ids = [hook["id"] for hook in dbt_repo_config["hooks"] if "id" in hook]
-        if not dbt_hook_ids:
+        bist_hook_ids = [hook["id"] for hook in bist_repo_config["hooks"] if "id" in hook]
+        if not bist_hook_ids:
             logger.info("File %s contains the github standards hooks repo, but is missing the hooks to run", PRE_COMMIT_FILE)
             return False
 
         for mandatory_hook in MANDATORY_HOOK_IDS:
-            if mandatory_hook not in dbt_hook_ids:
+            if mandatory_hook not in bist_hook_ids:
                 logger.info("File %s does not contain the mandatory hook '%s'", PRE_COMMIT_FILE, mandatory_hook)
                 return False
 

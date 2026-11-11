@@ -57,22 +57,22 @@ class Hook(ABC):
                 logger.debug("File %s does not contain a repo tag", PRE_COMMIT_FILE)
                 return False
 
-            dbt_hook_repo = list(
+            bist_hook_repo = list(
                 filter(lambda x: "https://github.com/uktrade/github-standards" in x["repo"], config["repos"])
             )
 
-            if not dbt_hook_repo:
+            if not bist_hook_repo:
                 logger.debug("File %s does not contain the github standards hooks repo", PRE_COMMIT_FILE)
                 return False
 
-            if len(dbt_hook_repo) != 1:
+            if len(bist_hook_repo) != 1:
                 logger.debug("File %s can only contain one github-standards repo entry", PRE_COMMIT_FILE)
                 return False
 
-            return await self._validate_hook_settings(dbt_hook_repo[0])
+            return await self._validate_hook_settings(bist_hook_repo[0])
 
     @abstractmethod
-    async def _validate_hook_settings(self, dbt_repo_config) -> bool:
+    async def _validate_hook_settings(self, bist_repo_config) -> bool:
         raise NotImplementedError()
 
     @abstractmethod

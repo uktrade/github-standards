@@ -9,7 +9,7 @@ class HooksBaseTestImplementation(Hook):
     def validate_args(self) -> bool:
         return True
 
-    async def _validate_hook_settings(self, dbt_repo_config) -> bool:
+    async def _validate_hook_settings(self, bist_repo_config) -> bool:
         return False
 
     async def run(self) -> HookRunResult:
@@ -50,7 +50,7 @@ class TestHooksBase:
 
                 assert await HooksBaseTestImplementation().validate_hook_settings() is False
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_missing_in_pre_commit_file_returns_false(self):
+    async def test_validate_hook_settings_with_bist_hooks_repo_missing_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
         repos:
             - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -68,7 +68,7 @@ class TestHooksBase:
 
                 assert await HooksBaseTestImplementation().validate_hook_settings() is False
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_multiple_times_in_pre_commit_file_returns_false(self):
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_multiple_times_in_pre_commit_file_returns_false(self):
         valid_yaml = b"""
         repos:
             - repo: https://github.com/uktrade/github-standards
