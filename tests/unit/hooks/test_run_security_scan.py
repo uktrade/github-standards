@@ -97,7 +97,7 @@ class TestRunSecurityScan:
         ):
             assert await RunSecurityScan()._get_version_from_remote() == "v1122"
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(
         self,
     ):
         with (
@@ -107,7 +107,7 @@ class TestRunSecurityScan:
 
             assert await RunSecurityScan()._validate_hook_settings(repo) is False
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_true_but_logs_error(
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_with_rev_element_in_pre_commit_file_differs_remote_version_returns_true_but_logs_error(
         self,
         caplog,
     ):
@@ -122,7 +122,7 @@ class TestRunSecurityScan:
             assert await RunSecurityScan()._validate_hook_settings(repo) is True
             assert caplog.records[0].levelname == "ERROR"
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_when_remote_version_http_error_returns_true(
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_when_remote_version_http_error_returns_true(
         self,
     ):
         mock_get_version_from_remote = AsyncMock()
@@ -135,7 +135,7 @@ class TestRunSecurityScan:
 
             assert await RunSecurityScan()._validate_hook_settings(repo) is True
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_with_rev_element_in_pre_commit_file_matching_remote_version_returns_true(
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_with_rev_element_in_pre_commit_file_matching_remote_version_returns_true(
         self,
     ):
         with (

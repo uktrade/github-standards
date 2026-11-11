@@ -19,7 +19,7 @@ class TestValidateSecurityScan:
     def test_validate_args_path_list_with_one_item_returns_true(self):
         assert ValidateSecurityScan(paths=["a.txt"]).validate_args() is True
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_hooks_element_in_pre_commit_file_returns_false(
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_without_hooks_element_in_pre_commit_file_returns_false(
         self,
     ):
         with (
@@ -29,7 +29,7 @@ class TestValidateSecurityScan:
 
             assert await ValidateSecurityScan()._validate_hook_settings(repo) is False
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_ids_element_in_pre_commit_file_returns_false(
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_without_ids_element_in_pre_commit_file_returns_false(
         self,
     ):
         with (
@@ -39,7 +39,7 @@ class TestValidateSecurityScan:
 
             assert await ValidateSecurityScan()._validate_hook_settings(repo) is False
 
-    async def test_validate_hook_settings_with_dbt_hooks_repo_present_without_mandatory_is_in_pre_commit_file_returns_false(
+    async def test_validate_hook_settings_with_bist_hooks_repo_present_without_mandatory_is_in_pre_commit_file_returns_false(
         self,
     ):
         with (
