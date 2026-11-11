@@ -91,6 +91,21 @@ The `pre-commit-check` job in `org.common-ci.yml` verifies that commits were mad
 
 Not every commit can realistically carry this trailer though. Commits made directly in the GitHub web UI (for example applying a suggested change, or a merge commit created by clicking "Update branch") never run the local hook, so the job needs to tell those apart from a commit that was made locally and skipped the hooks. It does this by walking the PR's commits (following first-parent only, so merged-in history from `main`/`master`/`dev` is ignored) from newest to oldest, skipping over commits that match a known, safe web UI pattern, until it finds the first commit that must be checked. That commit passes if it either came from a PR that was already merged (so it wouldn't have been run through this check locally), or if it contains the trailer. The table below covers every outcome:
 
+# File verification
+
+Files being committed to GitHub are scanned to ensure they:
+
+1. Do not have a file extension that is forbidden
+2. Do not have a filesize above the GitHub recommended limit of 1MB
+
+## Excluding false positives
+
+If the file verification scan has detected a file that you know is a false positive, you can exclude this from future file verification scans. To exclude a file:
+
+- If this file doesn't already exist, create a file at the root of the repository called `file-verifications-exclusions.txt`
+- This file contains list of regexes to exclude, separated by a newline. Add the filename in your repository you want to exclude as a new entry in this file
+
+# GitHub actions
 | Scenario | Condition | Outcome | Why |
 |---|---|---|---|
 | Every commit in the PR is an allowed web UI commit | All commits have committer email `noreply@github.com` **and** a message matching an allowed prefix (`Apply suggestion from`, `Apply suggestions from`, `Merge branch '$BASE_REF' into`) | ✅ Pass | Nothing to check, the job exits early |
