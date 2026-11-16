@@ -85,7 +85,7 @@ jobs:
       - name: Test run security scan
         run: |
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
-          ${{env.DOCKER_LABEL}} \
+          "$DOCKER_LABEL" \
           run_scan \
           --verbose \
           /src
@@ -93,7 +93,7 @@ jobs:
       - name: Test run security scan in github action mode
         run: |
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
-          ${{env.DOCKER_LABEL}} \
+          "$DOCKER_LABEL" \
           run_scan \
           --verbose \
           --github-action \
@@ -103,7 +103,7 @@ jobs:
         run: |
           echo 'Test commit message' >> COMMIT.txt
           docker run --user $(id -u):$(id -g) -e FORCE_HOOK_CHECKS=0 --rm -v .:/src -w /src \
-          ${{env.DOCKER_LABEL}} \
+          "$DOCKER_LABEL" \
           validate_scan \
           --verbose \
           COMMIT.txt
@@ -137,7 +137,7 @@ jobs:
                 - id: run-security-scan
                   name: run-security-scan
                   language: docker_image
-                  entry: ${{env.DOCKER_LABEL}} run_scan --verbose
+                  entry: $DOCKER_LABEL run_scan --verbose
                   stages: [pre-commit]
                   verbose: true
                   require_serial: true
@@ -145,7 +145,7 @@ jobs:
                 - id: validate-security-scan
                   name: validate-security-scan
                   language: docker_image
-                  entry: ${{env.DOCKER_LABEL}} validate_scan --verbose
+                  entry: $DOCKER_LABEL validate_scan --verbose
                   stages: [commit-msg]
                   verbose: true
           EOF
