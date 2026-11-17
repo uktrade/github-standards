@@ -17,22 +17,22 @@ repos:
   hooks:
     - id: actionlint
 
+# Runs the hook code from the working copy inside the published image, which provides trufflehog and Presidio.
+# FORCE_HOOK_CHECKS=0 skips the check for a github-standards entry, which this repository's own config doesn't have
 - repo: local
   hooks:
   -   id: run-security-scan
       name: run-security-scan
-      entry: python3 -m src.hooks.cli run_scan --verbose
-      language: python
-      additional_dependencies: [aiohttp, anyio, gitpython, pyyaml, requests, prettytable, proxy-py, presidio_analyzer]
+      entry: -e FORCE_HOOK_CHECKS=0 --entrypoint python ghcr.io/uktrade/github-standards:latest -m src.hooks.cli run_scan --verbose
+      language: docker_image
       stages: [pre-commit]
       verbose: true
       require_serial: true
 
   -   id: validate-security-scan
       name: validate-security-scan
-      entry: python3 -m src.hooks.cli validate_scan --verbose
-      language: python
-      additional_dependencies: [aiohttp, anyio, gitpython, pyyaml, requests, prettytable, proxy-py, presidio_analyzer]
+      entry: -e FORCE_HOOK_CHECKS=0 --entrypoint python ghcr.io/uktrade/github-standards:latest -m src.hooks.cli validate_scan --verbose
+      language: docker_image
       stages: [commit-msg]
       verbose: true
   
