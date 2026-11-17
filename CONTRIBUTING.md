@@ -8,7 +8,7 @@ ways, so this guide is organised around them:
 
 - **[Part A: the pre-commit hooks](#part-a-the-pre-commit-hooks)** — Python hooks
   distributed as a Docker image and consumed through the pre-commit framework.
-- **[Part B: the organisation workflows](#part-b-the-organisation-workflows)** — 
+- **[Part B: the organisation workflows](#part-b-the-organisation-workflows)** —
   reusable, organisation-level GitHub Actions triggered by GitHub Rulesets and Custom
   Properties.
 
@@ -25,7 +25,28 @@ not need any of this — the hooks run from the Docker image (see the [README](.
 - Make sure the venv created by uv is activated in the terminal before running any
   additional commands
 - Install Trufflehog by following the
-  [official Trufflehog installation instructions](https://github.com/trufflesecurity/trufflehog#floppy_disk-installation)
+  [official Trufflehog installation instructions](https://github.com/trufflesecurity/trufflehog#floppy_disk-installation).
+  You only need it if you run the hooks with Python, as described below.
+
+### This repository's own pre-commit hooks
+
+Commits to this repository are scanned like commits to consuming repositories:
+`.pre-commit-config.yaml` runs the security hooks from your working copy inside the published
+Docker image, using its pinned Trufflehog version and bundled spaCy model rather than
+whatever you have installed.
+
+The hooks need only Docker when you commit and you can use `make run-hook-python` to test
+them with local Python. They use your local copy of `ghcr.io/uktrade/github-standards:latest`
+so run `docker pull` on it after each release.
+
+Python dependencies also come from the image so a change that adds one will fail these hooks.
+To commit it, build the image from your branch and tag it as the copy the hooks use (your
+next `docker pull` puts the published image back):
+
+```bash
+make build-docker
+docker tag github-standards-hooks:dev ghcr.io/uktrade/github-standards:latest
+```
 
 ### Testing hooks locally
 
@@ -144,10 +165,10 @@ You will now have:
 
 The organisation-level GitHub Actions in this repository are triggered by GitHub Rulesets
 defined at the organisation level, and repositories opt in through GitHub Custom Properties.
-Because this repository also uses those Custom Properties, the workflows that on a PR here 
+Because this repository also uses those Custom Properties, the workflows that on a PR here
 are the versions on main, not the versions on your branch.
 
-This makes it difficult to test changes to the workflows: your changes do not run until the PR is 
+This makes it difficult to test changes to the workflows: your changes do not run until the PR is
 merged into main, and at that point, any issues with the workflow would already be present in all
 repositories using the GitHub Custom Properties.
 
@@ -161,7 +182,7 @@ changes a workflow yaml file, the same GitHub workflow appears twice:
 - the **ruleset-required run**, which is the status enforced by the GitHub Ruleset and uses
   the workflow version on the main branch. This is shown on the PR screen.
 - the **branch-triggered test run**, which uses the workflow version on the branch raising
-  the PR. It is not shown on the PR screen; view it through the GitHub Actions filter found 
+  the PR. It is not shown on the PR screen; view it through the GitHub Actions filter found
   [here](https://github.com/uktrade/github-standards/actions?query=event%3Apush).
 
 Always check the branch-triggered run when reviewing workflow changes.
