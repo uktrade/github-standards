@@ -18,7 +18,8 @@ repos:
     - id: actionlint
 
 # Runs the hook code from the working copy inside the published image, which provides trufflehog and Presidio.
-# FORCE_HOOK_CHECKS=0 skips the check for a github-standards entry, which this repository's own config doesn't have
+# The image sets FORCE_HOOK_CHECKS=1 so it checks consuming repos for a github-standards entry. This repository's
+# own config doesn't have one so turn the check off
 - repo: local
   hooks:
   -   id: run-security-scan
