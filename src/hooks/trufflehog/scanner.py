@@ -1,4 +1,5 @@
 import os
+import socket
 
 from anyio import run_process, Path
 from io import StringIO
@@ -99,6 +100,18 @@ class TrufflehogScanner:
         env["HTTPS_PROXY"] = TRUFFLEHOG_PROXY
         return env
 
+    def _wake_proxy_for_shutdown(self, proxy: Proxy):
+        # proxy.py acceptors only check for shutdown when select(timeout=1) returns, adding ~1s to every run. Flag them
+        # to stop, then open a dummy connection so select() wakes immediately. Because this relies on proxy.py
+        # internals, never let it fail the hook (worst case shutdown is slow again)
+        try:
+            for acceptor in proxy.acceptors.acceptors:
+                acceptor.running.set()
+            with socket.create_connection(("127.0.0.1", proxy.flags.port), timeout=1):
+                pass
+        except Exception:
+            logger.debug("Unable to wake proxy.py acceptors for a fast shutdown", exc_info=True)
+
     async def scan(
         self,
         github_action: bool = False,
@@ -112,6 +125,7 @@ class TrufflehogScanner:
         logger.debug("Using the %s folder for storing proxy.py data", DEFAULT_PROXY_DIRECTORY)
         with Proxy(
             port=8899,
+            num_acceptors=1,
             plugins=[OutgoingRequestInterceptorPlugin],
             log_level="ERROR",
             enable_events=False,
@@ -123,7 +137,7 @@ class TrufflehogScanner:
             ],
             data_dir=DEFAULT_PROXY_DIRECTORY,
             ca_cert_dir=f"{DEFAULT_PROXY_DIRECTORY}/certs",
-        ):
+        ) as proxy:
             env = self._get_trufflehog_env_vars()
 
             args = await self._get_args(
@@ -131,11 +145,14 @@ class TrufflehogScanner:
                 github_action,
                 allowed_vendor_codes,
             )
-            trufflehog_run = await run_process(
-                args,
-                check=False,
-                env=env,
-            )
+            try:
+                trufflehog_run = await run_process(
+                    args,
+                    check=False,
+                    env=env,
+                )
+            finally:
+                self._wake_proxy_for_shutdown(proxy)
 
             logger.debug("Trufflehog returncode was '%s'", trufflehog_run.returncode)
             if trufflehog_run.returncode != TRUFFLEHOG_SUCCESS_CODE:

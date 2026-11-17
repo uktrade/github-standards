@@ -1,5 +1,5 @@
 from pathlib import Path
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 from src.hooks.config import (
     TRUFFLEHOG_ERROR_CODE,
     TRUFFLEHOG_EXCLUSIONS_FILE_PATH,
@@ -105,3 +105,18 @@ class TestTrufflehogScanner:
                 env=mock_env.return_value,
             )
             assert result.detected_keys is None
+
+    def test_wake_proxy_for_shutdown_flags_acceptors_then_connects_to_proxy(self):
+        acceptor = MagicMock()
+        proxy = MagicMock()
+        proxy.acceptors.acceptors = [acceptor]
+        proxy.flags.port = 8899
+        with patch("src.hooks.trufflehog.scanner.socket.create_connection") as mock_create_connection:
+            TrufflehogScanner()._wake_proxy_for_shutdown(proxy)
+
+        acceptor.running.set.assert_called_once()
+        mock_create_connection.assert_called_once_with(("127.0.0.1", 8899), timeout=1)
+
+    def test_wake_proxy_for_shutdown_ignores_errors(self):
+        with patch("src.hooks.trufflehog.scanner.socket.create_connection", side_effect=OSError):
+            TrufflehogScanner()._wake_proxy_for_shutdown(MagicMock())
