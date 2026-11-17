@@ -49,6 +49,11 @@ async def aio_client_factory(aiohttp_client: AiohttpClient):
 
 
 class TestRunSecurityScan:
+    def test_importing_the_hook_does_not_load_presidio(self, modules_loaded_by_importing):
+        loaded = modules_loaded_by_importing("src.hooks.run_security_scan")
+
+        assert {"presidio_analyzer", "spacy"}.isdisjoint(loaded)
+
     def test_validate_args_without_path_list_returns_false(self):
         assert RunSecurityScan(paths=None).validate_args() is False
 
