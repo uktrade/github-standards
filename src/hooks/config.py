@@ -3,7 +3,8 @@
 import os
 import logging
 
-RELEASE_CHECK_URL = "/repos/uktrade/github-standards/releases/latest"
+RELEASE_CHECK_URL = "https://api.github.com/repos/uktrade/github-standards/releases/latest"
+RELEASE_CHECK_TIMEOUT_SECONDS = 1
 PRE_COMMIT_FILE = ".pre-commit-config.yaml"
 SIGNED_OFF_BY_TRAILER = "Signed-off-by: BIST pre-commit check"
 MANDATORY_HOOK_IDS = ["validate-security-scan", "run-security-scan"]

@@ -1,6 +1,7 @@
 import asyncio
-import aiohttp
 import git
+import json
+import urllib.request
 
 from pathlib import Path
 from typing import List
@@ -10,6 +11,7 @@ from src.hooks.config import (
     LOGGER,
     PERSONAL_DATA_SCAN,
     PRE_COMMIT_FILE,
+    RELEASE_CHECK_TIMEOUT_SECONDS,
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
@@ -89,24 +91,20 @@ class RunSecurityScan(Hook):
 
         return True
 
-    def _get_client_session(self) -> aiohttp.ClientSession:
-        return aiohttp.ClientSession(
-            base_url="https://api.github.com",
-            headers={
-                "Accept": "application/vnd.github+json",
-            },
+    def _fetch_latest_version(self) -> str:
+        request = urllib.request.Request(
+            RELEASE_CHECK_URL,
+            headers={"Accept": "application/vnd.github+json", "User-Agent": "uktrade-github-standards-hooks"},
         )
+        # Ignore proxy settings in the environment (as the check always has) and connect to GitHub directly
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(request, timeout=RELEASE_CHECK_TIMEOUT_SECONDS) as response:
+            logger.debug("Received %s response from %s", response.status, response.url)
+            return json.load(response)["tag_name"]
 
-    async def _get_version_from_remote(self):
-        session = self._get_client_session()
-        # This is a low timeout, we don't want to block commits or make devs wait for the github api
-        timeout = aiohttp.ClientTimeout(total=1)
-
-        async with session.get(RELEASE_CHECK_URL, raise_for_status=True, timeout=timeout) as response:
-            logger.debug("Received %s response from %s", response.status, response.real_url)
-            json_content = await response.json()
-            await session.close()
-            return json_content["tag_name"]
+    async def _get_version_from_remote(self) -> str:
+        # The timeout is short so commits are not held up by the GitHub API
+        return await asyncio.wait_for(asyncio.to_thread(self._fetch_latest_version), RELEASE_CHECK_TIMEOUT_SECONDS)
 
     async def _validate_hook_settings(self, bist_repo_config):
         if "rev" not in bist_repo_config:

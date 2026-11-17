@@ -1,23 +1,18 @@
-import asyncio
-import json
-from aiohttp.pytest_plugin import AiohttpClient
-from aiohttp.test_utils import TestClient
+import threading
+import urllib.error
+import urllib.request
 import pytest
 import requests
-
-import pytest_asyncio
-
-from aiohttp import ClientResponseError, ClientSession, web
 
 from pathlib import Path
 from presidio_analyzer import RecognizerResult
 
 from unittest.mock import AsyncMock, MagicMock, call, patch
 
-from yarl import URL
 from src.hooks.config import (
     LOGGER,
     PERSONAL_DATA_SCAN,
+    RELEASE_CHECK_TIMEOUT_SECONDS,
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
@@ -27,25 +22,12 @@ from src.hooks.run_security_scan import RunSecurityScan
 from src.hooks.trufflehog.scanner import TrufflehogScanResult
 
 
-@pytest_asyncio.fixture(scope="function")
-async def aio_client_factory(aiohttp_client: AiohttpClient):
-    async def _factory(
-        response,
-    ) -> ClientSession:
-        loop = asyncio.get_running_loop()
-
-        app = web.Application(loop=loop)
-        app.router.add_get(RELEASE_CHECK_URL, response)
-
-        client: TestClient = await aiohttp_client(app, loop=loop, ssl_shutdown_timeout=0)
-
-        client.session._base_url = URL(
-            str(client.server.scheme + "://" + client.server.host + ":" + str(client.server.port))
-        )
-
-        return client.session
-
-    return _factory
+def mock_open_returning(body: bytes) -> MagicMock:
+    response = MagicMock(status=200, url=RELEASE_CHECK_URL)
+    response.read.return_value = body
+    mock_open = MagicMock()
+    mock_open.return_value.__enter__.return_value = response
+    return mock_open
 
 
 class TestRunSecurityScan:
@@ -80,27 +62,46 @@ class TestRunSecurityScan:
             mock_is_dir.return_value = True
             assert RunSecurityScan(paths=["/a/b/c"], github_action=True).validate_args() is True
 
-    @pytest.mark.skip("aiohttp upgrade is causing issues with this test")
-    async def test_get_version_from_remote_raises_exception_for_http_errors(self, aio_client_factory):
-        aio_client = await aio_client_factory(response=lambda _: web.Response(status=404))
-
+    async def test_get_version_from_remote_raises_exception_for_http_errors(self):
+        http_error = urllib.error.HTTPError(RELEASE_CHECK_URL, 404, "Not Found", {}, None)
         with (
-            patch.object(RunSecurityScan, "_get_client_session", return_value=aio_client),
-            pytest.raises(ClientResponseError),
+            patch("urllib.request.OpenerDirector.open", side_effect=http_error),
+            pytest.raises(urllib.error.HTTPError),
         ):
             await RunSecurityScan()._get_version_from_remote()
 
-    async def test_get_version_from_remote_returns_expected_json(self, aio_client_factory):
-        aio_client = await aio_client_factory(
-            response=lambda _: web.Response(
-                status=200, content_type="application/json", text=json.dumps({"tag_name": "v1122"})
-            )
-        )
-
-        with (
-            patch.object(RunSecurityScan, "_get_client_session", return_value=aio_client),
-        ):
+    async def test_get_version_from_remote_returns_expected_json(self):
+        mock_open = mock_open_returning(b'{"tag_name": "v1122"}')
+        with patch("urllib.request.OpenerDirector.open", mock_open):
             assert await RunSecurityScan()._get_version_from_remote() == "v1122"
+
+        request = mock_open.call_args.args[0]
+        assert request.full_url == RELEASE_CHECK_URL
+        assert request.get_header("Accept") == "application/vnd.github+json"
+        assert mock_open.call_args.kwargs["timeout"] == RELEASE_CHECK_TIMEOUT_SECONDS
+
+    async def test_get_version_from_remote_ignores_proxy_settings_in_the_environment(self, monkeypatch):
+        monkeypatch.setenv("HTTPS_PROXY", "http://proxy.invalid:3128")
+        with (
+            patch("urllib.request.build_opener", wraps=urllib.request.build_opener) as mock_build_opener,
+            patch("urllib.request.OpenerDirector.open", mock_open_returning(b'{"tag_name": "v1"}')),
+        ):
+            await RunSecurityScan()._get_version_from_remote()
+
+        (proxy_handler,) = mock_build_opener.call_args.args
+        assert proxy_handler.proxies == {}
+
+    async def test_get_version_from_remote_stops_waiting_after_the_timeout(self):
+        unblock_fetch = threading.Event()
+        try:
+            with (
+                patch("src.hooks.run_security_scan.RELEASE_CHECK_TIMEOUT_SECONDS", 0.05),
+                patch.object(RunSecurityScan, "_fetch_latest_version", side_effect=lambda: unblock_fetch.wait(5)),
+                pytest.raises(TimeoutError),
+            ):
+                await RunSecurityScan()._get_version_from_remote()
+        finally:
+            unblock_fetch.set()
 
     async def test_validate_hook_settings_with_bist_hooks_repo_present_without_rev_element_in_pre_commit_file_returns_false(
         self,
