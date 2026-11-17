@@ -134,6 +134,12 @@ class TestPresidioScanner:
                 assert result.status == PathScanStatus.ERRORED
                 assert result.additional_detail == "An exception message"
 
+    def test_scan_lines_scans_each_line_split_only_on_newlines(self):
+        with patch.object(PresidioScanner, "_scan_content", return_value=[]) as mock_scan_content:
+            PresidioScanner()._scan_lines(MagicMock(), [], "a,b\fc  \nd\n")
+
+        assert mock_scan_content.call_args_list == [call(ANY, ANY, "a,b\fc"), call(ANY, ANY, "d")]
+
     def test_scan_content_returns_detections_list_when_path_has_personal_data(self):
         contents = "I have personal data"
 

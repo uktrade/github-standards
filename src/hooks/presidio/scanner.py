@@ -4,7 +4,7 @@ import json
 import re
 
 from io import StringIO
-from anyio import open_file
+from anyio import open_file, to_thread
 from pathlib import Path
 from typing import TYPE_CHECKING, List
 
@@ -169,25 +169,32 @@ class PresidioScanner:
             logger.debug("Found presidio results %s", results)
         return [PersonalDataDetection(result, content[result.start : result.end]) for result in results]
 
+    def _scan_lines(self, analyzer: AnalyzerEngine, entities: List[str], contents: str) -> List[PersonalDataDetection]:
+        # Scan all lines in one worker-thread call to avoid a thread hop per line on large files. StringIO splits only
+        # on newlines, whereas str.splitlines() would also split on characters such as \f inside a value
+        detections: List[PersonalDataDetection] = []
+        for line in StringIO(contents):
+            detections.extend(self._scan_content(analyzer, entities, line.rstrip()))
+        return detections
+
     async def _scan_path(self, analyzer: AnalyzerEngine, entities: List[str], file_path: str) -> PathScanResult:
         try:
-            file_extension = Path(file_path).suffix.lower()
             async with await open_file(file_path, "r", encoding="utf-8") as fs:
-                results: List[PersonalDataDetection] = []
-                if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
-                    logger.debug("Scanning file %s line by line", file_path)
-                    async for line in fs:
-                        results.extend(self._scan_content(analyzer, entities, line.rstrip()))
-                else:
-                    contents = await fs.read()
-                    logger.debug("Scanning file %s by reading all contents", file_path)
-                    results.extend(self._scan_content(analyzer, entities, contents))
+                contents = await fs.read()
 
-                return PathScanResult(
-                    file_path,
-                    status=PathScanStatus.PASSED if len(results) == 0 else PathScanStatus.FAILED,
-                    results=results,
-                )
+            file_extension = Path(file_path).suffix.lower()
+            if file_extension in self.LINE_BY_LINE_FILE_EXTENSIONS:
+                logger.debug("Scanning file %s line by line", file_path)
+                results = await to_thread.run_sync(self._scan_lines, analyzer, entities, contents)
+            else:
+                logger.debug("Scanning file %s by reading all contents", file_path)
+                results = await to_thread.run_sync(self._scan_content, analyzer, entities, contents)
+
+            return PathScanResult(
+                file_path,
+                status=PathScanStatus.PASSED if len(results) == 0 else PathScanStatus.FAILED,
+                results=results,
+            )
         except Exception as exc:
             logger.exception("The file scanner failed to read file %s", file_path, stack_info=True)
             return PathScanResult(file_path, status=PathScanStatus.ERRORED, additional_detail=str(exc))
@@ -218,7 +225,8 @@ class PresidioScanner:
             logger.debug("No paths need a personal data scan, skipping loading the presidio analyzer")
             return PresidioScanResult(results=results)
 
-        analyzer = self._get_analyzer()
+        # Loading spaCy is CPU-bound so run it in a thread to avoid delaying the trufflehog scan
+        analyzer = await to_thread.run_sync(self._get_analyzer)
         entities = analyzer.get_supported_entities()
 
         for index, path in enumerate(self.paths):
