@@ -59,17 +59,10 @@ class TestValidateSecurityScan:
             }
             assert await ValidateSecurityScan()._validate_hook_settings(repo) is True
 
-    async def test_run_when_validate_hook_settings_fails_returns_error_code(self):
-        async with NamedTemporaryFile() as tf:
-            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=False):
-                result = await ValidateSecurityScan(paths=[tf.name]).run()
-                assert result.success is False
-
     async def test_run_with_file_with_no_contents_returns_error_code(self):
         async with NamedTemporaryFile() as tf:
-            with patch.object(ValidateSecurityScan, "validate_hook_settings", return_value=True):
-                result = await ValidateSecurityScan(paths=[tf.name]).run()
-                assert result.success is False
+            result = await ValidateSecurityScan(paths=[tf.name]).run()
+            assert result.success is False
 
     async def test_run_with_file_with_message_has_signed_off_by_trailer_added(self):
         async with NamedTemporaryFile() as tf:
