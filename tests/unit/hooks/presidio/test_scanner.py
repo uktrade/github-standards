@@ -4,6 +4,7 @@ import pytest
 
 from anyio import NamedTemporaryFile
 from presidio_analyzer import RecognizerResult
+from presidio_analyzer.predefined_recognizers import EmailRecognizer, SpacyRecognizer
 
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PresidioScanner, PathScanResult
@@ -48,7 +49,35 @@ class TestPresidioScanResult:
         assert str(errored_paths_table) in str(result)
 
 
+def mock_analyzer_with_recognizers(recognizers) -> MagicMock:
+    analyzer = MagicMock()
+    analyzer.registry.recognizers = recognizers
+    analyzer.nlp_engine.nlp = {"en": MagicMock(pipe_names=["tok2vec", "tagger", "parser", "lemmatizer", "ner"])}
+    return analyzer
+
+
 class TestPresidioScanner:
+    def test_disable_unused_spacy_components_disables_parser_and_ner_without_nlp_recognizers(self):
+        analyzer = mock_analyzer_with_recognizers([EmailRecognizer()])
+
+        PresidioScanner()._disable_unused_spacy_components(analyzer)
+
+        nlp = analyzer.nlp_engine.nlp["en"]
+        assert nlp.disable_pipe.call_args_list == [call("parser"), call("ner")]
+
+    def test_disable_unused_spacy_components_keeps_ner_when_an_nlp_recognizer_is_enabled(self):
+        analyzer = mock_analyzer_with_recognizers([EmailRecognizer(), SpacyRecognizer()])
+
+        PresidioScanner()._disable_unused_spacy_components(analyzer)
+
+        nlp = analyzer.nlp_engine.nlp["en"]
+        assert nlp.disable_pipe.call_args_list == [call("parser")]
+
+    def test_get_analyzer_only_runs_the_spacy_components_presidio_uses(self):
+        analyzer = PresidioScanner()._get_analyzer()
+
+        assert analyzer.nlp_engine.nlp["en"].pipe_names == ["tok2vec", "tagger", "attribute_ruler", "lemmatizer"]
+
     async def test_scan_returns_invalid_paths_without_loading_analyzer(self):
         with (
             patch.object(PathFilter, "_get_exclusions", return_value=[]),

@@ -156,8 +156,25 @@ class PresidioScanner:
             recognizer_registry_conf_file=Path.joinpath(base_path, RECOGNIZER_CONFIG_FILE),
         )
         analyzer = provider.create_engine()
+        self._disable_unused_spacy_components(analyzer)
 
         return analyzer
+
+    def _disable_unused_spacy_components(self, analyzer: AnalyzerEngine):
+        from presidio_analyzer.predefined_recognizers import SpacyRecognizer
+
+        # Presidio only reads lemmas (for context words) and named entities from spaCy so the dependency parser is
+        # never used. Named entities are only used by NLP-based recognizers (SpacyRecognizer and its subclasses) which
+        # are disabled in recognizer_config.yaml. Disabling both roughly halves file scan time
+        unused_components = ["parser"]
+        if not any(isinstance(recognizer, SpacyRecognizer) for recognizer in analyzer.registry.recognizers):
+            unused_components.append("ner")
+
+        nlp = analyzer.nlp_engine.nlp[DEFAULT_LANGUAGE_CODE]
+        for component in unused_components:
+            if component in nlp.pipe_names:
+                logger.debug("Disabling unused spaCy component %s", component)
+                nlp.disable_pipe(component)
 
     def _scan_content(self, analyzer: AnalyzerEngine, entities: List[str], content: str):
         results = analyzer.analyze(
