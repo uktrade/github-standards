@@ -1,4 +1,4 @@
-name: "Organisation ruleset: Common CI blah de blah blah"
+name: "Organisation ruleset: Common CI"
 
 on:
   push:
