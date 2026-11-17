@@ -31,10 +31,10 @@ def mock_open_returning(body: bytes) -> MagicMock:
 
 
 class TestRunSecurityScan:
-    def test_importing_the_hook_does_not_load_presidio(self, modules_loaded_by_importing):
+    def test_importing_the_hook_does_not_load_presidio_or_gitpython(self, modules_loaded_by_importing):
         loaded = modules_loaded_by_importing("src.hooks.run_security_scan")
 
-        assert {"presidio_analyzer", "spacy"}.isdisjoint(loaded)
+        assert {"presidio_analyzer", "spacy", "git"}.isdisjoint(loaded)
 
     def test_validate_args_without_path_list_returns_false(self):
         assert RunSecurityScan(paths=None).validate_args() is False
@@ -158,7 +158,7 @@ class TestRunSecurityScan:
 
     async def test_run_personal_scan_with_github_action_set_true_calls_scanner_with_all_files_in_git_repo(self):
         with (
-            patch("src.hooks.run_security_scan.git.Repo") as mock_repo,
+            patch("git.Repo") as mock_repo,
             patch("src.hooks.run_security_scan.PresidioScanner") as mock_scanner,
         ):
             git_file_1 = MagicMock()

@@ -1,5 +1,4 @@
 import asyncio
-import git
 import json
 import urllib.request
 
@@ -144,6 +143,9 @@ class RunSecurityScan(Hook):
     async def run_personal_scan(self) -> PresidioScanResult:
         paths_to_scan = self.paths
         if self.github_action:
+            # GitPython runs `git version` on import
+            import git
+
             repo = git.Repo(self.paths[0])
             logger.debug("Scanning files in git repository %s", repo)
             paths_to_scan = [entry.abspath for entry in repo.tree().traverse()]
