@@ -8,6 +8,11 @@ from src.hooks.config import PERSONAL_DATA_SCAN, SECURITY_SCAN
 
 
 class TestCLI:
+    def test_validate_scan_imports_do_not_load_the_scanning_dependencies(self, modules_loaded_by_importing):
+        loaded = modules_loaded_by_importing("src.hooks.cli", "src.hooks.validate_security_scan")
+
+        assert {"presidio_analyzer", "spacy", "proxy", "aiohttp", "git"}.isdisjoint(loaded)
+
     class TestParseArgs:
         def test_parse_args_without_subcommand_returns_error(self):
             testargs = [""]

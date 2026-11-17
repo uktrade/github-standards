@@ -8,13 +8,23 @@ from typing import List, Optional
 from logging import StreamHandler, captureWarnings, INFO, DEBUG, Formatter
 
 from src.hooks.config import LOGGER, PERSONAL_DATA_SCAN, SECURITY_SCAN
-from src.hooks.run_security_scan import RunSecurityScan
-from src.hooks.validate_security_scan import ValidateSecurityScan
-
 from src.hooks.hooks_base import Hook
 
 
 logger = LOGGER
+
+
+# Each hook module is imported only when its subcommand runs so validate_scan doesn't load the scanning dependencies
+def _load_run_scan_hook(args) -> Hook:
+    from src.hooks.run_security_scan import RunSecurityScan
+
+    return RunSecurityScan(args.paths, args.verbose, args.github_action, args.excluded_scans)
+
+
+def _load_validate_scan_hook(args) -> Hook:
+    from src.hooks.validate_security_scan import ValidateSecurityScan
+
+    return ValidateSecurityScan(args.paths, args.verbose)
 
 
 def init_logger(verbose):
@@ -61,12 +71,10 @@ def parse_args(argv):
         action="append",
     )
 
-    run_scan_parser.set_defaults(
-        hook=lambda args: RunSecurityScan(args.paths, args.verbose, args.github_action, args.excluded_scans)
-    )
+    run_scan_parser.set_defaults(hook=_load_run_scan_hook)
 
     validate_scan_parser = subparsers.add_parser("validate_scan", parents=[parent_parser])
-    validate_scan_parser.set_defaults(hook=lambda args: ValidateSecurityScan(args.paths, args.verbose))
+    validate_scan_parser.set_defaults(hook=_load_validate_scan_hook)
 
     return main_parser.parse_args(argv)
 
