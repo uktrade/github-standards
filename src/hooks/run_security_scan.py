@@ -66,6 +66,7 @@ class RunSecurityScan(Hook):
         super().__init__(paths, verbose)
         self.github_action = github_action
         self.excluded_scans = excluded_scans if excluded_scans else []
+        self._version_in_config: str | None = None
 
     def validate_args(self) -> bool:
         if self.github_action:
@@ -114,9 +115,13 @@ class RunSecurityScan(Hook):
             )
             return False
 
-        # If the call to get the remote version fails, return True as we don't want this to block a dev from committing in this scenario.
+        # Defer the remote version check to run() so it runs alongside the scans instead of delaying them
+        self._version_in_config = bist_repo_config["rev"]
+        return True
+
+    async def _check_remote_version(self, version_in_config):
+        # A failed remote version check must not fail the hook or block commits
         try:
-            version_in_config = bist_repo_config["rev"]
             version_in_remote = await self._get_version_from_remote()
 
             if version_in_config != version_in_remote:
@@ -127,8 +132,6 @@ class RunSecurityScan(Hook):
                 )
         except Exception:
             logger.exception("The remote version check failed", stack_info=True)
-
-        return True
 
     async def run_security_scan(self) -> TrufflehogScanResult:
         return await TrufflehogScanner(
@@ -168,6 +171,10 @@ class RunSecurityScan(Hook):
                 personal_data_scan_task = tg.create_task(self.run_personal_scan())
             else:
                 logger.debug("Personal data scan is excluded")
+
+            # Schedule after the scans so proxy.py forks its acceptor before this check opens a connection
+            if self._version_in_config is not None:
+                tg.create_task(self._check_remote_version(self._version_in_config))
 
         security_scan_result = security_scan_task.result() if security_scan_task else None
         personal_data_scan_result = personal_data_scan_task.result() if personal_data_scan_task else None
