@@ -4,6 +4,7 @@ import pytest
 
 from anyio import NamedTemporaryFile
 from presidio_analyzer import RecognizerResult
+from presidio_analyzer.predefined_recognizers import EmailRecognizer, SpacyRecognizer
 
 from src.hooks.presidio.path_filter import PathFilter, PathScanStatus
 from src.hooks.presidio.scanner import PersonalDataDetection, PresidioScanResult, PresidioScanner, PathScanResult
@@ -48,15 +49,61 @@ class TestPresidioScanResult:
         assert str(errored_paths_table) in str(result)
 
 
-class TestPresidioScanner:
-    async def test_scan_path_returns_when_invalid_path(self):
-        with (
-            patch.object(PathFilter, "_check_is_path_invalid") as mock_check_is_path_invalid,
-        ):
-            mock_check_is_path_invalid.return_value = PathScanStatus.EXCLUDED
-            result = await PresidioScanner()._scan_path(MagicMock(), [], "a", [])
+def mock_analyzer_with_recognizers(recognizers) -> MagicMock:
+    analyzer = MagicMock()
+    analyzer.registry.recognizers = recognizers
+    analyzer.nlp_engine.nlp = {"en": MagicMock(pipe_names=["tok2vec", "tagger", "parser", "lemmatizer", "ner"])}
+    return analyzer
 
-            assert result.status == PathScanStatus.EXCLUDED
+
+class TestPresidioScanner:
+    def test_disable_unused_spacy_components_disables_parser_and_ner_without_nlp_recognizers(self):
+        analyzer = mock_analyzer_with_recognizers([EmailRecognizer()])
+
+        PresidioScanner()._disable_unused_spacy_components(analyzer)
+
+        nlp = analyzer.nlp_engine.nlp["en"]
+        assert nlp.disable_pipe.call_args_list == [call("parser"), call("ner")]
+
+    def test_disable_unused_spacy_components_keeps_ner_when_an_nlp_recognizer_is_enabled(self):
+        analyzer = mock_analyzer_with_recognizers([EmailRecognizer(), SpacyRecognizer()])
+
+        PresidioScanner()._disable_unused_spacy_components(analyzer)
+
+        nlp = analyzer.nlp_engine.nlp["en"]
+        assert nlp.disable_pipe.call_args_list == [call("parser")]
+
+    def test_get_analyzer_only_runs_the_spacy_components_presidio_uses(self):
+        analyzer = PresidioScanner()._get_analyzer()
+
+        assert analyzer.nlp_engine.nlp["en"].pipe_names == ["tok2vec", "tagger", "attribute_ruler", "lemmatizer"]
+
+    async def test_scan_returns_invalid_paths_without_loading_analyzer(self):
+        with (
+            patch.object(PathFilter, "_get_exclusions", return_value=[]),
+            patch.object(PathFilter, "_check_is_path_invalid") as mock_check_is_path_invalid,
+            patch.object(PresidioScanner, "_get_analyzer") as mock_get_analyzer,
+            patch.object(PresidioScanner, "_scan_path") as mock_scan_path,
+        ):
+            mock_check_is_path_invalid.side_effect = [PathScanStatus.EXCLUDED, PathScanStatus.SKIPPED]
+            result = await PresidioScanner(paths=["a.txt", "b.py"]).scan()
+
+            assert [r.path for r in result.paths_excluded] == ["a.txt"]
+            assert [r.path for r in result.paths_skipped] == ["b.py"]
+            mock_get_analyzer.assert_not_called()
+            mock_scan_path.assert_not_called()
+
+    async def test_scan_marks_path_errored_when_path_check_raises(self):
+        with (
+            patch.object(PathFilter, "_get_exclusions", return_value=[]),
+            patch.object(PathFilter, "_check_is_path_invalid", side_effect=OSError("Permission denied")),
+            patch.object(PresidioScanner, "_get_analyzer") as mock_get_analyzer,
+        ):
+            result = await PresidioScanner(paths=["a.txt"]).scan()
+
+            assert [r.path for r in result.paths_errored] == ["a.txt"]
+            assert result.paths_errored[0].additional_detail == "Permission denied"
+            mock_get_analyzer.assert_not_called()
 
     @pytest.mark.parametrize("file_extension", [".csv"])
     async def test_scan_path_scans_line_by_line_for_file_extensions_with_expected_results(self, file_extension):
@@ -75,7 +122,7 @@ class TestPresidioScanner:
                     [found_phone],
                 ]
 
-                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
+                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name)
                 mock_scan_content.assert_has_calls(
                     [
                         call(ANY, ANY, "Has Email"),
@@ -99,7 +146,7 @@ class TestPresidioScanner:
                 expected_scan_result = PathScanResult(tf.name, PathScanStatus.FAILED, [found_email])
                 mock_scan_content.return_value = [found_email]
 
-                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
+                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name)
 
                 mock_scan_content.assert_called_once_with(ANY, ANY, contents)
                 assert pickle.dumps(result) == pickle.dumps(expected_scan_result)
@@ -112,9 +159,15 @@ class TestPresidioScanner:
                 await tf.write(contents)
                 await tf.seek(0)
 
-                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name, [])
+                result = await PresidioScanner()._scan_path(MagicMock(), [], tf.name)
                 assert result.status == PathScanStatus.ERRORED
                 assert result.additional_detail == "An exception message"
+
+    def test_scan_lines_scans_each_line_split_only_on_newlines(self):
+        with patch.object(PresidioScanner, "_scan_content", return_value=[]) as mock_scan_content:
+            PresidioScanner()._scan_lines(MagicMock(), [], "a,b\fc  \nd\n")
+
+        assert mock_scan_content.call_args_list == [call(ANY, ANY, "a,b\fc"), call(ANY, ANY, "d")]
 
     def test_scan_content_returns_detections_list_when_path_has_personal_data(self):
         contents = "I have personal data"
@@ -150,14 +203,21 @@ class TestPresidioScanner:
             assert result.paths_containing_personal_data == []
             assert result.paths_without_personal_data == []
 
-    async def test_scan_calls_scan_path_for_every_path(self):
+    async def test_scan_calls_scan_path_for_every_valid_path(self):
         with (
             patch.object(PathFilter, "_get_exclusions") as mock_path_filter,
+            patch.object(PathFilter, "_check_is_path_invalid") as mock_check_is_path_invalid,
+            patch.object(PresidioScanner, "_get_analyzer") as mock_get_analyzer,
             patch.object(PresidioScanner, "_scan_path") as mock_scan_path,
         ):
             mock_path_filter.return_value = []
+            mock_check_is_path_invalid.side_effect = [None, None, PathScanStatus.SKIPPED]
+            mock_scan_path.side_effect = lambda analyzer, entities, path: PathScanResult(path, PathScanStatus.PASSED)
             test_paths = ["a.txt", "b.yml", "c.py"]
 
-            await PresidioScanner(paths=test_paths).scan()
+            result = await PresidioScanner(paths=test_paths).scan()
 
-            mock_scan_path.assert_has_calls([call(ANY, ANY, path, []) for path in test_paths])
+            mock_get_analyzer.assert_called_once()
+            assert mock_scan_path.call_args_list == [call(ANY, ANY, "a.txt"), call(ANY, ANY, "b.yml")]
+            assert [r.path for r in result.paths_without_personal_data] == ["a.txt", "b.yml"]
+            assert [r.path for r in result.paths_skipped] == ["c.py"]

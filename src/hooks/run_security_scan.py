@@ -1,6 +1,6 @@
 import asyncio
-import aiohttp
-import git
+import json
+import urllib.request
 
 from pathlib import Path
 from typing import List
@@ -10,6 +10,7 @@ from src.hooks.config import (
     LOGGER,
     PERSONAL_DATA_SCAN,
     PRE_COMMIT_FILE,
+    RELEASE_CHECK_TIMEOUT_SECONDS,
     RELEASE_CHECK_URL,
     SECURITY_SCAN,
 )
@@ -66,6 +67,7 @@ class RunSecurityScan(Hook):
         super().__init__(paths, verbose)
         self.github_action = github_action
         self.excluded_scans = excluded_scans if excluded_scans else []
+        self._version_in_config: str | None = None
 
     def validate_args(self) -> bool:
         if self.github_action:
@@ -88,24 +90,20 @@ class RunSecurityScan(Hook):
 
         return True
 
-    def _get_client_session(self) -> aiohttp.ClientSession:
-        return aiohttp.ClientSession(
-            base_url="https://api.github.com",
-            headers={
-                "Accept": "application/vnd.github+json",
-            },
+    def _fetch_latest_version(self) -> str:
+        request = urllib.request.Request(
+            RELEASE_CHECK_URL,
+            headers={"Accept": "application/vnd.github+json", "User-Agent": "uktrade-github-standards-hooks"},
         )
+        # Ignore proxy settings in the environment (as the check always has) and connect to GitHub directly
+        opener = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+        with opener.open(request, timeout=RELEASE_CHECK_TIMEOUT_SECONDS) as response:
+            logger.debug("Received %s response from %s", response.status, response.url)
+            return json.load(response)["tag_name"]
 
-    async def _get_version_from_remote(self):
-        session = self._get_client_session()
-        # This is a low timeout, we don't want to block commits or make devs wait for the github api
-        timeout = aiohttp.ClientTimeout(total=1)
-
-        async with session.get(RELEASE_CHECK_URL, raise_for_status=True, timeout=timeout) as response:
-            logger.debug("Received %s response from %s", response.status, response.real_url)
-            json_content = await response.json()
-            await session.close()
-            return json_content["tag_name"]
+    async def _get_version_from_remote(self) -> str:
+        # The timeout is short so commits are not held up by the GitHub API
+        return await asyncio.wait_for(asyncio.to_thread(self._fetch_latest_version), RELEASE_CHECK_TIMEOUT_SECONDS)
 
     async def _validate_hook_settings(self, bist_repo_config):
         if "rev" not in bist_repo_config:
@@ -114,9 +112,13 @@ class RunSecurityScan(Hook):
             )
             return False
 
-        # If the call to get the remote version fails, return True as we don't want this to block a dev from committing in this scenario.
+        # Defer the remote version check to run() so it runs alongside the scans instead of delaying them
+        self._version_in_config = bist_repo_config["rev"]
+        return True
+
+    async def _check_remote_version(self, version_in_config):
+        # A failed remote version check must not fail the hook or block commits
         try:
-            version_in_config = bist_repo_config["rev"]
             version_in_remote = await self._get_version_from_remote()
 
             if version_in_config != version_in_remote:
@@ -127,8 +129,6 @@ class RunSecurityScan(Hook):
                 )
         except Exception:
             logger.exception("The remote version check failed", stack_info=True)
-
-        return True
 
     async def run_security_scan(self) -> TrufflehogScanResult:
         return await TrufflehogScanner(
@@ -143,6 +143,9 @@ class RunSecurityScan(Hook):
     async def run_personal_scan(self) -> PresidioScanResult:
         paths_to_scan = self.paths
         if self.github_action:
+            # GitPython runs `git version` on import
+            import git
+
             repo = git.Repo(self.paths[0])
             logger.debug("Scanning files in git repository %s", repo)
             paths_to_scan = [entry.abspath for entry in repo.tree().traverse()]
@@ -168,6 +171,10 @@ class RunSecurityScan(Hook):
                 personal_data_scan_task = tg.create_task(self.run_personal_scan())
             else:
                 logger.debug("Personal data scan is excluded")
+
+            # Schedule after the scans so proxy.py forks its acceptor before this check opens a connection
+            if self._version_in_config is not None:
+                tg.create_task(self._check_remote_version(self._version_in_config))
 
         security_scan_result = security_scan_task.result() if security_scan_task else None
         personal_data_scan_result = personal_data_scan_task.result() if personal_data_scan_task else None
