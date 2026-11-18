@@ -218,4 +218,4 @@ class TestValidateSecurityScan:
             result, _ = await run_on_message(tmp_path, b"A helpful commit message\n")
 
         assert result.success is False
-        assert "fatal: something went wrong" in result.message
+        assert result.message == f"Unable to add the {TRAILER} trailer: fatal: something went wrong"
