@@ -1,10 +1,16 @@
-import io
 import re
+
+from pathlib import Path
+
+from anyio import run_process
 
 from src.hooks.config import LOGGER, MANDATORY_HOOK_IDS, PRE_COMMIT_FILE, SIGNED_OFF_BY_TRAILER
 from src.hooks.hooks_base import Hook, HookRunResult
 
 logger = LOGGER
+
+# The line `git commit -v` puts above the diff, starting with the comment character
+SCISSORS_LINE = re.compile(rb"^(\S+) -{24} >8 -{24}$", flags=re.MULTILINE)
 
 
 class ValidateSecurityScanResult(HookRunResult):
@@ -53,31 +59,52 @@ class ValidateSecurityScan(Hook):
 
     async def run(self) -> ValidateSecurityScanResult:
         commit_msg_file = self.paths[0]  # type: ignore
+        commit_msg_path = Path(commit_msg_file)
         logger.debug("Reading contents from %s", commit_msg_file)
-        with io.open(commit_msg_file, "r+", encoding="utf-8") as fd:
-            contents = fd.readlines()
+        # git edits the file whatever its encoding so decode the message only for logging
+        message = commit_msg_path.read_bytes()
 
-            logger.debug("Commit message for %s is %s", commit_msg_file, "".join(contents))
-            if not contents:
-                logger.debug("No commit message provided")
-                return ValidateSecurityScanResult(False, "No commit message provided")
+        logger.debug("Commit message for %s is %s", commit_msg_file, message.decode(errors="replace"))
+        if not message:
+            logger.debug("No commit message provided")
+            return ValidateSecurityScanResult(False, "No commit message provided")
 
-            regex = re.compile(r"Signed-off-by", flags=re.DOTALL)
+        if not message.endswith(b"\n"):
+            # Without a final newline, older git (such as the image's 2.39) adds the trailer to the last paragraph,
+            # where git doesn't recognise it as a trailer
+            with commit_msg_path.open("ab") as fd:
+                fd.write(b"\n")
 
-            filtered_contents = []
-            for i in contents:
-                if i == "# ------------------------ >8 ------------------------\n":
-                    break
+        # Inside the hook's container git can't see the user's global config so take a custom comment character from
+        # the scissors line. Otherwise the trailer lands below that line and git discards it with the diff
+        git_config = []
+        scissors_line = SCISSORS_LINE.search(message)
+        if scissors_line:
+            git_config = ["-c", f"core.commentChar={scissors_line.group(1).decode(errors='replace')}"]
 
-                if not regex.match(i):
-                    filtered_contents.append(i)
+        # addIfDifferent stops git adding the trailer again when another Signed-off-by line follows it. Both options
+        # also override trailer.* settings in the repo's git config
+        git_result = await run_process(
+            [
+                "git",
+                *git_config,
+                "interpret-trailers",
+                "--in-place",
+                "--if-exists",
+                "addIfDifferent",
+                "--if-missing",
+                "add",
+                "--trailer",
+                SIGNED_OFF_BY_TRAILER,
+                commit_msg_file,
+            ],
+            check=False,
+        )
+        if git_result.returncode != 0:
+            error = git_result.stderr.decode(errors="replace").strip()
+            return ValidateSecurityScanResult(False, f"Unable to add the {SIGNED_OFF_BY_TRAILER} trailer: {error}")
 
-            filtered_contents.append(f"\n{SIGNED_OFF_BY_TRAILER}")
-            logger.debug("New commit message is %s", "".join(filtered_contents))
+        logger.debug("New commit message is %s", commit_msg_path.read_bytes().decode(errors="replace"))
+        logger.info("Commit message updated")
 
-            fd.seek(0)
-            fd.writelines(filtered_contents)
-            fd.truncate()
-            logger.info("Commit message updated")
-
-            return ValidateSecurityScanResult(True)
+        return ValidateSecurityScanResult(True)
