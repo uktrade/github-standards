@@ -12,7 +12,7 @@ on:
 
 jobs:
   pre-commit-check:
-    if: ${{ github.actor != 'dependabot[bot]' }}
+    if: ${{ github.actor != 'dependabot[bot]' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
     env:
       SIGNED_OFF_MESSAGE: "Signed-off-by: BIST pre-commit check"
       # Commits made in the GitHub web UI cannot run the pre-commit hook. Commits by this committer whose
