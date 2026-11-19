@@ -66,7 +66,8 @@ class TrufflehogScanner:
             # Scan the files passed in
             scan_mode = "filesystem"
             paths_to_scan = paths
-
+# trufflehog's --exclude-paths is not applied to files passed in explicitly,
+# so filter them here using the same regexes from the exclusions file
             if exclusions_file_exists:
                 path_filter = PathFilter()
                 exclusions = await path_filter._get_exclusions(TRUFFLEHOG_EXCLUSIONS_FILE_PATH)
