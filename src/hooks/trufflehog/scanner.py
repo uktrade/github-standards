@@ -97,10 +97,7 @@ class TrufflehogScanner:
 
         trufflehog_cmd_args.extend(paths_to_scan)  # type: ignore
 
-        logger.debug(
-            "Running trufflehog command '%s'",
-            " ".join(trufflehog_cmd_args),
-        )
+        logger.debug("Running trufflehog command '%s'", " ".join(trufflehog_cmd_args))
 
         return trufflehog_cmd_args
 
