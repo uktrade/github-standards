@@ -95,7 +95,7 @@ class TrufflehogScanner:
         )
         trufflehog_cmd_args.append(f"--include-detectors={trufflehog_detectors}")
 
-        trufflehog_cmd_args.extend(paths_to_scan)
+        trufflehog_cmd_args.extend(paths_to_scan)  # type: ignore
 
         logger.debug(
             "Running trufflehog command '%s'",
