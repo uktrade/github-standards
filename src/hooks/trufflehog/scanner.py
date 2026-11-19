@@ -17,6 +17,7 @@ from src.hooks.config import (
     TRUFFLEHOG_VERBOSE_LOG_LEVEL,
 )
 from src.proxy.plugins import OutgoingRequestInterceptorPlugin
+from src.hooks.presidio.path_filter import PathFilter
 
 logger = LOGGER
 
@@ -55,6 +56,8 @@ class TrufflehogScanner:
     ) -> List[str]:
         trufflehog_log_level = TRUFFLEHOG_VERBOSE_LOG_LEVEL if self.verbose else TRUFFLEHOG_INFO_LOG_LEVEL
 
+        exclusions_file_exists = await Path(TRUFFLEHOG_EXCLUSIONS_FILE_PATH).exists()
+
         if github_action:
             # Scan all files in this branch
             paths_to_scan = [f"file://{paths[0]}"]
@@ -63,6 +66,11 @@ class TrufflehogScanner:
             # Scan the files passed in
             scan_mode = "filesystem"
             paths_to_scan = paths
+
+            if exclusions_file_exists:
+                path_filter = PathFilter()
+                exclusions = await path_filter._get_exclusions(TRUFFLEHOG_EXCLUSIONS_FILE_PATH)
+                paths_to_scan = [path for path in paths_to_scan if not path_filter._is_path_excluded(path, exclusions)]
 
         trufflehog_cmd_args = [
             "trufflehog",
@@ -76,7 +84,7 @@ class TrufflehogScanner:
         if github_action:
             trufflehog_cmd_args.append("--since-commit=main")
 
-        if await Path(TRUFFLEHOG_EXCLUSIONS_FILE_PATH).exists():
+        if exclusions_file_exists:
             logger.debug("Security scanner exclusions file loaded")
             trufflehog_cmd_args.append(f"--exclude-paths={TRUFFLEHOG_EXCLUSIONS_FILE_PATH}")
 
@@ -87,9 +95,12 @@ class TrufflehogScanner:
         )
         trufflehog_cmd_args.append(f"--include-detectors={trufflehog_detectors}")
 
-        trufflehog_cmd_args.extend(paths_to_scan)  # type: ignore
+        trufflehog_cmd_args.extend(paths_to_scan)
 
-        logger.debug("Running trufflehog command '%s'", " ".join(trufflehog_cmd_args))
+        logger.debug(
+            "Running trufflehog command '%s'",
+            " ".join(trufflehog_cmd_args),
+        )
 
         return trufflehog_cmd_args
 
