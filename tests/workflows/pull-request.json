@@ -1,0 +1,14 @@
+{
+  "pull_request": {
+    "head": {
+      "repo": {
+        "full_name": "uktrade/github-standards"
+      }
+    },
+    "base": {
+      "repo": {
+        "full_name": "uktrade/github-standards"
+      }
+    }
+  }
+}

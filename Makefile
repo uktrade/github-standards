@@ -36,3 +36,16 @@ run-hook-docker-github-action:
 	make build-docker-testing
 	docker run --rm -u $$(id -u):$$(id -g) -v .:/src:rw,Z -w /src github-standards-hooks:testing run_scan --verbose --github-action /src
 
+test-actions: test-actions-pull test-actions-fork-pull
+
+test-actions-pull:
+	act pull_request \
+		-W .github/workflows/org.common-ci.yml \
+		-j pre-commit-check \
+		-e tests/workflows/pull-request.json
+
+test-actions-fork-pull:
+	act pull_request \
+		-W .github/workflows/org.common-ci.yml \
+		-j pre-commit-check \
+		-e tests/workflows/fork-pull-request.json
