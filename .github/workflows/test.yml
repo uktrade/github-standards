@@ -21,7 +21,7 @@ jobs:
           python-version-file: ".python-version"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2
+        uses: astral-sh/setup-uv@1db35dd8eee11c5894872e0b383ae6c406cf738d
 
       - name: Install the project
         run: uv sync --locked --all-extras --dev
@@ -54,7 +54,7 @@ jobs:
           outputs: type=docker,dest=${{ runner.temp }}/docker_image.tar
 
       - name: Upload artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9
         with:
           name: docker_image
           path: ${{ runner.temp }}/docker_image.tar

@@ -1,3 +1,4 @@
+import re
 from pathlib import Path
 from unittest.mock import patch
 from src.hooks.config import (
@@ -6,6 +7,7 @@ from src.hooks.config import (
     TRUFFLEHOG_INFO_LOG_LEVEL,
     TRUFFLEHOG_VERBOSE_LOG_LEVEL,
 )
+from src.hooks.presidio.path_filter import PathFilter
 from src.hooks.trufflehog.scanner import TrufflehogScanner
 
 
@@ -105,3 +107,26 @@ class TestTrufflehogScanner:
                 env=mock_env.return_value,
             )
             assert result.detected_keys is None
+
+    async def test_get_args_excludes_explicit_files_matching_security_exclusions(self):
+        paths = [
+            ".github/workflows/org.common-ci.yml",
+            "some-other-file.yml",
+        ]
+        exclusions = [
+            re.compile(r"\.github/workflows/org\.common-ci\.yml"),
+        ]
+        with (
+            patch.object(Path, "exists", return_value=True),
+            patch.object(
+                PathFilter,
+                "_get_exclusions",
+                return_value=exclusions,
+            ),
+        ):
+            args = await TrufflehogScanner()._get_args(
+                paths=paths,
+                github_action=False,
+            )
+        assert ".github/workflows/org.common-ci.yml" not in args
+        assert "some-other-file.yml" in args
